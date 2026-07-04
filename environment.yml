@@ -1,0 +1,6 @@
+name: offline-ai
+channels:
+  - defaults
+dependencies:
+  - python
+prefix: /home/imroot/miniconda3/envs/offline-ai
