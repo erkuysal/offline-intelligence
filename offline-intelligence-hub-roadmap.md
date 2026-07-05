@@ -61,6 +61,8 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
+> **Şu anki konum:** Faz 1 içindeyiz. FastAPI uygulama iskeleti, PostgreSQL bağlantısı, Docker Compose temeli, health check ve database health testleri eklendi. Sıradaki ana işler kullanıcı kaydı/girişi, JWT authentication, RBAC ve doküman metadata akışıdır.
+
 ### Özellikler
 
 - FastAPI REST API
