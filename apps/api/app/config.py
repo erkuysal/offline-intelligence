@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     debug: bool = False
 
     database_url: str
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_access_token_expire_minutes: int = 30
+    document_storage_dir: str = "storage/documents"
+    max_upload_size_bytes: int = 10 * 1024 * 1024
 
     model_config = SettingsConfigDict(
         env_file=".env",
