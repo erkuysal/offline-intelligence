@@ -14,26 +14,56 @@ class TokenError(ValueError):
 
 def create_access_token(subject: str) -> str:
     settings = get_settings()
+    return _create_token(
+        subject=subject,
+        token_type="access",
+        expires_delta=timedelta(minutes=settings.jwt_access_token_expire_minutes),
+        secret_key=settings.jwt_secret_key,
+    )
+
+
+def create_refresh_token(subject: str) -> str:
+    settings = get_settings()
+    return _create_token(
+        subject=subject,
+        token_type="refresh",
+        expires_delta=timedelta(minutes=settings.jwt_refresh_token_expire_minutes),
+        secret_key=settings.jwt_secret_key,
+    )
+
+
+def _create_token(
+    subject: str,
+    token_type: str,
+    expires_delta: timedelta,
+    secret_key: str,
+) -> str:
     now = datetime.now(UTC)
     payload = {
         "sub": subject,
         "iat": int(now.timestamp()),
-        "exp": int(
-            (now + timedelta(minutes=settings.jwt_access_token_expire_minutes)).timestamp()
-        ),
-        "typ": "access",
+        "exp": int((now + expires_delta).timestamp()),
+        "typ": token_type,
     }
-    return _encode_jwt(payload, settings.jwt_secret_key)
+    return _encode_jwt(payload, secret_key)
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
+    return _decode_token(token, expected_type="access")
+
+
+def decode_refresh_token(token: str) -> dict[str, Any]:
+    return _decode_token(token, expected_type="refresh")
+
+
+def _decode_token(token: str, expected_type: str) -> dict[str, Any]:
     settings = get_settings()
     payload = _decode_jwt(token, settings.jwt_secret_key)
     expires_at = payload.get("exp")
     if not isinstance(expires_at, int) or expires_at < int(datetime.now(UTC).timestamp()):
         raise TokenError("Token has expired")
 
-    if payload.get("typ") != "access":
+    if payload.get("typ") != expected_type:
         raise TokenError("Invalid token type")
 
     return payload
@@ -102,4 +132,3 @@ def _base64url_encode(value: bytes) -> str:
 
 def _add_base64_padding(value: str) -> bytes:
     return (value + "=" * (-len(value) % 4)).encode("ascii")
-

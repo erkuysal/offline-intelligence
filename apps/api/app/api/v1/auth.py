@@ -6,9 +6,20 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, UserCreate, UserRead
+from app.schemas.auth import (
+    LoginRequest,
+    RefreshTokenRequest,
+    TokenResponse,
+    UserCreate,
+    UserRead,
+)
 from app.security.passwords import hash_password, verify_password
-from app.security.tokens import create_access_token
+from app.security.tokens import (
+    TokenError,
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+)
 from app.services.roles import (
     DEFAULT_USER_ROLE,
     assign_role,
@@ -69,5 +80,43 @@ def login_user(
 
     return TokenResponse(
         access_token=create_access_token(subject=str(user.id)),
+        refresh_token=create_refresh_token(subject=str(user.id)),
+        token_type="bearer",
+    )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh_token(
+    payload: RefreshTokenRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenResponse:
+    try:
+        token_payload = decode_refresh_token(payload.refresh_token)
+    except TokenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+    subject = token_payload.get("sub")
+    if not isinstance(subject, str) or not subject.isdigit():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = db.get(User, int(subject))
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return TokenResponse(
+        access_token=create_access_token(subject=str(user.id)),
+        refresh_token=create_refresh_token(subject=str(user.id)),
         token_type="bearer",
     )

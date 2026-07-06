@@ -8,10 +8,13 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     environment: str = "development"
     debug: bool = False
+    host: str = "127.0.0.1"
+    port: int = 8000
 
     database_url: str
     jwt_secret_key: str = "change-me-in-production"
     jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_minutes: int = 7 * 24 * 60
     document_storage_dir: str = "storage/documents"
     max_upload_size_bytes: int = 5 * 1024 * 1024
 

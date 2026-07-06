@@ -65,6 +65,67 @@ def test_login_returns_access_token() -> None:
     body = response.json()
     assert body["token_type"] == "bearer"
     assert body["access_token"]
+    assert body["refresh_token"]
+
+
+def test_refresh_returns_new_token_pair() -> None:
+    email = unique_email()
+    password = "correct-horse-battery-staple"
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+
+    response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": login_response.json()["refresh_token"],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token_type"] == "bearer"
+    assert body["access_token"]
+    assert body["refresh_token"]
+
+
+def test_refresh_rejects_access_token() -> None:
+    email = unique_email()
+    password = "correct-horse-battery-staple"
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": email,
+            "password": password,
+        },
+    )
+
+    response = client.post(
+        "/api/v1/auth/refresh",
+        json={
+            "refresh_token": login_response.json()["access_token"],
+        },
+    )
+
+    assert response.status_code == 401
 
 
 def test_login_rejects_wrong_password() -> None:
@@ -86,4 +147,3 @@ def test_login_rejects_wrong_password() -> None:
     )
 
     assert response.status_code == 401
-
