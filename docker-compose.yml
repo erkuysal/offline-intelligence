@@ -1,4 +1,37 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: offline-ai-api
+    environment:
+      APP_NAME: Offline Intelligence Hub API
+      APP_VERSION: 0.1.0
+      ENVIRONMENT: development
+      DEBUG: "false"
+      HOST: 0.0.0.0
+      PORT: 8000
+      DATABASE_URL: postgresql+psycopg://offline_ai:offline_ai@postgres:5432/offline_ai
+      JWT_SECRET_KEY: change-me-in-production
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
+      DOCUMENT_STORAGE_DIR: /app/storage/documents
+      MAX_UPLOAD_SIZE_BYTES: 5242880
+    ports:
+      - "8000:8000"
+    volumes:
+      - api_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   postgres:
     image: postgres:16-alpine
     container_name: offline-ai-postgres
@@ -19,4 +52,5 @@ services:
       retries: 10
 
 volumes:
+  api_storage:
   postgres_data:

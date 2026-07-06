@@ -13,6 +13,8 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 - TXT/PDF document upload with a 5 MB limit
 - Document metadata listing, lookup, and deletion
 - Local file storage for uploaded documents
+- Structured request logging
+- Basic `/metrics` endpoint
 
 ## Local Setup
 
@@ -64,6 +66,7 @@ The smoke test performs a real HTTP flow:
 
 - health check
 - database health check
+- metrics
 - user registration
 - login
 - token refresh
@@ -84,4 +87,24 @@ Run tests:
 
 ```bash
 ./app.py test
+```
+
+## Docker Compose
+
+Build and start the API with PostgreSQL:
+
+```bash
+docker compose up --build api
+```
+
+The API container waits for PostgreSQL, applies Alembic migrations, and then starts FastAPI on:
+
+```text
+http://127.0.0.1:8000
+```
+
+Run the same smoke test against the containerized API:
+
+```bash
+./app.py smoke
 ```
