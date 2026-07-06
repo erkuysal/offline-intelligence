@@ -9,6 +9,12 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, TokenResponse, UserCreate, UserRead
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import create_access_token
+from app.services.roles import (
+    DEFAULT_USER_ROLE,
+    assign_role,
+    get_or_create_role,
+    seed_default_roles,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -29,10 +35,12 @@ def register_user(
             detail="Email is already registered",
         )
 
+    seed_default_roles(db)
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
     )
+    assign_role(user, get_or_create_role(db, DEFAULT_USER_ROLE))
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -63,4 +71,3 @@ def login_user(
         access_token=create_access_token(subject=str(user.id)),
         token_type="bearer",
     )
-

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.security.tokens import TokenError, decode_access_token
+from app.services.roles import role_names
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -48,4 +50,20 @@ def get_current_user(
         )
 
     return user
+
+
+def require_roles(*required_roles: str) -> Callable[[User], User]:
+    def dependency(
+        current_user: Annotated[User, Depends(get_current_user)],
+    ) -> User:
+        current_roles = set(role_names(current_user))
+        if current_roles.isdisjoint(required_roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient role",
+            )
+
+        return current_user
+
+    return dependency
 
