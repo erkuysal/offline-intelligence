@@ -61,7 +61,7 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1 içindeyiz. FastAPI uygulama iskeleti, PostgreSQL bağlantısı, Docker Compose temeli, health check ve database health testleri eklendi. Sıradaki ana işler kullanıcı kaydı/girişi, JWT authentication, RBAC ve doküman metadata akışıdır.
+> **Şu anki konum:** Faz 1'in son bölümündeyiz. FastAPI uygulama iskeleti, PostgreSQL bağlantısı, Alembic migration, kullanıcı kaydı/girişi, access/refresh token akışı, temel RBAC, TXT/PDF doküman yükleme, doküman metadata kayıtları, doküman silme, lokal dosya storage, API Dockerfile, Docker Compose API/PostgreSQL akışı, geliştirme launcher'ı (`./app.py`), smoke test, structured request logging ve temel `/metrics` endpoint'i eklendi. Sıradaki ana işler container içinde test çalıştırma, Redis entegrasyonu, database fixture iyileştirmesi ve Faz 1 dokümantasyon/operasyonel temizlik işleridir.
 
 ### Özellikler
 
@@ -103,7 +103,11 @@ GET    /api/v1/documents
 GET    /api/v1/documents/{id}
 DELETE /api/v1/documents/{id}
 
+GET    /api/v1/users/me
+GET    /api/v1/admin/health
+
 GET    /health
+GET    /health/db
 GET    /metrics
 ```
 
@@ -530,58 +534,71 @@ Kullanıcının sisteme kaydolabildiği, oturum açabildiği ve bir doküman yü
 
 ### Backend
 
-- FastAPI uygulama iskeleti
-- Settings yönetimi
-- PostgreSQL bağlantısı
-- SQLAlchemy modelleri
-- Alembic migration
-- User modeli
-- Role modeli
-- Document modeli
-- JWT login
-- Refresh token
-- Document upload
-- File type ve size validation
-- Health endpoint
-- Structured logging
+- [x] FastAPI uygulama iskeleti
+- [x] Settings yönetimi
+- [x] PostgreSQL bağlantısı
+- [x] SQLAlchemy modelleri
+- [x] Alembic migration
+- [x] User modeli
+- [x] Role modeli
+- [x] Document modeli
+- [x] JWT login
+- [x] Refresh token
+- [x] Temel RBAC
+- [x] Document upload
+- [x] Document delete
+- [x] File type ve size validation
+- [x] Health endpoint
+- [x] Structured logging
+- [x] `/metrics` endpoint
 
 ### Infrastructure
 
-- API Dockerfile
-- PostgreSQL container
-- Redis container
-- Docker Compose
-- Persistent volumes
-- `.env.example`
-- Makefile veya task runner
+- [x] API Dockerfile
+- [x] PostgreSQL container
+- [ ] Redis container
+- [x] Docker Compose
+- [x] Persistent volumes
+- [x] `.env.example`
+- [x] Django benzeri task runner (`./app.py`)
+- [x] Smoke test script
 
 ### Testing
 
-- Authentication unit test
-- Document upload integration test
+- [x] Authentication unit test
+- [x] Refresh token testleri
+- [x] RBAC testleri
+- [x] Document upload integration test
+- [x] Document delete integration test
 - Database fixture
-- Health endpoint test
+- [x] Health endpoint test
+- [x] Smoke test
 
 ### Documentation
 
-- README
-- Local setup
-- API usage
+- [x] README
+- [x] Local setup
+- [x] API usage
 - Architecture Decision Record
 
 ## Sprint Kabul Kriterleri
 
 ```text
-[ ] docker compose up ile sistem başlıyor
-[ ] PostgreSQL migration otomatik veya belgeli çalışıyor
-[ ] Kullanıcı oluşturulabiliyor
-[ ] JWT alınabiliyor
-[ ] Korumalı endpoint erişimi çalışıyor
-[ ] PDF/TXT yüklenebiliyor
-[ ] Metadata PostgreSQL'e kaydediliyor
-[ ] Dosya lokal storage'a yazılıyor
+[x] docker compose up ile PostgreSQL ve API başlıyor
+[x] PostgreSQL migration API container başlangıcında otomatik çalışıyor
+[x] Kullanıcı oluşturulabiliyor
+[x] Access token ve refresh token alınabiliyor
+[x] Korumalı endpoint erişimi çalışıyor
+[x] Temel RBAC çalışıyor
+[x] PDF/TXT yüklenebiliyor
+[x] Metadata PostgreSQL'e kaydediliyor
+[x] Dosya lokal storage'a yazılıyor
+[x] Doküman metadata ve lokal dosya birlikte silinebiliyor
+[x] Smoke test gerçek HTTP akışını doğruluyor
 [ ] Testler container içinde çalışıyor
-[ ] /health endpoint'i 200 dönüyor
+[x] /health endpoint'i 200 dönüyor
+[x] /health/db endpoint'i 200 dönüyor
+[x] /metrics endpoint'i 200 dönüyor
 ```
 
 ---
@@ -723,12 +740,15 @@ Ardından şu sırayla ilerlenir:
 3. Kullanıcı modeli
 4. Authentication
 5. Document upload
-6. Local LLM integration
-7. RAG pipeline
-8. Evaluation
-9. LoRA / PEFT
-10. Quantization
-11. Air-gapped deployment
-12. Native C module
+6. RBAC
+7. Document delete
+8. Structured logging ve metrics
+9. Local LLM integration
+10. RAG pipeline
+11. Evaluation
+12. LoRA / PEFT
+13. Quantization
+14. Air-gapped deployment
+15. Native C module
 
 Bu yaklaşımda öğrenilen her konu çalışan ürünün bir parçası olur; yalnızca alıştırma amacıyla yazılıp atılan kod oluşmaz.
