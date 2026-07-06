@@ -89,6 +89,14 @@ Run tests:
 ./app.py test
 ```
 
+Run tests inside Docker Compose:
+
+```bash
+./app.py test-container
+```
+
+This rebuilds the API test image, waits for PostgreSQL, applies migrations, and runs `pytest` inside the container.
+
 ## Docker Compose
 
 Build and start the API with PostgreSQL:

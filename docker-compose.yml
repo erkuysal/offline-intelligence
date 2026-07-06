@@ -32,6 +32,34 @@ services:
       timeout: 5s
       retries: 10
 
+  api-tests:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    profiles:
+      - test
+    environment:
+      APP_NAME: Offline Intelligence Hub API
+      APP_VERSION: 0.1.0
+      ENVIRONMENT: testing
+      DEBUG: "false"
+      HOST: 0.0.0.0
+      PORT: 8000
+      DATABASE_URL: postgresql+psycopg://offline_ai:offline_ai@postgres:5432/offline_ai
+      JWT_SECRET_KEY: change-me-in-production
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
+      DOCUMENT_STORAGE_DIR: /tmp/offline-intelligence-hub-tests/documents
+      MAX_UPLOAD_SIZE_BYTES: 5242880
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: []
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && pytest -q
+
   postgres:
     image: postgres:16-alpine
     container_name: offline-ai-postgres

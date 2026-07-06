@@ -61,7 +61,7 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1'in son bölümündeyiz. FastAPI uygulama iskeleti, PostgreSQL bağlantısı, Alembic migration, kullanıcı kaydı/girişi, access/refresh token akışı, temel RBAC, TXT/PDF doküman yükleme, doküman metadata kayıtları, doküman silme, lokal dosya storage, API Dockerfile, Docker Compose API/PostgreSQL akışı, geliştirme launcher'ı (`./app.py`), smoke test, structured request logging ve temel `/metrics` endpoint'i eklendi. Sıradaki ana işler container içinde test çalıştırma, Redis entegrasyonu, database fixture iyileştirmesi ve Faz 1 dokümantasyon/operasyonel temizlik işleridir.
+> **Şu anki konum:** Faz 1'in son bölümündeyiz. FastAPI uygulama iskeleti, PostgreSQL bağlantısı, Alembic migration, kullanıcı kaydı/girişi, access/refresh token akışı, temel RBAC, TXT/PDF doküman yükleme, doküman metadata kayıtları, doküman silme, lokal dosya storage, API Dockerfile, Docker Compose API/PostgreSQL akışı, geliştirme launcher'ı (`./app.py`), smoke test, structured request logging, temel `/metrics` endpoint'i ve container içinde test çalıştırma akışı eklendi. Sıradaki ana işler Redis entegrasyonu, database fixture iyileştirmesi ve Faz 1 dokümantasyon/operasyonel temizlik işleridir.
 
 ### Özellikler
 
@@ -573,6 +573,7 @@ Kullanıcının sisteme kaydolabildiği, oturum açabildiği ve bir doküman yü
 - Database fixture
 - [x] Health endpoint test
 - [x] Smoke test
+- [x] Container içinde test çalıştırma
 
 ### Documentation
 
@@ -595,7 +596,7 @@ Kullanıcının sisteme kaydolabildiği, oturum açabildiği ve bir doküman yü
 [x] Dosya lokal storage'a yazılıyor
 [x] Doküman metadata ve lokal dosya birlikte silinebiliyor
 [x] Smoke test gerçek HTTP akışını doğruluyor
-[ ] Testler container içinde çalışıyor
+[x] Testler container içinde çalışıyor
 [x] /health endpoint'i 200 dönüyor
 [x] /health/db endpoint'i 200 dönüyor
 [x] /metrics endpoint'i 200 dönüyor

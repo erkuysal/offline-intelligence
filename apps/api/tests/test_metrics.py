@@ -1,18 +1,20 @@
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.main import app
 
 client = TestClient(app)
 
 
 def test_metrics_returns_app_info() -> None:
+    settings = get_settings()
     response = client.get("/metrics")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["app"]["name"] == "Offline Intelligence Hub API"
-    assert body["app"]["version"] == "0.1.0"
-    assert body["app"]["environment"] == "development"
+    assert body["app"]["name"] == settings.app_name
+    assert body["app"]["version"] == settings.app_version
+    assert body["app"]["environment"] == settings.environment
     assert body["uptime_seconds"] >= 0
     assert body["requests_total"] >= 0
     assert isinstance(body["requests"], list)

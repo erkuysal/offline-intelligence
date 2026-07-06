@@ -84,6 +84,10 @@ def test(args: argparse.Namespace) -> int:
     return run_subprocess(command)
 
 
+def test_container(_args: argparse.Namespace) -> int:
+    return run_subprocess(["docker", "compose", "run", "--build", "--rm", "api-tests"])
+
+
 def lint(_args: argparse.Namespace) -> int:
     configure_import_path()
     return run_subprocess([sys.executable, "-m", "ruff", "check", "."])
@@ -109,6 +113,12 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser = subparsers.add_parser("test", help="run the test suite")
     test_parser.add_argument("pytest_args", nargs=argparse.REMAINDER)
     test_parser.set_defaults(func=test)
+
+    test_container_parser = subparsers.add_parser(
+        "test-container",
+        help="run the test suite inside Docker Compose",
+    )
+    test_container_parser.set_defaults(func=test_container)
 
     lint_parser = subparsers.add_parser("lint", help="run ruff")
     lint_parser.set_defaults(func=lint)
