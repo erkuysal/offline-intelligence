@@ -49,3 +49,18 @@ def database_health_check(
         "status": "healthy",
         "database": "reachable",
     }
+
+
+def main() -> None:
+    import uvicorn
+
+    uvicorn.run(
+        "app.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug,
+    )
+
+
+if __name__ == "__main__":
+    main()
