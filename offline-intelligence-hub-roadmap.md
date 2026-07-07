@@ -61,7 +61,7 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1'in son bölümündeyiz. FastAPI uygulama iskeleti, PostgreSQL bağlantısı, Alembic migration, kullanıcı kaydı/girişi, access/refresh token akışı, temel RBAC, TXT/PDF doküman yükleme, doküman metadata kayıtları, doküman silme, lokal dosya storage, API Dockerfile, Docker Compose API/PostgreSQL akışı, geliştirme launcher'ı (`./app.py`), smoke test, structured request logging, temel `/metrics` endpoint'i ve container içinde test çalıştırma akışı eklendi. Sıradaki ana işler Redis entegrasyonu, database fixture iyileştirmesi ve Faz 1 dokümantasyon/operasyonel temizlik işleridir.
+> **Şu anki konum:** Faz 1 tamamlandı. FastAPI uygulama iskeleti, PostgreSQL bağlantısı, Alembic migration, kullanıcı kaydı/girişi, access/refresh token akışı, temel RBAC, TXT/PDF doküman yükleme, doküman metadata kayıtları, doküman silme, lokal dosya storage, API Dockerfile, Docker Compose API/PostgreSQL/Redis akışı, Redis health check, geliştirme launcher'ı (`./app.py`), smoke test, structured request logging, temel `/metrics` endpoint'i, test database fixture'ı, ADR ve container içinde test çalıştırma akışı eklendi. Sıradaki ana iş Faz 2 yerel LLM entegrasyonudur.
 
 ### Özellikler
 
@@ -108,6 +108,7 @@ GET    /api/v1/admin/health
 
 GET    /health
 GET    /health/db
+GET    /health/redis
 GET    /metrics
 ```
 
@@ -556,7 +557,7 @@ Kullanıcının sisteme kaydolabildiği, oturum açabildiği ve bir doküman yü
 
 - [x] API Dockerfile
 - [x] PostgreSQL container
-- [ ] Redis container
+- [x] Redis container
 - [x] Docker Compose
 - [x] Persistent volumes
 - [x] `.env.example`
@@ -570,8 +571,9 @@ Kullanıcının sisteme kaydolabildiği, oturum açabildiği ve bir doküman yü
 - [x] RBAC testleri
 - [x] Document upload integration test
 - [x] Document delete integration test
-- Database fixture
+- [x] Database fixture
 - [x] Health endpoint test
+- [x] Redis health endpoint test
 - [x] Smoke test
 - [x] Container içinde test çalıştırma
 
@@ -580,12 +582,12 @@ Kullanıcının sisteme kaydolabildiği, oturum açabildiği ve bir doküman yü
 - [x] README
 - [x] Local setup
 - [x] API usage
-- Architecture Decision Record
+- [x] Architecture Decision Record
 
 ## Sprint Kabul Kriterleri
 
 ```text
-[x] docker compose up ile PostgreSQL ve API başlıyor
+[x] docker compose up ile PostgreSQL, Redis ve API başlıyor
 [x] PostgreSQL migration API container başlangıcında otomatik çalışıyor
 [x] Kullanıcı oluşturulabiliyor
 [x] Access token ve refresh token alınabiliyor
@@ -599,6 +601,7 @@ Kullanıcının sisteme kaydolabildiği, oturum açabildiği ve bir doküman yü
 [x] Testler container içinde çalışıyor
 [x] /health endpoint'i 200 dönüyor
 [x] /health/db endpoint'i 200 dönüyor
+[x] /health/redis endpoint'i 200 dönüyor
 [x] /metrics endpoint'i 200 dönüyor
 ```
 

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     port: int = 8000
 
     database_url: str
+    redis_url: str = "redis://localhost:6379/0"
     jwt_secret_key: str = "change-me-in-production"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_minutes: int = 7 * 24 * 60

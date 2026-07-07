@@ -6,6 +6,7 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 
 - FastAPI REST API
 - PostgreSQL via Docker Compose
+- Redis via Docker Compose
 - SQLAlchemy models and Alembic migrations
 - User registration and login
 - Access and refresh tokens
@@ -24,10 +25,10 @@ Activate the project environment:
 conda activate offline-ai
 ```
 
-Start PostgreSQL:
+Start dependencies:
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres redis
 ```
 
 Apply migrations:
@@ -66,6 +67,7 @@ The smoke test performs a real HTTP flow:
 
 - health check
 - database health check
+- redis health check
 - metrics
 - user registration
 - login
@@ -95,17 +97,17 @@ Run tests inside Docker Compose:
 ./app.py test-container
 ```
 
-This rebuilds the API test image, waits for PostgreSQL, applies migrations, and runs `pytest` inside the container.
+This rebuilds the API test image, waits for PostgreSQL and Redis, applies migrations, and runs `pytest` inside the container.
 
 ## Docker Compose
 
-Build and start the API with PostgreSQL:
+Build and start the API with PostgreSQL and Redis:
 
 ```bash
 docker compose up --build api
 ```
 
-The API container waits for PostgreSQL, applies Alembic migrations, and then starts FastAPI on:
+The API container waits for PostgreSQL and Redis, applies Alembic migrations, and then starts FastAPI on:
 
 ```text
 http://127.0.0.1:8000

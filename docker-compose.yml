@@ -12,6 +12,7 @@ services:
       HOST: 0.0.0.0
       PORT: 8000
       DATABASE_URL: postgresql+psycopg://offline_ai:offline_ai@postgres:5432/offline_ai
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: change-me-in-production
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
@@ -23,6 +24,8 @@ services:
       - api_storage:/app/storage
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test:
@@ -46,6 +49,7 @@ services:
       HOST: 0.0.0.0
       PORT: 8000
       DATABASE_URL: postgresql+psycopg://offline_ai:offline_ai@postgres:5432/offline_ai
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: change-me-in-production
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
@@ -54,11 +58,27 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     entrypoint: []
     command:
       - sh
       - -c
       - alembic upgrade head && pytest -q
+
+  redis:
+    image: redis:7-alpine
+    container_name: offline-ai-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   postgres:
     image: postgres:16-alpine

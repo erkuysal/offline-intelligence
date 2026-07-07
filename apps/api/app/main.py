@@ -3,11 +3,13 @@ import logging
 from time import perf_counter
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.v1.router import api_router
+from app.cache.redis import ping_redis
 from app.config import get_settings
 from app.db.session import get_db
 from app.observability.logging import configure_logging, log_event
@@ -84,6 +86,22 @@ def database_health_check(
     return {
         "status": "healthy",
         "database": "reachable",
+    }
+
+
+@app.get("/health/redis", tags=["system"])
+def redis_health_check() -> dict[str, str]:
+    try:
+        ping_redis()
+    except RedisError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Redis is unavailable",
+        ) from exc
+
+    return {
+        "status": "healthy",
+        "redis": "reachable",
     }
 
 

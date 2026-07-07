@@ -37,6 +37,9 @@ expect_status "200" "$health_status" "health"
 db_status="$(curl -sS -o /tmp/offline-hub-db-health.json -w "%{http_code}" "${BASE_URL}/health/db")"
 expect_status "200" "$db_status" "database health"
 
+redis_status="$(curl -sS -o /tmp/offline-hub-redis-health.json -w "%{http_code}" "${BASE_URL}/health/redis")"
+expect_status "200" "$redis_status" "redis health"
+
 metrics_status="$(curl -sS -o /tmp/offline-hub-metrics.json -w "%{http_code}" "${BASE_URL}/metrics")"
 expect_status "200" "$metrics_status" "metrics"
 
