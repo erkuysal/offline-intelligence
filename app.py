@@ -97,6 +97,31 @@ def smoke(_args: argparse.Namespace) -> int:
     return run_subprocess(["bash", str(ROOT / "scripts" / "smoke_test.sh")])
 
 
+def llm_probe(args: argparse.Namespace) -> int:
+    configure_import_path()
+    load_root_env()
+
+    from app.schemas.chat import ChatCompletionRequest, ChatMessage
+    from app.services.llm import LLMError, get_llm_backend
+
+    request = ChatCompletionRequest(
+        messages=[
+            ChatMessage(role="user", content=args.prompt),
+        ],
+        max_tokens=args.max_tokens,
+        temperature=args.temperature,
+    )
+
+    try:
+        response = get_llm_backend().complete_chat(request)
+    except LLMError as exc:
+        print(f"LLM probe failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(response.choices[0].message.content)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="./app.py",
@@ -125,6 +150,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     smoke_parser = subparsers.add_parser("smoke", help="run the HTTP smoke test")
     smoke_parser.set_defaults(func=smoke)
+
+    llm_probe_parser = subparsers.add_parser(
+        "llm-probe",
+        help="send a prompt to the configured LLM backend",
+    )
+    llm_probe_parser.add_argument(
+        "prompt",
+        nargs="?",
+        default="Say hello from the local LLM probe.",
+    )
+    llm_probe_parser.add_argument("--max-tokens", type=int, default=128)
+    llm_probe_parser.add_argument("--temperature", type=float, default=0.2)
+    llm_probe_parser.set_defaults(func=llm_probe)
 
     return parser
 

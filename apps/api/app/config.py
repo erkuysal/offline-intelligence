@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_minutes: int = 7 * 24 * 60
     document_storage_dir: str = "storage/documents"
     max_upload_size_bytes: int = 5 * 1024 * 1024
+    llm_backend: str = "fake"
+    llm_base_url: str = "http://127.0.0.1:8080/v1"
+    llm_model: str = "local-default"
+    llm_timeout_seconds: float = 60.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -16,6 +16,7 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 - Local file storage for uploaded documents
 - Structured request logging
 - Basic `/metrics` endpoint
+- OpenAI-style chat completions endpoint with a fake local LLM backend
 
 ## Local Setup
 
@@ -55,6 +56,52 @@ Interactive docs:
 http://127.0.0.1:8000/docs
 ```
 
+## Local LLM
+
+Phase 2 starts with a fake LLM backend so the API and tests run without a model file:
+
+```env
+LLM_BACKEND=fake
+```
+
+To use a local OpenAI-compatible server such as `llama-server`, start it on port `8080` and configure:
+
+```bash
+llama-server \
+  -hf ggml-org/gemma-3-1b-it-GGUF:Q4_K_M \
+  --host 127.0.0.1 \
+  --port 8080 \
+  -c 4096
+```
+
+```env
+LLM_BACKEND=openai_compatible
+LLM_BASE_URL=http://127.0.0.1:8080/v1
+LLM_MODEL=ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
+LLM_TIMEOUT_SECONDS=60
+```
+
+The chat endpoint is:
+
+```text
+POST /api/v1/chat/completions
+```
+
+Example request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/chat/completions \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Explain the project briefly."}],"max_tokens":128}'
+```
+
+Probe the configured backend directly:
+
+```bash
+./app.py llm-probe "Explain the project briefly."
+```
+
 ## Smoke Test
 
 With the API running, execute:
@@ -68,11 +115,13 @@ The smoke test performs a real HTTP flow:
 - health check
 - database health check
 - redis health check
+- llm health check
 - metrics
 - user registration
 - login
 - token refresh
 - `/users/me`
+- chat completion
 - TXT document upload
 - document listing
 - document deletion

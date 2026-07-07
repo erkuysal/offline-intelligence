@@ -61,7 +61,7 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1 tamamlandı. FastAPI uygulama iskeleti, PostgreSQL bağlantısı, Alembic migration, kullanıcı kaydı/girişi, access/refresh token akışı, temel RBAC, TXT/PDF doküman yükleme, doküman metadata kayıtları, doküman silme, lokal dosya storage, API Dockerfile, Docker Compose API/PostgreSQL/Redis akışı, Redis health check, geliştirme launcher'ı (`./app.py`), smoke test, structured request logging, temel `/metrics` endpoint'i, test database fixture'ı, ADR ve container içinde test çalıştırma akışı eklendi. Sıradaki ana iş Faz 2 yerel LLM entegrasyonudur.
+> **Şu anki konum:** Faz 2 başladı. Faz 1 tamamlandı; şimdi OpenAI uyumlu `/api/v1/chat/completions` sözleşmesi, fake LLM backend, `/health/llm` endpoint'i ve daha sonra `llama-server` gibi yerel OpenAI-compatible backend bağlantısı ekleniyor.
 
 ### Özellikler
 
@@ -109,6 +109,7 @@ GET    /api/v1/admin/health
 GET    /health
 GET    /health/db
 GET    /health/redis
+GET    /health/llm
 GET    /metrics
 ```
 
@@ -128,6 +129,14 @@ POST /api/v1/chat/completions
 
 OpenAI API benzeri sözleşme:
 
+- `messages`
+- `model`
+- `temperature`
+- `max_tokens`
+- `stream: false`
+
+İlk implementasyon fake backend ile test edilebilir durumda tutulur. Gerçek yerel model için OpenAI-compatible bir servis (`llama-server` gibi) `LLM_BASE_URL` üzerinden bağlanır. İlk doğrulanan model `ggml-org/gemma-3-1b-it-GGUF:Q4_K_M` olmuştur.
+
 ```json
 {
   "model": "local-model",
@@ -138,15 +147,18 @@ OpenAI API benzeri sözleşme:
     }
   ],
   "temperature": 0.2,
-  "stream": true
+  "max_tokens": 512,
+  "stream": false
 }
 ```
 
 ### Uygulanacak Bileşenler
 
-- Hugging Face Transformers adapter
-- llama.cpp adapter
+- OpenAI-compatible local backend adapter
+- Fake backend
 - Model configuration
+- LLM probe command (`./app.py llm-probe`)
+- llama.cpp server integration
 - Model warm-up
 - Streaming response
 - Request cancellation

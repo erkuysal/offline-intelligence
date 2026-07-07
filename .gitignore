@@ -18,3 +18,5 @@ __pycache__/
 
 .DS_Store
 storage/
+models/
+*.gguf

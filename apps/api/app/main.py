@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.db.session import get_db
 from app.observability.logging import configure_logging, log_event
 from app.observability.metrics import metrics_registry
+from app.services.llm import LLMError, LLMTimeoutError, LLMUnavailableError, get_llm_backend
 
 settings = get_settings()
 configure_logging()
@@ -102,6 +103,32 @@ def redis_health_check() -> dict[str, str]:
     return {
         "status": "healthy",
         "redis": "reachable",
+    }
+
+
+@app.get("/health/llm", tags=["system"])
+def llm_health_check() -> dict[str, str]:
+    try:
+        get_llm_backend().health_check()
+    except LLMTimeoutError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="LLM backend timed out",
+        ) from exc
+    except LLMUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM backend is unavailable",
+        ) from exc
+    except LLMError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM backend is unavailable",
+        ) from exc
+
+    return {
+        "status": "healthy",
+        "llm": "reachable",
     }
 
 

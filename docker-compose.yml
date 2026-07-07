@@ -18,6 +18,10 @@ services:
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
       DOCUMENT_STORAGE_DIR: /app/storage/documents
       MAX_UPLOAD_SIZE_BYTES: 5242880
+      LLM_BACKEND: fake
+      LLM_BASE_URL: http://host.docker.internal:8080/v1
+      LLM_MODEL: ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
+      LLM_TIMEOUT_SECONDS: 60
     ports:
       - "8000:8000"
     volumes:
@@ -55,6 +59,10 @@ services:
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
       DOCUMENT_STORAGE_DIR: /tmp/offline-intelligence-hub-tests/documents
       MAX_UPLOAD_SIZE_BYTES: 5242880
+      LLM_BACKEND: fake
+      LLM_BASE_URL: http://host.docker.internal:8080/v1
+      LLM_MODEL: ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
+      LLM_TIMEOUT_SECONDS: 60
     depends_on:
       postgres:
         condition: service_healthy

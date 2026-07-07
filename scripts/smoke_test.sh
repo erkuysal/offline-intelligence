@@ -40,6 +40,9 @@ expect_status "200" "$db_status" "database health"
 redis_status="$(curl -sS -o /tmp/offline-hub-redis-health.json -w "%{http_code}" "${BASE_URL}/health/redis")"
 expect_status "200" "$redis_status" "redis health"
 
+llm_status="$(curl -sS -o /tmp/offline-hub-llm-health.json -w "%{http_code}" "${BASE_URL}/health/llm")"
+expect_status "200" "$llm_status" "llm health"
+
 metrics_status="$(curl -sS -o /tmp/offline-hub-metrics.json -w "%{http_code}" "${BASE_URL}/metrics")"
 expect_status "200" "$metrics_status" "metrics"
 
@@ -83,6 +86,15 @@ me_status="$(
     -H "Authorization: Bearer ${ACCESS_TOKEN}"
 )"
 expect_status "200" "$me_status" "users me"
+
+chat_status="$(
+  curl -sS -o /tmp/offline-hub-chat.json -w "%{http_code}" \
+    -X POST "${BASE_URL}/api/v1/chat/completions" \
+    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d '{"messages":[{"role":"user","content":"Say hello from the smoke test"}],"max_tokens":32}'
+)"
+expect_status "200" "$chat_status" "chat completion"
 
 printf "Backups run every night.\n" > "$TMP_FILE"
 upload_body="$(
