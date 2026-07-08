@@ -79,7 +79,12 @@ LLM_BACKEND=openai_compatible
 LLM_BASE_URL=http://127.0.0.1:8080/v1
 LLM_MODEL=ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
 LLM_TIMEOUT_SECONDS=60
+LLM_MAX_TOTAL_MESSAGE_CHARS=50000
+LLM_MAX_COMPLETION_TOKENS=2048
+LLM_MAX_CONCURRENT_REQUESTS=1
 ```
+
+The LLM limits are hardware safety rails. They are intended to prevent accidental oversized prompts, runaway generations, or concurrent CPU-heavy requests on local machines.
 
 The chat endpoint is:
 

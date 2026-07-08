@@ -157,6 +157,7 @@ OpenAI API benzeri sözleşme:
 - OpenAI-compatible local backend adapter
 - Fake backend
 - Model configuration
+- Hardware safety rails
 - LLM probe command (`./app.py llm-probe`)
 - llama.cpp server integration
 - Model warm-up

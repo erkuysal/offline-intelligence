@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.main import app
 from app.schemas.chat import ChatCompletionRequest
 from app.services.llm import LLMTimeoutError, LLMUnavailableError
@@ -54,7 +55,7 @@ def test_chat_completion_uses_fake_backend() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["object"] == "chat.completion"
-    assert body["model"] == "local-default"
+    assert body["model"] == get_settings().llm_model
     assert body["choices"][0]["message"] == {
         "role": "assistant",
         "content": "Fake LLM response: Explain Phase 2",
@@ -92,6 +93,76 @@ def test_chat_completion_validates_message_role() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_chat_completion_rejects_total_message_chars_over_limit(monkeypatch) -> None:
+    settings = __import__("app.config", fromlist=["get_settings"]).get_settings()
+    monkeypatch.setattr(settings, "llm_max_total_message_chars", 4)
+    token = get_access_token()
+
+    response = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "messages": [{"role": "user", "content": "Hello"}],
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json() == {
+        "detail": "Chat messages exceed configured LLM input size limit",
+    }
+
+
+def test_chat_completion_rejects_max_tokens_over_limit(monkeypatch) -> None:
+    settings = __import__("app.config", fromlist=["get_settings"]).get_settings()
+    monkeypatch.setattr(settings, "llm_max_completion_tokens", 10)
+    token = get_access_token()
+
+    response = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "messages": [{"role": "user", "content": "Hello"}],
+            "max_tokens": 11,
+        },
+    )
+
+    assert response.status_code == 413
+    assert response.json() == {
+        "detail": "Requested completion tokens exceed configured LLM output limit",
+    }
+
+
+def test_chat_completion_returns_429_when_llm_is_busy(monkeypatch) -> None:
+    was_called = False
+
+    class Backend:
+        def complete_chat(self, request: ChatCompletionRequest) -> None:
+            nonlocal was_called
+            was_called = True
+
+    import app.api.v1.chat as chat_module
+
+    acquired = chat_module.llm_request_semaphore.acquire(blocking=False)
+    assert acquired is True
+    monkeypatch.setattr("app.api.v1.chat.get_llm_backend", lambda: Backend())
+    token = get_access_token()
+
+    try:
+        response = client.post(
+            "/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "messages": [{"role": "user", "content": "Hello"}],
+            },
+        )
+    finally:
+        chat_module.llm_request_semaphore.release()
+
+    assert response.status_code == 429
+    assert response.json() == {"detail": "LLM backend is busy"}
+    assert was_called is False
 
 
 def test_chat_completion_returns_503_when_backend_is_unavailable(monkeypatch) -> None:
