@@ -1,8 +1,10 @@
 from typing import Annotated
+from collections.abc import Iterator
 from threading import BoundedSemaphore
 from time import perf_counter
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from app.config import get_settings
 from app.dependencies.auth import get_current_user
@@ -15,6 +17,7 @@ from app.services.llm import (
     LLMUnavailableError,
     get_llm_backend,
 )
+from app.services.llm import LLMBackend
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 llm_request_semaphore = BoundedSemaphore(get_settings().llm_max_concurrent_requests)
@@ -51,25 +54,41 @@ def validate_llm_safety_limits(request: ChatCompletionRequest) -> None:
         )
 
 
-@router.post("/completions", response_model=ChatCompletionResponse)
+def stream_llm_response(
+    backend: LLMBackend,
+    request: ChatCompletionRequest,
+    started_at: float,
+) -> Iterator[str]:
+    try:
+        yield from backend.stream_chat(request)
+        record_llm_metric(request, "stream_success", started_at)
+    except LLMTimeoutError:
+        record_llm_metric(request, "stream_timeout", started_at)
+        yield 'event: error\ndata: {"detail":"LLM backend timed out"}\n\n'
+    except LLMUnavailableError:
+        record_llm_metric(request, "stream_unavailable", started_at)
+        yield 'event: error\ndata: {"detail":"LLM backend is unavailable"}\n\n'
+    except LLMError:
+        record_llm_metric(request, "stream_error", started_at)
+        yield 'event: error\ndata: {"detail":"LLM backend returned an invalid response"}\n\n'
+    finally:
+        llm_request_semaphore.release()
+
+
+@router.post("/completions", response_model=None)
 def create_chat_completion(
     request: ChatCompletionRequest,
     current_user: Annotated[User, Depends(get_current_user)],
-) -> ChatCompletionResponse:
+) -> ChatCompletionResponse | StreamingResponse:
     started_at = perf_counter()
-
-    if request.stream:
-        record_llm_metric(request, "stream_unsupported", started_at)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Streaming chat completions are not supported yet",
-        )
 
     try:
         validate_llm_safety_limits(request)
     except HTTPException:
         record_llm_metric(request, "safety_rejected", started_at)
         raise
+
+    backend = get_llm_backend()
 
     if not llm_request_semaphore.acquire(blocking=False):
         record_llm_metric(request, "busy", started_at)
@@ -78,8 +97,14 @@ def create_chat_completion(
             detail="LLM backend is busy",
         )
 
+    if request.stream:
+        return StreamingResponse(
+            stream_llm_response(backend, request, started_at),
+            media_type="text/event-stream",
+        )
+
     try:
-        response = get_llm_backend().complete_chat(request)
+        response = backend.complete_chat(request)
         record_llm_metric(request, "success", started_at)
         return response
     except LLMTimeoutError as exc:

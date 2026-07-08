@@ -17,6 +17,7 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 - Structured request logging
 - Basic `/metrics` endpoint with HTTP and LLM request counters
 - OpenAI-style chat completions endpoint with a fake local LLM backend
+- Streaming chat completions via server-sent events
 
 ## Local Setup
 
@@ -100,6 +101,15 @@ curl -X POST http://127.0.0.1:8000/api/v1/chat/completions \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Explain the project briefly."}],"max_tokens":128}'
+```
+
+Streaming request:
+
+```bash
+curl -N -X POST http://127.0.0.1:8000/api/v1/chat/completions \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"Explain the project briefly."}],"max_tokens":128,"stream":true}'
 ```
 
 Probe the configured backend directly:

@@ -91,22 +91,33 @@ def test_chat_completion_records_success_metric() -> None:
     )
 
 
-def test_chat_completion_rejects_streaming() -> None:
+def test_chat_completion_streams_fake_backend() -> None:
     token = get_access_token()
+    before_response = client.get("/metrics")
+    before_total = before_response.json()["llm_requests_total"]
 
-    response = client.post(
+    with client.stream(
+        "POST",
         "/api/v1/chat/completions",
         headers={"Authorization": f"Bearer {token}"},
-        json={
-            "messages": [{"role": "user", "content": "Hello"}],
-            "stream": True,
-        },
-    )
+        json={"messages": [{"role": "user", "content": "Hello"}], "stream": True},
+    ) as response:
+        body = response.read().decode()
 
-    assert response.status_code == 400
-    assert response.json() == {
-        "detail": "Streaming chat completions are not supported yet",
-    }
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "data: " in body
+    assert "Fake LLM response: Hello" in body
+    assert "data: [DONE]" in body
+    after_body = client.get("/metrics").json()
+    assert after_body["llm_requests_total"] >= before_total + 1
+    assert any(
+        request["backend"] == get_settings().llm_backend
+        and request["model"] == get_settings().llm_model
+        and request["outcome"] == "stream_success"
+        and request["count"] >= 1
+        for request in after_body["llm_requests"]
+    )
 
 
 def test_chat_completion_validates_message_role() -> None:

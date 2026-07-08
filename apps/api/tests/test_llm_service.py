@@ -3,6 +3,7 @@ import pytest
 
 from app.schemas.chat import ChatCompletionRequest, ChatMessage
 from app.services.llm import (
+    FakeLLMBackend,
     LLMError,
     LLMTimeoutError,
     LLMUnavailableError,
@@ -180,3 +181,87 @@ def test_openai_compatible_completion_maps_timeout(monkeypatch) -> None:
 
     with pytest.raises(LLMTimeoutError):
         backend.complete_chat(chat_request())
+
+
+def test_fake_backend_streams_openai_style_chunks() -> None:
+    backend = FakeLLMBackend(model="local-default")
+
+    chunks = list(backend.stream_chat(chat_request()))
+
+    assert len(chunks) == 3
+    assert chunks[0].startswith("data: ")
+    assert "Fake LLM response: Hello" in chunks[0]
+    assert chunks[-1] == "data: [DONE]\n\n"
+
+
+def test_openai_compatible_streaming_completion_proxies_sse_lines(monkeypatch) -> None:
+    captured_payloads: list[dict] = []
+
+    class FakeStreamResponse:
+        status_code = 200
+
+        def __enter__(self) -> "FakeStreamResponse":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def iter_lines(self) -> list[str]:
+            return [
+                'data: {"choices":[{"delta":{"content":"Hello"}}]}',
+                "data: [DONE]",
+            ]
+
+    def fake_stream(
+        method: str,
+        url: str,
+        json: dict,
+        timeout: float,
+    ) -> FakeStreamResponse:
+        assert method == "POST"
+        assert url == "http://localhost:8080/v1/chat/completions"
+        assert timeout == 5
+        captured_payloads.append(json)
+        return FakeStreamResponse()
+
+    monkeypatch.setattr("app.services.llm.httpx.stream", fake_stream)
+    backend = OpenAICompatibleLLMBackend(
+        base_url="http://localhost:8080/v1",
+        model="local-default",
+        timeout_seconds=5,
+    )
+
+    chunks = list(backend.stream_chat(chat_request()))
+
+    assert captured_payloads[0]["stream"] is True
+    assert chunks == [
+        'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+        "data: [DONE]\n\n",
+    ]
+
+
+def test_openai_compatible_streaming_completion_maps_server_error(monkeypatch) -> None:
+    class FakeStreamResponse:
+        status_code = 500
+
+        def __enter__(self) -> "FakeStreamResponse":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def iter_lines(self) -> list[str]:
+            return []
+
+    monkeypatch.setattr(
+        "app.services.llm.httpx.stream",
+        lambda method, url, json, timeout: FakeStreamResponse(),
+    )
+    backend = OpenAICompatibleLLMBackend(
+        base_url="http://localhost:8080/v1",
+        model="local-default",
+        timeout_seconds=5,
+    )
+
+    with pytest.raises(LLMUnavailableError):
+        list(backend.stream_chat(chat_request()))
