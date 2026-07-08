@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.api.v1.chat import llm_request_semaphore, stream_llm_response
 from app.config import get_settings
 from app.main import app
 from app.schemas.chat import ChatCompletionRequest
@@ -116,6 +117,35 @@ def test_chat_completion_streams_fake_backend() -> None:
         and request["model"] == get_settings().llm_model
         and request["outcome"] == "stream_success"
         and request["count"] >= 1
+        for request in after_body["llm_requests"]
+    )
+
+
+def test_stream_cancellation_records_metric_and_releases_semaphore() -> None:
+    class StreamingBackend:
+        def stream_chat(self, request: ChatCompletionRequest):
+            yield "data: first\n\n"
+            yield "data: second\n\n"
+
+    request = ChatCompletionRequest(
+        messages=[{"role": "user", "content": "Hello"}],
+        stream=True,
+    )
+    before_total = client.get("/metrics").json()["llm_requests_total"]
+    acquired = llm_request_semaphore.acquire(blocking=False)
+    assert acquired is True
+
+    stream = stream_llm_response(StreamingBackend(), request, 0)
+    assert next(stream) == "data: first\n\n"
+    stream.close()
+
+    reacquired = llm_request_semaphore.acquire(blocking=False)
+    assert reacquired is True
+    llm_request_semaphore.release()
+    after_body = client.get("/metrics").json()
+    assert after_body["llm_requests_total"] >= before_total + 1
+    assert any(
+        request["outcome"] == "stream_cancelled" and request["count"] >= 1
         for request in after_body["llm_requests"]
     )
 

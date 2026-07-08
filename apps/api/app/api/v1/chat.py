@@ -62,6 +62,9 @@ def stream_llm_response(
     try:
         yield from backend.stream_chat(request)
         record_llm_metric(request, "stream_success", started_at)
+    except GeneratorExit:
+        record_llm_metric(request, "stream_cancelled", started_at)
+        raise
     except LLMTimeoutError:
         record_llm_metric(request, "stream_timeout", started_at)
         yield 'event: error\ndata: {"detail":"LLM backend timed out"}\n\n'

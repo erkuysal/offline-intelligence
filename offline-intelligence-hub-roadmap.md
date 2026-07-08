@@ -164,6 +164,7 @@ OpenAI API benzeri sözleşme:
 - Model warm-up
 - Streaming response
 - Request cancellation
+- Streaming cancellation metric
 - Timeout
 - Concurrency limit
 - Token usage tracking
