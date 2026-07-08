@@ -138,6 +138,25 @@ Check the running server:
 ./app.py llm-check
 ```
 
+There is also a preset for the larger Llama 3.1 8B GPU profile:
+
+```bash
+scripts/start_llama_3_1_8b_gpu.sh
+```
+
+It maps to:
+
+```bash
+~/tools/llama.cpp/build/bin/llama-server \
+  -hf ggml-org/Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF:Q4_0 \
+  --host 127.0.0.1 \
+  --port 8080 \
+  -c 8192 \
+  -ngl 99
+```
+
+The preset still uses the managed start script underneath, so PID handling, stale-process checks, and already-running detection remain active.
+
 At API startup, a background one-token completion verifies that the model can perform inference. `/health/llm` reports `503` while warming or unavailable and becomes ready after a successful probe; failed probes retry without blocking the rest of the API.
 LLM request outcomes and latency totals are exposed from `/metrics`.
 Non-streaming completion responses include `usage` when the backend provides token counts; the fake backend returns deterministic estimated counts for tests.
