@@ -122,6 +122,14 @@ def llm_probe(args: argparse.Namespace) -> int:
     return 0
 
 
+def llm_start(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "start_llama_server.sh")])
+
+
+def llm_check(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "check_llama_server.sh")])
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="./app.py",
@@ -163,6 +171,18 @@ def build_parser() -> argparse.ArgumentParser:
     llm_probe_parser.add_argument("--max-tokens", type=int, default=128)
     llm_probe_parser.add_argument("--temperature", type=float, default=0.2)
     llm_probe_parser.set_defaults(func=llm_probe)
+
+    llm_start_parser = subparsers.add_parser(
+        "llm-start",
+        help="start the configured llama.cpp server",
+    )
+    llm_start_parser.set_defaults(func=llm_start)
+
+    llm_check_parser = subparsers.add_parser(
+        "llm-check",
+        help="check the configured llama.cpp server",
+    )
+    llm_check_parser.set_defaults(func=llm_check)
 
     return parser
 

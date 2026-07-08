@@ -69,11 +69,7 @@ LLM_BACKEND=fake
 To use a local OpenAI-compatible server such as `llama-server`, start it on port `8080` and configure:
 
 ```bash
-llama-server \
-  -hf ggml-org/gemma-3-1b-it-GGUF:Q4_K_M \
-  --host 127.0.0.1 \
-  --port 8080 \
-  -c 4096
+./app.py llm-start
 ```
 
 ```env
@@ -87,9 +83,51 @@ LLM_WARMUP_RETRY_SECONDS=10
 LLM_MAX_TOTAL_MESSAGE_CHARS=50000
 LLM_MAX_COMPLETION_TOKENS=2048
 LLM_MAX_CONCURRENT_REQUESTS=1
+
+LLAMA_CPP_BIN=~/tools/llama.cpp/build/bin/llama-server
+LLAMA_HOST=127.0.0.1
+LLAMA_PORT=8080
+LLAMA_MODEL_REPO=ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
+LLAMA_MODEL_PATH=
+LLAMA_CTX_SIZE=4096
+LLAMA_THREADS=
+LLAMA_PARALLEL=1
+LLAMA_BATCH_SIZE=
+LLAMA_UBATCH_SIZE=
+LLAMA_GPU_LAYERS=
 ```
 
 The LLM limits are hardware safety rails. They are intended to prevent accidental oversized prompts, runaway generations, or concurrent CPU-heavy requests on local machines.
+The `LLAMA_*` settings control the local `llama-server` process. By default the profile is conservative for WSL CPU use: one parallel slot, a 4096-token context, automatic thread selection, and llama.cpp's default device behavior.
+To use a local `.gguf` file instead of Hugging Face download/cache, set `LLAMA_MODEL_PATH=/path/to/model.gguf`; when this is set it takes precedence over `LLAMA_MODEL_REPO`.
+
+GPU offload is opt-in from this project config. If your llama.cpp build supports CUDA, set `LLAMA_GPU_LAYERS=auto`, `LLAMA_GPU_LAYERS=all`, or a numeric layer count. Verify device visibility with:
+
+```bash
+~/tools/llama.cpp/build/bin/llama-server --list-devices
+```
+
+For an NVIDIA WSL setup, the practical flow is:
+
+```bash
+cd ~/tools/llama.cpp
+cmake -B build-cuda -DGGML_CUDA=ON
+cmake --build build-cuda --config Release -j "$(nproc)"
+```
+
+Then update:
+
+```env
+LLAMA_CPP_BIN=~/tools/llama.cpp/build-cuda/bin/llama-server
+LLAMA_GPU_LAYERS=auto
+```
+
+Check the running server:
+
+```bash
+./app.py llm-check
+```
+
 At API startup, a background one-token completion verifies that the model can perform inference. `/health/llm` reports `503` while warming or unavailable and becomes ready after a successful probe; failed probes retry without blocking the rest of the API.
 LLM request outcomes and latency totals are exposed from `/metrics`.
 Non-streaming completion responses include `usage` when the backend provides token counts; the fake backend returns deterministic estimated counts for tests.
