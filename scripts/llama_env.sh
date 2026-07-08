@@ -43,6 +43,23 @@ configure_llama_env() {
   ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
   load_llama_env_file "$ENV_FILE"
 
+  LLAMA_PROFILE="${LLAMA_PROFILE:-}"
+  LLAMA_PROFILE_DIR="${LLAMA_PROFILE_DIR:-${ROOT_DIR}/scripts/llama_profiles}"
+  if [[ -n "$LLAMA_PROFILE" ]]; then
+    if [[ "$LLAMA_PROFILE" == */* ]]; then
+      LLAMA_PROFILE_FILE="$(expand_llama_path "$LLAMA_PROFILE")"
+    else
+      LLAMA_PROFILE_FILE="${LLAMA_PROFILE_DIR}/${LLAMA_PROFILE}.env"
+    fi
+
+    if [[ ! -f "$LLAMA_PROFILE_FILE" ]]; then
+      echo "llama profile not found: ${LLAMA_PROFILE_FILE}" >&2
+      exit 1
+    fi
+
+    load_llama_env_file "$LLAMA_PROFILE_FILE"
+  fi
+
   LLAMA_CPP_BIN="$(expand_llama_path "${LLAMA_CPP_BIN:-~/tools/llama.cpp/build/bin/llama-server}")"
   LLAMA_HOST="${LLAMA_HOST:-127.0.0.1}"
   LLAMA_PORT="${LLAMA_PORT:-8080}"
@@ -54,6 +71,8 @@ configure_llama_env() {
   LLAMA_BATCH_SIZE="${LLAMA_BATCH_SIZE:-}"
   LLAMA_UBATCH_SIZE="${LLAMA_UBATCH_SIZE:-}"
   LLAMA_GPU_LAYERS="${LLAMA_GPU_LAYERS:-}"
+  LLAMA_FLASH_ATTN="${LLAMA_FLASH_ATTN:-}"
+  LLAMA_EXTRA_ARGS="${LLAMA_EXTRA_ARGS:-}"
   LLAMA_PID_FILE="$(expand_llama_path "${LLAMA_PID_FILE:-/tmp/offline-hub-llama-server.pid}")"
   LLAMA_SHUTDOWN_TIMEOUT_SECONDS="${LLAMA_SHUTDOWN_TIMEOUT_SECONDS:-15}"
   LLM_BASE_URL="${LLM_BASE_URL:-http://${LLAMA_HOST}:${LLAMA_PORT}/v1}"

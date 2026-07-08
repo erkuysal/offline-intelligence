@@ -122,8 +122,15 @@ def llm_probe(args: argparse.Namespace) -> int:
     return 0
 
 
-def llm_start(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "start_llama_server.sh")])
+def llm_start(args: argparse.Namespace) -> int:
+    environment = os.environ.copy()
+    if args.profile:
+        environment["LLAMA_PROFILE"] = args.profile
+    return subprocess.call(
+        ["bash", str(ROOT / "scripts" / "start_llama_server.sh")],
+        cwd=ROOT,
+        env=environment,
+    )
 
 
 def llm_check(_args: argparse.Namespace) -> int:
@@ -179,6 +186,10 @@ def build_parser() -> argparse.ArgumentParser:
     llm_start_parser = subparsers.add_parser(
         "llm-start",
         help="start the configured llama.cpp server",
+    )
+    llm_start_parser.add_argument(
+        "--profile",
+        help="load scripts/llama_profiles/<profile>.env or a profile file path",
     )
     llm_start_parser.set_defaults(func=llm_start)
 

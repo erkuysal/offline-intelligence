@@ -96,6 +96,10 @@ LLAMA_PARALLEL=1
 LLAMA_BATCH_SIZE=
 LLAMA_UBATCH_SIZE=
 LLAMA_GPU_LAYERS=
+LLAMA_FLASH_ATTN=
+LLAMA_EXTRA_ARGS=
+LLAMA_PROFILE=
+LLAMA_PROFILE_DIR=scripts/llama_profiles
 LLAMA_PID_FILE=/tmp/offline-hub-llama-server.pid
 LLAMA_SHUTDOWN_TIMEOUT_SECONDS=15
 ```
@@ -156,6 +160,25 @@ It maps to:
 ```
 
 The preset still uses the managed start script underneath, so PID handling, stale-process checks, and already-running detection remain active.
+
+For experimentation, use named runtime profiles. Profiles are simple env files in `scripts/llama_profiles/` and override the base `.env` values:
+
+```bash
+./app.py llm-start --profile llama31-8b-9950x-5070
+```
+
+The included `llama31-8b-9950x-5070` profile sets:
+
+```env
+LLAMA_MODEL_REPO=ggml-org/Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF:Q4_0
+LLAMA_CTX_SIZE=8192
+LLAMA_GPU_LAYERS=99
+LLAMA_THREADS=16
+LLAMA_BATCH_SIZE=2048
+LLAMA_FLASH_ATTN=true
+```
+
+You can copy that file to create variants such as `llama31-8b-t8.env`, `llama31-8b-b1024.env`, or a CPU-only profile. `LLAMA_EXTRA_ARGS` is available for one-off llama.cpp flags that are not first-class config variables yet.
 
 At API startup, a background one-token completion verifies that the model can perform inference. `/health/llm` reports `503` while warming or unavailable and becomes ready after a successful probe; failed probes retry without blocking the rest of the API.
 LLM request outcomes and latency totals are exposed from `/metrics`.

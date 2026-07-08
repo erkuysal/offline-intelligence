@@ -48,6 +48,13 @@ fi
 [[ -n "$LLAMA_BATCH_SIZE" ]] && args+=(-b "$LLAMA_BATCH_SIZE")
 [[ -n "$LLAMA_UBATCH_SIZE" ]] && args+=(-ub "$LLAMA_UBATCH_SIZE")
 [[ -n "$LLAMA_GPU_LAYERS" ]] && args+=(-ngl "$LLAMA_GPU_LAYERS")
+case "${LLAMA_FLASH_ATTN,,}" in
+  1|true|yes|on) args+=(-fa) ;;
+esac
+if [[ -n "$LLAMA_EXTRA_ARGS" ]]; then
+  read -r -a extra_args <<< "$LLAMA_EXTRA_ARGS"
+  args+=("${extra_args[@]}")
+fi
 
 mkdir -p "$(dirname "$LLAMA_PID_FILE")"
 
@@ -73,11 +80,17 @@ trap cleanup EXIT
 echo "Starting llama-server on http://${LLAMA_HOST}:${LLAMA_PORT}"
 echo "Model: ${LLAMA_MODEL_PATH:-${LLAMA_MODEL_REPO}}"
 echo "PID file: ${LLAMA_PID_FILE}"
+[[ -n "${LLAMA_PROFILE:-}" ]] && echo "Profile: ${LLAMA_PROFILE}"
+[[ -n "$LLAMA_THREADS" ]] && echo "Threads: ${LLAMA_THREADS}"
+[[ -n "$LLAMA_BATCH_SIZE" ]] && echo "Batch size: ${LLAMA_BATCH_SIZE}"
 if [[ -n "$LLAMA_GPU_LAYERS" ]]; then
   echo "GPU layer offload: ${LLAMA_GPU_LAYERS}"
 else
   echo "GPU layer offload: llama.cpp default"
 fi
+case "${LLAMA_FLASH_ATTN,,}" in
+  1|true|yes|on) echo "Flash Attention: enabled" ;;
+esac
 
 "${args[@]}" &
 child_pid="$!"
