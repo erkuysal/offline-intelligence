@@ -1,56 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llama_env.sh"
+configure_llama_env
 
-load_env_file() {
-  local file="$1"
-  [[ -f "$file" ]] || return 0
-
-  local line key value
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-    [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    [[ "$line" == *=* ]] || continue
-
-    key="${line%%=*}"
-    value="${line#*=}"
-    key="${key//[[:space:]]/}"
-    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
-
-    if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
-      value="${value:1:${#value}-2}"
-    fi
-
-    export "$key=$value"
-  done < "$file"
-}
-
-expand_path() {
-  local path="$1"
-  if [[ "$path" == "~" ]]; then
-    printf "%s\n" "$HOME"
-  elif [[ "$path" == "~/"* ]]; then
-    printf "%s/%s\n" "$HOME" "${path#"~/"}"
-  else
-    printf "%s\n" "$path"
+if [[ -f "$LLAMA_PID_FILE" ]]; then
+  existing_pid="$(<"$LLAMA_PID_FILE")"
+  if llama_pid_running "$existing_pid"; then
+    echo "llama-server already running with PID ${existing_pid} (${LLAMA_PID_FILE})"
+    exit 0
   fi
-}
 
-load_env_file "$ENV_FILE"
+  echo "Removing stale llama-server PID file: ${LLAMA_PID_FILE}"
+  rm -f "$LLAMA_PID_FILE"
+fi
 
-LLAMA_CPP_BIN="$(expand_path "${LLAMA_CPP_BIN:-~/tools/llama.cpp/build/bin/llama-server}")"
-LLAMA_HOST="${LLAMA_HOST:-127.0.0.1}"
-LLAMA_PORT="${LLAMA_PORT:-8080}"
-LLAMA_MODEL_REPO="${LLAMA_MODEL_REPO:-${LLM_MODEL:-ggml-org/gemma-3-1b-it-GGUF:Q4_K_M}}"
-LLAMA_MODEL_PATH="${LLAMA_MODEL_PATH:-}"
-LLAMA_CTX_SIZE="${LLAMA_CTX_SIZE:-4096}"
-LLAMA_THREADS="${LLAMA_THREADS:-}"
-LLAMA_PARALLEL="${LLAMA_PARALLEL:-1}"
-LLAMA_BATCH_SIZE="${LLAMA_BATCH_SIZE:-}"
-LLAMA_UBATCH_SIZE="${LLAMA_UBATCH_SIZE:-}"
-LLAMA_GPU_LAYERS="${LLAMA_GPU_LAYERS:-}"
+if llama_api_available; then
+  echo "llama-server already responds at ${LLM_BASE_URL}"
+  echo "No new process started."
+  exit 0
+fi
 
 if [[ ! -x "$LLAMA_CPP_BIN" ]]; then
   echo "llama-server binary not found or not executable: ${LLAMA_CPP_BIN}" >&2
@@ -66,7 +35,7 @@ args=(
 )
 
 if [[ -n "$LLAMA_MODEL_PATH" ]]; then
-  args+=(-m "$(expand_path "$LLAMA_MODEL_PATH")")
+  args+=(-m "$(expand_llama_path "$LLAMA_MODEL_PATH")")
 elif [[ -n "$LLAMA_MODEL_REPO" ]]; then
   args+=(-hf "$LLAMA_MODEL_REPO")
 else
@@ -80,12 +49,37 @@ fi
 [[ -n "$LLAMA_UBATCH_SIZE" ]] && args+=(-ub "$LLAMA_UBATCH_SIZE")
 [[ -n "$LLAMA_GPU_LAYERS" ]] && args+=(-ngl "$LLAMA_GPU_LAYERS")
 
+mkdir -p "$(dirname "$LLAMA_PID_FILE")"
+
+child_pid=""
+cleanup() {
+  rm -f "$LLAMA_PID_FILE"
+}
+
+shutdown_child() {
+  local signal="$1"
+  if [[ -n "$child_pid" ]] && llama_pid_running "$child_pid"; then
+    echo "Forwarding ${signal} to llama-server PID ${child_pid}"
+    kill "-${signal}" "$child_pid" 2>/dev/null || true
+    wait "$child_pid" || true
+  fi
+  cleanup
+}
+
+trap 'shutdown_child TERM; exit 143' TERM
+trap 'shutdown_child INT; exit 130' INT
+trap cleanup EXIT
+
 echo "Starting llama-server on http://${LLAMA_HOST}:${LLAMA_PORT}"
 echo "Model: ${LLAMA_MODEL_PATH:-${LLAMA_MODEL_REPO}}"
+echo "PID file: ${LLAMA_PID_FILE}"
 if [[ -n "$LLAMA_GPU_LAYERS" ]]; then
   echo "GPU layer offload: ${LLAMA_GPU_LAYERS}"
 else
   echo "GPU layer offload: llama.cpp default"
 fi
 
-exec "${args[@]}"
+"${args[@]}" &
+child_pid="$!"
+printf "%s\n" "$child_pid" > "$LLAMA_PID_FILE"
+wait "$child_pid"

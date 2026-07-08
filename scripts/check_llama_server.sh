@@ -1,38 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llama_env.sh"
+configure_llama_env
 
-load_env_file() {
-  local file="$1"
-  [[ -f "$file" ]] || return 0
-
-  local line key value
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
-    [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    [[ "$line" == *=* ]] || continue
-
-    key="${line%%=*}"
-    value="${line#*=}"
-    key="${key//[[:space:]]/}"
-    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
-
-    if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
-      value="${value:1:${#value}-2}"
-    fi
-
-    export "$key=$value"
-  done < "$file"
-}
-
-load_env_file "$ENV_FILE"
-
-LLAMA_HOST="${LLAMA_HOST:-127.0.0.1}"
-LLAMA_PORT="${LLAMA_PORT:-8080}"
-LLM_BASE_URL="${LLM_BASE_URL:-http://${LLAMA_HOST}:${LLAMA_PORT}/v1}"
-LLM_MODEL="${LLM_MODEL:-${LLAMA_MODEL_REPO:-ggml-org/gemma-3-1b-it-GGUF:Q4_K_M}}"
+if [[ -f "$LLAMA_PID_FILE" ]]; then
+  existing_pid="$(<"$LLAMA_PID_FILE")"
+  if llama_pid_running "$existing_pid"; then
+    echo "PID file: ${LLAMA_PID_FILE} (${existing_pid}, running)"
+  else
+    echo "PID file: ${LLAMA_PID_FILE} (${existing_pid}, stale)"
+  fi
+else
+  echo "PID file: ${LLAMA_PID_FILE} (missing)"
+fi
 
 echo "Checking llama-server models at ${LLM_BASE_URL}/models"
 curl -fsS "${LLM_BASE_URL}/models" >/tmp/offline-hub-llama-models.json

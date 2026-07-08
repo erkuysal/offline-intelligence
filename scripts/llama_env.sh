@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+llama_root_dir() {
+  cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd
+}
+
+load_llama_env_file() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+
+  local line key value
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" == *=* ]] || continue
+
+    key="${line%%=*}"
+    value="${line#*=}"
+    key="${key//[[:space:]]/}"
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+
+    if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+
+    export "$key=$value"
+  done < "$file"
+}
+
+expand_llama_path() {
+  local path="$1"
+  if [[ "$path" == "~" ]]; then
+    printf "%s\n" "$HOME"
+  elif [[ "$path" == "~/"* ]]; then
+    printf "%s/%s\n" "$HOME" "${path#"~/"}"
+  else
+    printf "%s\n" "$path"
+  fi
+}
+
+configure_llama_env() {
+  ROOT_DIR="$(llama_root_dir)"
+  ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+  load_llama_env_file "$ENV_FILE"
+
+  LLAMA_CPP_BIN="$(expand_llama_path "${LLAMA_CPP_BIN:-~/tools/llama.cpp/build/bin/llama-server}")"
+  LLAMA_HOST="${LLAMA_HOST:-127.0.0.1}"
+  LLAMA_PORT="${LLAMA_PORT:-8080}"
+  LLAMA_MODEL_REPO="${LLAMA_MODEL_REPO:-${LLM_MODEL:-ggml-org/gemma-3-1b-it-GGUF:Q4_K_M}}"
+  LLAMA_MODEL_PATH="${LLAMA_MODEL_PATH:-}"
+  LLAMA_CTX_SIZE="${LLAMA_CTX_SIZE:-4096}"
+  LLAMA_THREADS="${LLAMA_THREADS:-}"
+  LLAMA_PARALLEL="${LLAMA_PARALLEL:-1}"
+  LLAMA_BATCH_SIZE="${LLAMA_BATCH_SIZE:-}"
+  LLAMA_UBATCH_SIZE="${LLAMA_UBATCH_SIZE:-}"
+  LLAMA_GPU_LAYERS="${LLAMA_GPU_LAYERS:-}"
+  LLAMA_PID_FILE="$(expand_llama_path "${LLAMA_PID_FILE:-/tmp/offline-hub-llama-server.pid}")"
+  LLAMA_SHUTDOWN_TIMEOUT_SECONDS="${LLAMA_SHUTDOWN_TIMEOUT_SECONDS:-15}"
+  LLM_BASE_URL="${LLM_BASE_URL:-http://${LLAMA_HOST}:${LLAMA_PORT}/v1}"
+  LLM_MODEL="${LLM_MODEL:-${LLAMA_MODEL_REPO}}"
+}
+
+llama_api_available() {
+  curl -fsS --max-time 2 "${LLM_BASE_URL}/models" >/dev/null 2>&1
+}
+
+llama_pid_running() {
+  local pid="$1"
+  [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}

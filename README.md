@@ -95,11 +95,20 @@ LLAMA_PARALLEL=1
 LLAMA_BATCH_SIZE=
 LLAMA_UBATCH_SIZE=
 LLAMA_GPU_LAYERS=
+LLAMA_PID_FILE=/tmp/offline-hub-llama-server.pid
+LLAMA_SHUTDOWN_TIMEOUT_SECONDS=15
 ```
 
 The LLM limits are hardware safety rails. They are intended to prevent accidental oversized prompts, runaway generations, or concurrent CPU-heavy requests on local machines.
 The `LLAMA_*` settings control the local `llama-server` process. By default the profile is conservative for WSL CPU use: one parallel slot, a 4096-token context, automatic thread selection, and llama.cpp's default device behavior.
 To use a local `.gguf` file instead of Hugging Face download/cache, set `LLAMA_MODEL_PATH=/path/to/model.gguf`; when this is set it takes precedence over `LLAMA_MODEL_REPO`.
+`./app.py llm-start` writes `LLAMA_PID_FILE`, removes stale PID files, and exits cleanly when the configured server is already responding. Stop a server launched by this project with:
+
+```bash
+./app.py llm-stop
+```
+
+Shutdown sends `SIGTERM` first and waits `LLAMA_SHUTDOWN_TIMEOUT_SECONDS` before using `SIGKILL`.
 
 GPU offload is opt-in from this project config. If your llama.cpp build supports CUDA, set `LLAMA_GPU_LAYERS=auto`, `LLAMA_GPU_LAYERS=all`, or a numeric layer count. Verify device visibility with:
 

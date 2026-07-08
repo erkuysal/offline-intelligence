@@ -130,6 +130,10 @@ def llm_check(_args: argparse.Namespace) -> int:
     return run_subprocess(["bash", str(ROOT / "scripts" / "check_llama_server.sh")])
 
 
+def llm_stop(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "stop_llama_server.sh")])
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="./app.py",
@@ -183,6 +187,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="check the configured llama.cpp server",
     )
     llm_check_parser.set_defaults(func=llm_check)
+
+    llm_stop_parser = subparsers.add_parser(
+        "llm-stop",
+        help="gracefully stop the configured llama.cpp server",
+    )
+    llm_stop_parser.set_defaults(func=llm_stop)
 
     return parser
 
