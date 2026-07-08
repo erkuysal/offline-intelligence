@@ -9,9 +9,15 @@ from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.document import Document, DocumentChunk
 from app.models.user import User
-from app.schemas.documents import DocumentChunkRead, DocumentRead
+from app.schemas.documents import (
+    DocumentChunkRead,
+    DocumentRead,
+    DocumentSearchRequest,
+    DocumentSearchResult,
+)
 from app.services.document_ingestion import ingest_document
 from app.services.document_storage import delete_stored_file, store_upload
+from app.services.embeddings import embed_document_chunks, get_embedding_provider, search_document_chunks
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -46,6 +52,9 @@ async def upload_document(
         chunk_size_chars=settings.document_chunk_size_chars,
         overlap_chars=settings.document_chunk_overlap_chars,
     )
+    if document.status == "ready":
+        embed_document_chunks(db, document, get_embedding_provider())
+        db.refresh(document)
 
     return document
 
@@ -93,6 +102,32 @@ def list_document_chunks(
         )
 
     return list(document.chunks)
+
+
+@router.post("/search", response_model=list[DocumentSearchResult])
+def search_documents(
+    request: DocumentSearchRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[DocumentSearchResult]:
+    results = search_document_chunks(
+        db,
+        owner_id=current_user.id,
+        query=request.query,
+        limit=request.limit,
+        provider=get_embedding_provider(),
+    )
+    return [
+        DocumentSearchResult(
+            document_id=chunk.document_id,
+            document_filename=chunk.document.original_filename,
+            chunk_id=chunk.id,
+            chunk_index=chunk.chunk_index,
+            content=chunk.content,
+            score=score,
+        )
+        for chunk, score in results
+    ]
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

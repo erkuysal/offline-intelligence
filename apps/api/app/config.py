@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     max_upload_size_bytes: int = 5 * 1024 * 1024
     document_chunk_size_chars: int = 2_000
     document_chunk_overlap_chars: int = 200
+    embedding_backend: str = "fake"
+    embedding_base_url: str = "http://127.0.0.1:8080/v1"
+    embedding_model: str = "fake-bow"
+    embedding_timeout_seconds: float = 30.0
+    fake_embedding_dimensions: int = 64
     llm_backend: str = "fake"
     llm_base_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "local-default"

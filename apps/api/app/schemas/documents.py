@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DocumentRead(BaseModel):
@@ -30,3 +30,18 @@ class DocumentChunkRead(BaseModel):
     char_end: int
     token_start: int
     token_end: int
+    embedding_model: str | None
+
+
+class DocumentSearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=10_000)
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class DocumentSearchResult(BaseModel):
+    document_id: int
+    document_filename: str
+    chunk_id: int
+    chunk_index: int
+    content: str
+    score: float

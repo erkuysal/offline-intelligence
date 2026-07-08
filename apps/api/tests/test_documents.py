@@ -30,13 +30,17 @@ def get_access_token() -> str:
 
 
 def upload_txt_document(token: str) -> dict:
+    return upload_txt_document_with_content(token, b"Backups run every night.")
+
+
+def upload_txt_document_with_content(token: str, content: bytes, filename: str = "policy.txt") -> dict:
     response = client.post(
         "/api/v1/documents",
         headers={"Authorization": f"Bearer {token}"},
         files={
             "file": (
-                "policy.txt",
-                b"Backups run every night.",
+                filename,
+                content,
                 "text/plain",
             )
         },
@@ -113,6 +117,7 @@ def test_upload_txt_document(tmp_path: Path, monkeypatch) -> None:
     assert chunks[0]["char_end"] == len("Backups run every night.")
     assert chunks[0]["token_start"] == 0
     assert chunks[0]["token_end"] > 0
+    assert chunks[0]["embedding_model"] == "fake-bow"
 
 
 def test_upload_txt_document_creates_multiple_chunks(
@@ -151,6 +156,68 @@ def test_upload_txt_document_creates_multiple_chunks(
     chunks = chunks_response.json()
     assert len(chunks) == body["chunk_count"]
     assert [chunk["chunk_index"] for chunk in chunks] == list(range(body["chunk_count"]))
+
+
+def test_search_documents_returns_relevant_chunks(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    backup_document = upload_txt_document_with_content(
+        token,
+        b"Backups run every night. Restore checks happen weekly.",
+        filename="backup-policy.txt",
+    )
+    upload_txt_document_with_content(
+        token,
+        b"Lunch menu includes pizza and salad.",
+        filename="menu.txt",
+    )
+
+    response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"query": "night backup restore", "limit": 2},
+    )
+
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 2
+    assert results[0]["document_id"] == backup_document["id"]
+    assert results[0]["document_filename"] == "backup-policy.txt"
+    assert "Backups" in results[0]["content"]
+    assert results[0]["score"] > results[1]["score"]
+
+
+def test_search_documents_requires_authentication() -> None:
+    response = client.post(
+        "/api/v1/documents/search",
+        json={"query": "backup", "limit": 5},
+    )
+
+    assert response.status_code == 401
+
+
+def test_search_documents_hides_other_users_chunks(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    owner_token = get_access_token()
+    other_token = get_access_token()
+    upload_txt_document_with_content(owner_token, b"Secret project backup plan.")
+
+    response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {other_token}"},
+        json={"query": "secret backup", "limit": 5},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 def test_upload_document_requires_authentication(tmp_path: Path, monkeypatch) -> None:

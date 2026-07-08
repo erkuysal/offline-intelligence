@@ -229,12 +229,32 @@ Chunk sizing is controlled by:
 ```env
 DOCUMENT_CHUNK_SIZE_CHARS=2000
 DOCUMENT_CHUNK_OVERLAP_CHARS=200
+EMBEDDING_BACKEND=fake
+EMBEDDING_BASE_URL=http://127.0.0.1:8080/v1
+EMBEDDING_MODEL=fake-bow
+EMBEDDING_TIMEOUT_SECONDS=30
+FAKE_EMBEDDING_DIMENSIONS=64
 ```
 
 List chunks for a document:
 
 ```text
 GET /api/v1/documents/{document_id}/chunks
+```
+
+Ready chunks are embedded during ingestion. The default fake embedding provider is deterministic and test-friendly; `EMBEDDING_BACKEND=openai_compatible` can target a local OpenAI-compatible `/embeddings` endpoint later.
+
+Search over embedded chunks:
+
+```text
+POST /api/v1/documents/search
+```
+
+```json
+{
+  "query": "backup policy",
+  "limit": 5
+}
 ```
 
 ## Smoke Test
