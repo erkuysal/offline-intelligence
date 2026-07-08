@@ -158,6 +158,7 @@ OpenAI API benzeri sözleşme:
 - Fake backend
 - Model configuration
 - Hardware safety rails
+- LLM request metrics
 - LLM probe command (`./app.py llm-probe`)
 - llama.cpp server integration
 - Model warm-up

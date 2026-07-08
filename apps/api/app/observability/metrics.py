@@ -13,11 +13,21 @@ class RequestMetric:
     status_code: int
 
 
+@dataclass(frozen=True)
+class LLMMetric:
+    backend: str
+    model: str
+    outcome: str
+
+
 class MetricsRegistry:
     def __init__(self) -> None:
         self._started_at = monotonic()
         self._total_requests = 0
         self._requests: Counter[RequestMetric] = Counter()
+        self._total_llm_requests = 0
+        self._llm_requests: Counter[LLMMetric] = Counter()
+        self._llm_latency_ms: Counter[LLMMetric] = Counter()
         self._lock = Lock()
 
     def record_request(self, method: str, path: str, status_code: int) -> None:
@@ -29,6 +39,23 @@ class MetricsRegistry:
         with self._lock:
             self._total_requests += 1
             self._requests[metric] += 1
+
+    def record_llm_request(
+        self,
+        backend: str,
+        model: str,
+        outcome: str,
+        duration_ms: float,
+    ) -> None:
+        metric = LLMMetric(
+            backend=backend,
+            model=model,
+            outcome=outcome,
+        )
+        with self._lock:
+            self._total_llm_requests += 1
+            self._llm_requests[metric] += 1
+            self._llm_latency_ms[metric] += duration_ms
 
     def snapshot(
         self,
@@ -47,6 +74,17 @@ class MetricsRegistry:
                 for metric, count in self._requests.items()
             ]
             total_requests = self._total_requests
+            llm_requests = [
+                {
+                    "backend": metric.backend,
+                    "model": metric.model,
+                    "outcome": metric.outcome,
+                    "count": count,
+                    "total_latency_ms": round(self._llm_latency_ms[metric], 3),
+                }
+                for metric, count in self._llm_requests.items()
+            ]
+            total_llm_requests = self._total_llm_requests
 
         return {
             "app": {
@@ -62,6 +100,15 @@ class MetricsRegistry:
                     str(item["path"]),
                     str(item["method"]),
                     int(item["status_code"]),
+                ),
+            ),
+            "llm_requests_total": total_llm_requests,
+            "llm_requests": sorted(
+                llm_requests,
+                key=lambda item: (
+                    str(item["backend"]),
+                    str(item["model"]),
+                    str(item["outcome"]),
                 ),
             ),
         }

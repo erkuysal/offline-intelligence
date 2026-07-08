@@ -63,6 +63,34 @@ def test_chat_completion_uses_fake_backend() -> None:
     assert body["choices"][0]["finish_reason"] == "stop"
 
 
+def test_chat_completion_records_success_metric() -> None:
+    token = get_access_token()
+    before_response = client.get("/metrics")
+    before_total = before_response.json()["llm_requests_total"]
+
+    response = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "messages": [{"role": "user", "content": "Hello"}],
+            "max_tokens": 64,
+        },
+    )
+    after_response = client.get("/metrics")
+
+    assert response.status_code == 200
+    after_body = after_response.json()
+    assert after_body["llm_requests_total"] >= before_total + 1
+    assert any(
+        request["backend"] == get_settings().llm_backend
+        and request["model"] == get_settings().llm_model
+        and request["outcome"] == "success"
+        and request["count"] >= 1
+        and request["total_latency_ms"] >= 0
+        for request in after_body["llm_requests"]
+    )
+
+
 def test_chat_completion_rejects_streaming() -> None:
     token = get_access_token()
 
@@ -175,6 +203,8 @@ def test_chat_completion_returns_503_when_backend_is_unavailable(monkeypatch) ->
         lambda: UnavailableBackend(),
     )
     token = get_access_token()
+    before_response = client.get("/metrics")
+    before_total = before_response.json()["llm_requests_total"]
 
     response = client.post(
         "/api/v1/chat/completions",
@@ -186,6 +216,12 @@ def test_chat_completion_returns_503_when_backend_is_unavailable(monkeypatch) ->
 
     assert response.status_code == 503
     assert response.json() == {"detail": "LLM backend is unavailable"}
+    after_body = client.get("/metrics").json()
+    assert after_body["llm_requests_total"] >= before_total + 1
+    assert any(
+        request["outcome"] == "unavailable" and request["count"] >= 1
+        for request in after_body["llm_requests"]
+    )
 
 
 def test_chat_completion_returns_504_when_backend_times_out(monkeypatch) -> None:

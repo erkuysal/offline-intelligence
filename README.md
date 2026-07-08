@@ -15,7 +15,7 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 - Document metadata listing, lookup, and deletion
 - Local file storage for uploaded documents
 - Structured request logging
-- Basic `/metrics` endpoint
+- Basic `/metrics` endpoint with HTTP and LLM request counters
 - OpenAI-style chat completions endpoint with a fake local LLM backend
 
 ## Local Setup
@@ -85,6 +85,7 @@ LLM_MAX_CONCURRENT_REQUESTS=1
 ```
 
 The LLM limits are hardware safety rails. They are intended to prevent accidental oversized prompts, runaway generations, or concurrent CPU-heavy requests on local machines.
+LLM request outcomes and latency totals are exposed from `/metrics`.
 
 The chat endpoint is:
 

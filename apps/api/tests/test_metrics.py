@@ -18,6 +18,8 @@ def test_metrics_returns_app_info() -> None:
     assert body["uptime_seconds"] >= 0
     assert body["requests_total"] >= 0
     assert isinstance(body["requests"], list)
+    assert body["llm_requests_total"] >= 0
+    assert isinstance(body["llm_requests"], list)
 
 
 def test_metrics_request_counter_increments() -> None:
