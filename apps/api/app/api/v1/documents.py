@@ -7,9 +7,10 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
-from app.models.document import Document
+from app.models.document import Document, DocumentChunk
 from app.models.user import User
-from app.schemas.documents import DocumentRead
+from app.schemas.documents import DocumentChunkRead, DocumentRead
+from app.services.document_ingestion import ingest_document
 from app.services.document_storage import delete_stored_file, store_upload
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -38,6 +39,13 @@ async def upload_document(
     db.add(document)
     db.commit()
     db.refresh(document)
+
+    document = ingest_document(
+        db,
+        document,
+        chunk_size_chars=settings.document_chunk_size_chars,
+        overlap_chars=settings.document_chunk_overlap_chars,
+    )
 
     return document
 
@@ -69,6 +77,22 @@ def get_document(
         )
 
     return document
+
+
+@router.get("/{document_id}/chunks", response_model=list[DocumentChunkRead])
+def list_document_chunks(
+    document_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[DocumentChunk]:
+    document = db.get(Document, document_id)
+    if document is None or document.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    return list(document.chunks)
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

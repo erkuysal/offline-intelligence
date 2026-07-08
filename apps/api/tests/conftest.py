@@ -8,12 +8,12 @@ from app.db.session import engine
 def clean_database() -> None:
     with engine.begin() as connection:
         connection.execute(
-            text("TRUNCATE TABLE user_roles, documents, users, roles RESTART IDENTITY CASCADE")
+            text("TRUNCATE TABLE user_roles, document_chunks, documents, users, roles RESTART IDENTITY CASCADE")
         )
 
     yield
 
     with engine.begin() as connection:
         connection.execute(
-            text("TRUNCATE TABLE user_roles, documents, users, roles RESTART IDENTITY CASCADE")
+            text("TRUNCATE TABLE user_roles, document_chunks, documents, users, roles RESTART IDENTITY CASCADE")
         )

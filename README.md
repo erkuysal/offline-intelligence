@@ -12,6 +12,7 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 - Access and refresh tokens
 - Basic RBAC with `user` and `admin` roles
 - TXT/PDF document upload with a 5 MB limit
+- TXT/PDF text extraction with persisted document chunks
 - Document metadata listing, lookup, and deletion
 - Local file storage for uploaded documents
 - Structured request logging
@@ -169,6 +170,29 @@ Probe the configured backend directly:
 
 ```bash
 ./app.py llm-probe "Explain the project briefly."
+```
+
+## Document Ingestion
+
+Uploaded documents are stored on disk, then ingested into database-backed chunks. The document `status` moves through:
+
+```text
+pending -> processing -> ready
+```
+
+If extraction fails, the document remains available with `status=failed`, `chunk_count=0`, and `ingestion_error` populated. TXT extraction is built in; PDF extraction uses `pypdf`.
+
+Chunk sizing is controlled by:
+
+```env
+DOCUMENT_CHUNK_SIZE_CHARS=2000
+DOCUMENT_CHUNK_OVERLAP_CHARS=200
+```
+
+List chunks for a document:
+
+```text
+GET /api/v1/documents/{document_id}/chunks
 ```
 
 ## Smoke Test
