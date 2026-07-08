@@ -28,6 +28,9 @@ class MetricsRegistry:
         self._total_llm_requests = 0
         self._llm_requests: Counter[LLMMetric] = Counter()
         self._llm_latency_ms: Counter[LLMMetric] = Counter()
+        self._llm_prompt_tokens: Counter[LLMMetric] = Counter()
+        self._llm_completion_tokens: Counter[LLMMetric] = Counter()
+        self._llm_total_tokens: Counter[LLMMetric] = Counter()
         self._lock = Lock()
 
     def record_request(self, method: str, path: str, status_code: int) -> None:
@@ -46,6 +49,9 @@ class MetricsRegistry:
         model: str,
         outcome: str,
         duration_ms: float,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        total_tokens: int = 0,
     ) -> None:
         metric = LLMMetric(
             backend=backend,
@@ -56,6 +62,9 @@ class MetricsRegistry:
             self._total_llm_requests += 1
             self._llm_requests[metric] += 1
             self._llm_latency_ms[metric] += duration_ms
+            self._llm_prompt_tokens[metric] += prompt_tokens
+            self._llm_completion_tokens[metric] += completion_tokens
+            self._llm_total_tokens[metric] += total_tokens
 
     def snapshot(
         self,
@@ -81,6 +90,9 @@ class MetricsRegistry:
                     "outcome": metric.outcome,
                     "count": count,
                     "total_latency_ms": round(self._llm_latency_ms[metric], 3),
+                    "prompt_tokens": self._llm_prompt_tokens[metric],
+                    "completion_tokens": self._llm_completion_tokens[metric],
+                    "total_tokens": self._llm_total_tokens[metric],
                 }
                 for metric, count in self._llm_requests.items()
             ]

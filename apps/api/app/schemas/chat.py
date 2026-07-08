@@ -27,9 +27,16 @@ class ChatCompletionChoice(BaseModel):
     finish_reason: str
 
 
+class ChatUsage(BaseModel):
+    prompt_tokens: int = Field(default=0, ge=0)
+    completion_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+
+
 class ChatCompletionResponse(BaseModel):
     id: str = Field(default_factory=lambda: f"chatcmpl-{uuid4().hex}")
     object: Literal["chat.completion"] = "chat.completion"
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
     choices: list[ChatCompletionChoice]
+    usage: ChatUsage | None = None

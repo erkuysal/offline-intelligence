@@ -62,6 +62,11 @@ def test_chat_completion_uses_fake_backend() -> None:
         "content": "Fake LLM response: Explain Phase 2",
     }
     assert body["choices"][0]["finish_reason"] == "stop"
+    assert body["usage"] == {
+        "prompt_tokens": 3,
+        "completion_tokens": 6,
+        "total_tokens": 9,
+    }
 
 
 def test_chat_completion_records_success_metric() -> None:
@@ -88,6 +93,9 @@ def test_chat_completion_records_success_metric() -> None:
         and request["outcome"] == "success"
         and request["count"] >= 1
         and request["total_latency_ms"] >= 0
+        and request["prompt_tokens"] >= 1
+        and request["completion_tokens"] >= 1
+        and request["total_tokens"] >= 2
         for request in after_body["llm_requests"]
     )
 

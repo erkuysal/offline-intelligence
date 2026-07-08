@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.observability.metrics import metrics_registry
-from app.schemas.chat import ChatCompletionRequest, ChatCompletionResponse
+from app.schemas.chat import ChatCompletionRequest, ChatCompletionResponse, ChatUsage
 from app.services.llm import (
     LLMError,
     LLMTimeoutError,
@@ -27,6 +27,7 @@ def record_llm_metric(
     request: ChatCompletionRequest,
     outcome: str,
     started_at: float,
+    usage: ChatUsage | None = None,
 ) -> None:
     settings = get_settings()
     metrics_registry.record_llm_request(
@@ -34,6 +35,9 @@ def record_llm_metric(
         model=request.model or settings.llm_model,
         outcome=outcome,
         duration_ms=round((perf_counter() - started_at) * 1000, 3),
+        prompt_tokens=usage.prompt_tokens if usage else 0,
+        completion_tokens=usage.completion_tokens if usage else 0,
+        total_tokens=usage.total_tokens if usage else 0,
     )
 
 
@@ -108,7 +112,7 @@ def create_chat_completion(
 
     try:
         response = backend.complete_chat(request)
-        record_llm_metric(request, "success", started_at)
+        record_llm_metric(request, "success", started_at, response.usage)
         return response
     except LLMTimeoutError as exc:
         record_llm_metric(request, "timeout", started_at)

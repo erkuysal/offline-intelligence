@@ -16,6 +16,7 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 - Local file storage for uploaded documents
 - Structured request logging
 - Basic `/metrics` endpoint with HTTP and LLM request counters
+- Non-streaming LLM token usage tracking
 - OpenAI-style chat completions endpoint with a fake local LLM backend
 - Streaming chat completions via server-sent events
 
@@ -87,6 +88,7 @@ LLM_MAX_CONCURRENT_REQUESTS=1
 
 The LLM limits are hardware safety rails. They are intended to prevent accidental oversized prompts, runaway generations, or concurrent CPU-heavy requests on local machines.
 LLM request outcomes and latency totals are exposed from `/metrics`.
+Non-streaming completion responses include `usage` when the backend provides token counts; the fake backend returns deterministic estimated counts for tests.
 
 The chat endpoint is:
 

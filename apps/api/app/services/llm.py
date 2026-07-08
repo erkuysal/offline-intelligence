@@ -11,6 +11,7 @@ from app.schemas.chat import (
     ChatCompletionRequest,
     ChatCompletionResponse,
     ChatMessage,
+    ChatUsage,
 )
 
 
@@ -57,6 +58,9 @@ class FakeLLMBackend(LLMBackend):
             (message.content for message in reversed(request.messages) if message.role == "user"),
             request.messages[-1].content,
         )
+        prompt_tokens = estimate_tokens(" ".join(message.content for message in request.messages))
+        completion = f"Fake LLM response: {latest_user_message}"
+        completion_tokens = estimate_tokens(completion)
         return ChatCompletionResponse(
             model=model,
             choices=[
@@ -64,11 +68,16 @@ class FakeLLMBackend(LLMBackend):
                     index=0,
                     message=ChatMessage(
                         role="assistant",
-                        content=f"Fake LLM response: {latest_user_message}",
+                        content=completion,
                     ),
                     finish_reason="stop",
                 )
             ],
+            usage=ChatUsage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            ),
         )
 
     def stream_chat(self, request: ChatCompletionRequest) -> Iterator[str]:
@@ -211,3 +220,7 @@ def get_llm_backend() -> LLMBackend:
         )
 
     raise UnsupportedLLMBackendError(f"Unsupported LLM backend: {settings.llm_backend}")
+
+
+def estimate_tokens(text: str) -> int:
+    return max(1, len(text.split()))

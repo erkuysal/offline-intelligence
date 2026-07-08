@@ -95,6 +95,11 @@ def test_openai_compatible_completion_posts_openai_payload(monkeypatch) -> None:
                         "finish_reason": "stop",
                     }
                 ],
+                "usage": {
+                    "prompt_tokens": 4,
+                    "completion_tokens": 5,
+                    "total_tokens": 9,
+                },
             },
         )
 
@@ -121,6 +126,21 @@ def test_openai_compatible_completion_posts_openai_payload(monkeypatch) -> None:
     ]
     assert response.model == "local-default"
     assert response.choices[0].message.content == "Hello from the model"
+    assert response.usage is not None
+    assert response.usage.prompt_tokens == 4
+    assert response.usage.completion_tokens == 5
+    assert response.usage.total_tokens == 9
+
+
+def test_fake_backend_returns_deterministic_usage() -> None:
+    backend = FakeLLMBackend(model="local-default")
+
+    response = backend.complete_chat(chat_request())
+
+    assert response.usage is not None
+    assert response.usage.prompt_tokens == 3
+    assert response.usage.completion_tokens == 4
+    assert response.usage.total_tokens == 7
 
 
 def test_openai_compatible_completion_maps_server_error(monkeypatch) -> None:
