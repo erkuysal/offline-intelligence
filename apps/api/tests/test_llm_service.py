@@ -132,6 +132,40 @@ def test_openai_compatible_completion_posts_openai_payload(monkeypatch) -> None:
     assert response.usage.total_tokens == 9
 
 
+def test_openai_compatible_warmup_uses_small_request_and_timeout(monkeypatch) -> None:
+    captured_payloads: list[dict] = []
+
+    def fake_post(url: str, json: dict, timeout: float) -> httpx.Response:
+        assert timeout == 2
+        captured_payloads.append(json)
+        return httpx.Response(
+            200,
+            json={
+                "model": "local-default",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Yes"},
+                        "finish_reason": "length",
+                    }
+                ],
+            },
+        )
+
+    monkeypatch.setattr("app.services.llm.httpx.post", fake_post)
+    backend = OpenAICompatibleLLMBackend(
+        base_url="http://localhost:8080/v1",
+        model="local-default",
+        timeout_seconds=60,
+    )
+
+    backend.warm_up(timeout_seconds=2)
+
+    assert captured_payloads[0]["max_tokens"] == 1
+    assert captured_payloads[0]["temperature"] == 0
+    assert captured_payloads[0]["stream"] is False
+
+
 def test_fake_backend_returns_deterministic_usage() -> None:
     backend = FakeLLMBackend(model="local-default")
 

@@ -31,6 +31,8 @@ class MetricsRegistry:
         self._llm_prompt_tokens: Counter[LLMMetric] = Counter()
         self._llm_completion_tokens: Counter[LLMMetric] = Counter()
         self._llm_total_tokens: Counter[LLMMetric] = Counter()
+        self._llm_warmup_attempts: Counter[str] = Counter()
+        self._llm_warmup_latency_ms: Counter[str] = Counter()
         self._lock = Lock()
 
     def record_request(self, method: str, path: str, status_code: int) -> None:
@@ -66,6 +68,11 @@ class MetricsRegistry:
             self._llm_completion_tokens[metric] += completion_tokens
             self._llm_total_tokens[metric] += total_tokens
 
+    def record_llm_warmup(self, outcome: str, duration_ms: float) -> None:
+        with self._lock:
+            self._llm_warmup_attempts[outcome] += 1
+            self._llm_warmup_latency_ms[outcome] += duration_ms
+
     def snapshot(
         self,
         app_name: str,
@@ -97,6 +104,14 @@ class MetricsRegistry:
                 for metric, count in self._llm_requests.items()
             ]
             total_llm_requests = self._total_llm_requests
+            llm_warmups = [
+                {
+                    "outcome": outcome,
+                    "count": count,
+                    "total_latency_ms": round(self._llm_warmup_latency_ms[outcome], 3),
+                }
+                for outcome, count in self._llm_warmup_attempts.items()
+            ]
 
         return {
             "app": {
@@ -123,6 +138,7 @@ class MetricsRegistry:
                     str(item["outcome"]),
                 ),
             ),
+            "llm_warmups": sorted(llm_warmups, key=lambda item: str(item["outcome"])),
         }
 
 

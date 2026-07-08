@@ -81,12 +81,16 @@ LLM_BACKEND=openai_compatible
 LLM_BASE_URL=http://127.0.0.1:8080/v1
 LLM_MODEL=ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
 LLM_TIMEOUT_SECONDS=60
+LLM_WARMUP_ENABLED=true
+LLM_WARMUP_TIMEOUT_SECONDS=5
+LLM_WARMUP_RETRY_SECONDS=10
 LLM_MAX_TOTAL_MESSAGE_CHARS=50000
 LLM_MAX_COMPLETION_TOKENS=2048
 LLM_MAX_CONCURRENT_REQUESTS=1
 ```
 
 The LLM limits are hardware safety rails. They are intended to prevent accidental oversized prompts, runaway generations, or concurrent CPU-heavy requests on local machines.
+At API startup, a background one-token completion verifies that the model can perform inference. `/health/llm` reports `503` while warming or unavailable and becomes ready after a successful probe; failed probes retry without blocking the rest of the API.
 LLM request outcomes and latency totals are exposed from `/metrics`.
 Non-streaming completion responses include `usage` when the backend provides token counts; the fake backend returns deterministic estimated counts for tests.
 

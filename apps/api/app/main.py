@@ -1,3 +1,6 @@
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from typing import Annotated
 import logging
 from time import perf_counter
@@ -14,16 +17,39 @@ from app.config import get_settings
 from app.db.session import get_db
 from app.observability.logging import configure_logging, log_event
 from app.observability.metrics import metrics_registry
-from app.services.llm import LLMError, LLMTimeoutError, LLMUnavailableError, get_llm_backend
+from app.services.llm_readiness import llm_readiness
 
 settings = get_settings()
 configure_logging()
 request_logger = logging.getLogger("app.requests")
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    warmup_task: asyncio.Task[None] | None = None
+    if settings.llm_warmup_enabled:
+        warmup_task = asyncio.create_task(
+            llm_readiness.run(
+                timeout_seconds=settings.llm_warmup_timeout_seconds,
+                retry_seconds=settings.llm_warmup_retry_seconds,
+            )
+        )
+    else:
+        llm_readiness.set("disabled")
+
+    yield
+
+    if warmup_task is not None:
+        warmup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await warmup_task
+
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     debug=settings.debug,
+    lifespan=lifespan,
 )
 app.include_router(api_router)
 
@@ -107,38 +133,22 @@ def redis_health_check() -> dict[str, str]:
 
 
 @app.get("/health/llm", tags=["system"])
-def llm_health_check() -> dict[str, str]:
-    try:
-        get_llm_backend().health_check()
-    except LLMTimeoutError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="LLM backend timed out",
-        ) from exc
-    except LLMUnavailableError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="LLM backend is unavailable",
-        ) from exc
-    except LLMError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="LLM backend is unavailable",
-        ) from exc
-
-    return {
-        "status": "healthy",
-        "llm": "reachable",
-    }
+def llm_health_check(response: Response) -> dict[str, str | None]:
+    snapshot = llm_readiness.snapshot()
+    if snapshot.status not in {"ready", "disabled"}:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return snapshot.as_dict()
 
 
 @app.get("/metrics", tags=["system"])
 async def metrics() -> dict[str, object]:
-    return metrics_registry.snapshot(
+    snapshot = metrics_registry.snapshot(
         app_name=settings.app_name,
         app_version=settings.app_version,
         environment=settings.environment,
     )
+    snapshot["llm_readiness"] = llm_readiness.snapshot().as_dict()
+    return snapshot
 
 
 def main() -> None:

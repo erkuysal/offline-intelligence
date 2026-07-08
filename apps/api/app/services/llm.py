@@ -33,6 +33,10 @@ class UnsupportedLLMBackendError(LLMError):
 
 class LLMBackend(ABC):
     @abstractmethod
+    def warm_up(self, timeout_seconds: float) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def health_check(self) -> bool:
         raise NotImplementedError
 
@@ -51,6 +55,9 @@ class FakeLLMBackend(LLMBackend):
 
     def health_check(self) -> bool:
         return True
+
+    def warm_up(self, timeout_seconds: float) -> None:
+        return None
 
     def complete_chat(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         model = request.model or self.model
@@ -143,6 +150,23 @@ class OpenAICompatibleLLMBackend(LLMBackend):
         return True
 
     def complete_chat(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        return self._complete_chat(request, self.timeout_seconds)
+
+    def warm_up(self, timeout_seconds: float) -> None:
+        self._complete_chat(
+            ChatCompletionRequest(
+                messages=[ChatMessage(role="user", content="Ready?")],
+                temperature=0,
+                max_tokens=1,
+            ),
+            timeout_seconds,
+        )
+
+    def _complete_chat(
+        self,
+        request: ChatCompletionRequest,
+        timeout_seconds: float,
+    ) -> ChatCompletionResponse:
         model = request.model or self.model
         payload = {
             "model": model,
@@ -156,7 +180,7 @@ class OpenAICompatibleLLMBackend(LLMBackend):
             response = httpx.post(
                 f"{self.base_url}/chat/completions",
                 json=payload,
-                timeout=self.timeout_seconds,
+                timeout=timeout_seconds,
             )
         except httpx.TimeoutException as exc:
             raise LLMTimeoutError("LLM completion timed out") from exc

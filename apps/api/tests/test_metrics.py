@@ -20,6 +20,13 @@ def test_metrics_returns_app_info() -> None:
     assert isinstance(body["requests"], list)
     assert body["llm_requests_total"] >= 0
     assert isinstance(body["llm_requests"], list)
+    assert isinstance(body["llm_warmups"], list)
+    assert body["llm_readiness"]["status"] in {
+        "disabled",
+        "warming",
+        "ready",
+        "unavailable",
+    }
     for request in body["llm_requests"]:
         assert request["prompt_tokens"] >= 0
         assert request["completion_tokens"] >= 0

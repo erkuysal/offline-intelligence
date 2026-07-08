@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "local-default"
     llm_timeout_seconds: float = 60.0
+    llm_warmup_enabled: bool = True
+    llm_warmup_timeout_seconds: float = 5.0
+    llm_warmup_retry_seconds: float = 10.0
     llm_max_total_message_chars: int = 50_000
     llm_max_completion_tokens: int = 2_048
     llm_max_concurrent_requests: int = 1
