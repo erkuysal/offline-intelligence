@@ -13,10 +13,10 @@ COPY alembic.ini .
 COPY migrations ./migrations
 COPY apps/api ./apps/api
 COPY scripts/docker_api_entrypoint.sh ./scripts/docker_api_entrypoint.sh
+COPY scripts/prepare_test_database.py ./scripts/prepare_test_database.py
 
 RUN chmod +x ./scripts/docker_api_entrypoint.sh
 
 EXPOSE 8000
 
 ENTRYPOINT ["./scripts/docker_api_entrypoint.sh"]
-

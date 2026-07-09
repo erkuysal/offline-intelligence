@@ -55,7 +55,8 @@ services:
       DEBUG: "false"
       HOST: 0.0.0.0
       PORT: 8000
-      DATABASE_URL: postgresql+psycopg://offline_ai:offline_ai@postgres:5432/offline_ai
+      DATABASE_URL: postgresql+psycopg://offline_ai:offline_ai@postgres:5432/offline_ai_test
+      TEST_DATABASE_ADMIN_URL: postgresql://offline_ai:offline_ai@postgres:5432/postgres
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: change-me-in-production
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
@@ -78,7 +79,7 @@ services:
     command:
       - sh
       - -c
-      - alembic upgrade head && pytest -q
+      - python scripts/prepare_test_database.py && alembic upgrade head && pytest -q
 
   redis:
     image: redis:7-alpine

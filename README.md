@@ -350,7 +350,7 @@ Run tests inside Docker Compose:
 ./app.py test-container
 ```
 
-This rebuilds the API test image, waits for PostgreSQL and Redis, applies migrations, and runs `pytest` inside the container.
+This rebuilds the API test image, waits for PostgreSQL and Redis, creates the isolated `offline_ai_test` database when needed, applies migrations, and runs `pytest` inside the container. The test fixtures refuse to run against a database whose name does not end in `_test`.
 
 ## Docker Compose
 
