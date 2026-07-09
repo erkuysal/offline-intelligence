@@ -130,6 +130,7 @@ def search_document_chunks(
             Document.owner_id == owner_id,
             Document.status == "ready",
             DocumentChunk.embedding_json.is_not(None),
+            DocumentChunk.embedding_model == provider.model,
         )
     )
     if document_ids is not None:
@@ -144,6 +145,42 @@ def search_document_chunks(
 
     scored_chunks.sort(key=lambda item: item[1], reverse=True)
     return scored_chunks[:limit]
+
+
+def reembed_all_document_chunks(
+    db: Session,
+    *,
+    provider: EmbeddingProvider,
+    batch_size: int,
+) -> int:
+    processed = 0
+    last_chunk_id = 0
+
+    while True:
+        statement = (
+            select(DocumentChunk)
+            .join(Document)
+            .where(
+                Document.status == "ready",
+                DocumentChunk.id > last_chunk_id,
+            )
+            .order_by(DocumentChunk.id)
+            .limit(batch_size)
+        )
+        chunks = list(db.scalars(statement))
+        if not chunks:
+            break
+
+        embeddings = provider.embed_texts([chunk.content for chunk in chunks])
+        for chunk, embedding in zip(chunks, embeddings, strict=True):
+            chunk.embedding_json = json.dumps(embedding, separators=(",", ":"))
+            chunk.embedding_model = provider.model
+        db.commit()
+
+        processed += len(chunks)
+        last_chunk_id = chunks[-1].id
+
+    return processed
 
 
 def parse_embedding(raw_embedding: str | None) -> list[float] | None:

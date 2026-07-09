@@ -4,7 +4,9 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
+from app.db.session import SessionLocal
 from app.main import app
+from app.services.embeddings import FakeEmbeddingProvider, reembed_all_document_chunks
 
 client = TestClient(app)
 
@@ -218,6 +220,52 @@ def test_search_documents_hides_other_users_chunks(
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_search_documents_ignores_embeddings_from_another_model(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    upload_txt_document_with_content(token, b"Backups run every night.")
+    monkeypatch.setattr(settings, "embedding_model", "replacement-model")
+
+    response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"query": "backups", "limit": 5},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_reembed_all_document_chunks_replaces_embedding_model(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    document = upload_txt_document_with_content(token, b"Backups run every night.")
+
+    with SessionLocal() as db:
+        processed = reembed_all_document_chunks(
+            db,
+            provider=FakeEmbeddingProvider(model="replacement-model", dimensions=32),
+            batch_size=1,
+        )
+
+    chunks_response = client.get(
+        f"/api/v1/documents/{document['id']}/chunks",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert processed == 1
+    assert chunks_response.status_code == 200
+    assert chunks_response.json()[0]["embedding_model"] == "replacement-model"
 
 
 def test_upload_document_requires_authentication(tmp_path: Path, monkeypatch) -> None:

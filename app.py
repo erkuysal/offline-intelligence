@@ -141,6 +141,46 @@ def llm_stop(_args: argparse.Namespace) -> int:
     return run_subprocess(["bash", str(ROOT / "scripts" / "stop_llama_server.sh")])
 
 
+def embedding_start(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "start_embedding_server.sh")])
+
+
+def embedding_check(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "check_embedding_server.sh")])
+
+
+def embedding_stop(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "stop_embedding_server.sh")])
+
+
+def embedding_reindex(_args: argparse.Namespace) -> int:
+    configure_import_path()
+    load_root_env()
+
+    from app.config import get_settings
+    from app.db.session import SessionLocal
+    from app.services.embeddings import (
+        EmbeddingError,
+        get_embedding_provider,
+        reembed_all_document_chunks,
+    )
+
+    settings = get_settings()
+    try:
+        with SessionLocal() as db:
+            processed = reembed_all_document_chunks(
+                db,
+                provider=get_embedding_provider(),
+                batch_size=settings.embedding_reindex_batch_size,
+            )
+    except EmbeddingError as exc:
+        print(f"Embedding reindex failed: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Re-embedded {processed} document chunks with {settings.embedding_model}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="./app.py",
@@ -204,6 +244,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="gracefully stop the configured llama.cpp server",
     )
     llm_stop_parser.set_defaults(func=llm_stop)
+
+    embedding_start_parser = subparsers.add_parser(
+        "embedding-start",
+        help="start the dedicated llama.cpp embedding server",
+    )
+    embedding_start_parser.set_defaults(func=embedding_start)
+
+    embedding_check_parser = subparsers.add_parser(
+        "embedding-check",
+        help="check the dedicated embedding server",
+    )
+    embedding_check_parser.set_defaults(func=embedding_check)
+
+    embedding_stop_parser = subparsers.add_parser(
+        "embedding-stop",
+        help="gracefully stop the dedicated embedding server",
+    )
+    embedding_stop_parser.set_defaults(func=embedding_stop)
+
+    embedding_reindex_parser = subparsers.add_parser(
+        "embedding-reindex",
+        help="replace stored document chunk embeddings using the configured provider",
+    )
+    embedding_reindex_parser.set_defaults(func=embedding_reindex)
 
     return parser
 

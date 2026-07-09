@@ -49,7 +49,7 @@ fi
 [[ -n "$LLAMA_UBATCH_SIZE" ]] && args+=(-ub "$LLAMA_UBATCH_SIZE")
 [[ -n "$LLAMA_GPU_LAYERS" ]] && args+=(-ngl "$LLAMA_GPU_LAYERS")
 case "${LLAMA_FLASH_ATTN,,}" in
-  1|true|yes|on) args+=(-fa) ;;
+  1|true|yes|on) args+=(--flash-attn on) ;;
 esac
 if [[ -n "$LLAMA_EXTRA_ARGS" ]]; then
   read -r -a extra_args <<< "$LLAMA_EXTRA_ARGS"

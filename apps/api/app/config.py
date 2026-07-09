@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     embedding_model: str = "fake-bow"
     embedding_timeout_seconds: float = 30.0
     fake_embedding_dimensions: int = 64
+    embedding_reindex_batch_size: int = 32
     rag_retrieval_limit: int = 5
     rag_max_context_chars: int = 12_000
     llm_backend: str = "fake"
