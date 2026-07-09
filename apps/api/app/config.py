@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     embedding_model: str = "fake-bow"
     embedding_timeout_seconds: float = 30.0
     fake_embedding_dimensions: int = 64
+    rag_retrieval_limit: int = 5
+    rag_max_context_chars: int = 12_000
     llm_backend: str = "fake"
     llm_base_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "local-default"

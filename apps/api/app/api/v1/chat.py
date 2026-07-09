@@ -1,16 +1,20 @@
 from typing import Annotated
 from collections.abc import Iterator
+import json
 from threading import BoundedSemaphore
 from time import perf_counter
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 
-from app.config import get_settings
+from app.config import Settings, get_settings
+from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.observability.metrics import metrics_registry
-from app.schemas.chat import ChatCompletionRequest, ChatCompletionResponse, ChatUsage
+from app.schemas.chat import ChatCompletionRequest, ChatCompletionResponse, ChatSource, ChatUsage
+from app.services.embeddings import EmbeddingError
 from app.services.llm import (
     LLMError,
     LLMTimeoutError,
@@ -18,6 +22,7 @@ from app.services.llm import (
     get_llm_backend,
 )
 from app.services.llm import LLMBackend
+from app.services.rag import augment_chat_request
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 llm_request_semaphore = BoundedSemaphore(get_settings().llm_max_concurrent_requests)
@@ -62,8 +67,12 @@ def stream_llm_response(
     backend: LLMBackend,
     request: ChatCompletionRequest,
     started_at: float,
+    sources: list[ChatSource] | None = None,
 ) -> Iterator[str]:
     try:
+        if sources:
+            source_data = [source.model_dump() for source in sources]
+            yield f"event: sources\ndata: {json.dumps(source_data, separators=(',', ':'))}\n\n"
         yield from backend.stream_chat(request)
         record_llm_metric(request, "stream_success", started_at)
     except GeneratorExit:
@@ -86,6 +95,8 @@ def stream_llm_response(
 def create_chat_completion(
     request: ChatCompletionRequest,
     current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> ChatCompletionResponse | StreamingResponse:
     started_at = perf_counter()
 
@@ -94,6 +105,20 @@ def create_chat_completion(
     except HTTPException:
         record_llm_metric(request, "safety_rejected", started_at)
         raise
+
+    try:
+        rag_context = augment_chat_request(
+            db,
+            owner_id=current_user.id,
+            request=request,
+            settings=settings,
+        )
+    except EmbeddingError as exc:
+        record_llm_metric(request, "retrieval_error", started_at)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document retrieval backend is unavailable",
+        ) from exc
 
     backend = get_llm_backend()
 
@@ -106,12 +131,19 @@ def create_chat_completion(
 
     if request.stream:
         return StreamingResponse(
-            stream_llm_response(backend, request, started_at),
+            stream_llm_response(
+                backend,
+                rag_context.request,
+                started_at,
+                rag_context.sources,
+            ),
             media_type="text/event-stream",
         )
 
     try:
-        response = backend.complete_chat(request)
+        response = backend.complete_chat(rag_context.request)
+        if rag_context.sources:
+            response.sources = rag_context.sources
         record_llm_metric(request, "success", started_at, response.usage)
         return response
     except LLMTimeoutError as exc:

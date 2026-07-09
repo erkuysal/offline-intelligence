@@ -19,6 +19,7 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 - Basic `/metrics` endpoint with HTTP and LLM request counters
 - Non-streaming LLM token usage tracking
 - OpenAI-style chat completions endpoint with a fake local LLM backend
+- Opt-in document retrieval for grounded chat responses with source metadata
 - Streaming chat completions via server-sent events
 
 ## Local Setup
@@ -208,6 +209,17 @@ curl -N -X POST http://127.0.0.1:8000/api/v1/chat/completions \
   -d '{"messages":[{"role":"user","content":"Explain the project briefly."}],"max_tokens":128,"stream":true}'
 ```
 
+Ground a completion in the authenticated user's documents:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/chat/completions \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"messages":[{"role":"user","content":"When do backups run?"}],"use_documents":true,"retrieval_limit":5}'
+```
+
+`document_ids` can restrict retrieval to selected documents. Non-streaming responses include a `sources` list. Streaming responses emit an `event: sources` SSE event before completion chunks when sources were found.
+
 Probe the configured backend directly:
 
 ```bash
@@ -234,6 +246,8 @@ EMBEDDING_BASE_URL=http://127.0.0.1:8080/v1
 EMBEDDING_MODEL=fake-bow
 EMBEDDING_TIMEOUT_SECONDS=30
 FAKE_EMBEDDING_DIMENSIONS=64
+RAG_RETRIEVAL_LIMIT=5
+RAG_MAX_CONTEXT_CHARS=12000
 ```
 
 List chunks for a document:
@@ -243,6 +257,7 @@ GET /api/v1/documents/{document_id}/chunks
 ```
 
 Ready chunks are embedded during ingestion. The default fake embedding provider is deterministic and test-friendly; `EMBEDDING_BACKEND=openai_compatible` can target a local OpenAI-compatible `/embeddings` endpoint later.
+RAG context is capped separately from user messages so retrieval cannot accidentally overload the local model context.
 
 Search over embedded chunks:
 

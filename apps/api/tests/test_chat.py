@@ -1,3 +1,6 @@
+from pathlib import Path
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 
 from app.api.v1.chat import llm_request_semaphore, stream_llm_response
@@ -10,7 +13,7 @@ client = TestClient(app)
 
 
 def get_access_token() -> str:
-    email = "chat-user@example.com"
+    email = f"chat-user-{uuid4().hex}@example.com"
     password = "correct-horse-battery-staple"
     client.post(
         "/api/v1/auth/register",
@@ -27,6 +30,16 @@ def get_access_token() -> str:
         },
     )
     return response.json()["access_token"]
+
+
+def upload_document(token: str, content: str, filename: str) -> dict:
+    response = client.post(
+        "/api/v1/documents",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": (filename, content.encode(), "text/plain")},
+    )
+    assert response.status_code == 201
+    return response.json()
 
 
 def test_chat_completion_requires_authentication() -> None:
@@ -127,6 +140,90 @@ def test_chat_completion_streams_fake_backend() -> None:
         and request["count"] >= 1
         for request in after_body["llm_requests"]
     )
+
+
+def test_chat_completion_retrieves_document_sources(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    document = upload_document(
+        token,
+        "Backups run every night. Restore checks happen weekly.",
+        "backup-policy.txt",
+    )
+    chunks = client.get(
+        f"/api/v1/documents/{document['id']}/chunks",
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+
+    response = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "messages": [{"role": "user", "content": "When do backups run?"}],
+            "use_documents": True,
+            "document_ids": [document["id"]],
+            "retrieval_limit": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["choices"][0]["message"]["content"] == "Fake LLM response: When do backups run?"
+    assert body["sources"] == [
+        {
+            "document_id": document["id"],
+            "document_filename": "backup-policy.txt",
+            "chunk_id": chunks[0]["id"],
+            "chunk_index": 0,
+            "score": body["sources"][0]["score"],
+        }
+    ]
+
+
+def test_streaming_chat_emits_document_sources(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    upload_document(token, "The support desk opens at nine.", "support.txt")
+
+    with client.stream(
+        "POST",
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "messages": [{"role": "user", "content": "When does support open?"}],
+            "use_documents": True,
+            "stream": True,
+        },
+    ) as response:
+        body = response.read().decode()
+
+    assert response.status_code == 200
+    assert "event: sources" in body
+    assert '"document_filename":"support.txt"' in body
+    assert "Fake LLM response: When does support open?" in body
+
+
+def test_rag_chat_hides_other_users_documents(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    owner_token = get_access_token()
+    other_token = get_access_token()
+    document = upload_document(owner_token, "Private launch code alpha.", "private.txt")
+
+    response = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {other_token}"},
+        json={
+            "messages": [{"role": "user", "content": "What is the launch code?"}],
+            "use_documents": True,
+            "document_ids": [document["id"]],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["sources"] is None
 
 
 def test_stream_cancellation_records_metric_and_releases_semaphore() -> None:

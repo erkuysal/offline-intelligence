@@ -19,6 +19,9 @@ class ChatCompletionRequest(BaseModel):
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=512, ge=1, le=4096)
     stream: bool = False
+    use_documents: bool = False
+    document_ids: list[int] | None = Field(default=None, min_length=1, max_length=100)
+    retrieval_limit: int | None = Field(default=None, ge=1, le=20)
 
 
 class ChatCompletionChoice(BaseModel):
@@ -33,6 +36,14 @@ class ChatUsage(BaseModel):
     total_tokens: int = Field(default=0, ge=0)
 
 
+class ChatSource(BaseModel):
+    document_id: int
+    document_filename: str
+    chunk_id: int
+    chunk_index: int
+    score: float
+
+
 class ChatCompletionResponse(BaseModel):
     id: str = Field(default_factory=lambda: f"chatcmpl-{uuid4().hex}")
     object: Literal["chat.completion"] = "chat.completion"
@@ -40,3 +51,4 @@ class ChatCompletionResponse(BaseModel):
     model: str
     choices: list[ChatCompletionChoice]
     usage: ChatUsage | None = None
+    sources: list[ChatSource] | None = None

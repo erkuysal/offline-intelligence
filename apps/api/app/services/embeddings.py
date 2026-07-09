@@ -120,6 +120,7 @@ def search_document_chunks(
     query: str,
     limit: int,
     provider: EmbeddingProvider,
+    document_ids: list[int] | None = None,
 ) -> list[tuple[DocumentChunk, float]]:
     query_embedding = provider.embed_texts([query])[0]
     statement = (
@@ -131,6 +132,8 @@ def search_document_chunks(
             DocumentChunk.embedding_json.is_not(None),
         )
     )
+    if document_ids is not None:
+        statement = statement.where(Document.id.in_(document_ids))
 
     scored_chunks: list[tuple[DocumentChunk, float]] = []
     for chunk in db.scalars(statement):
