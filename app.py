@@ -110,9 +110,11 @@ def build_test_environment() -> dict[str, str]:
                 "TEST_DOCUMENT_STORAGE_DIR",
                 "/tmp/offline-intelligence-hub-tests/documents",
             ),
+            "DOCUMENT_INGESTION_MODE": "sync",
             "LLM_BACKEND": "fake",
             "LLM_WARMUP_ENABLED": "false",
             "EMBEDDING_BACKEND": "fake",
+            "EMBEDDING_MODEL": "fake-bow",
         }
     )
     return environment
@@ -263,6 +265,33 @@ def embedding_reindex(_args: argparse.Namespace) -> int:
     return 0
 
 
+def ingestion_worker(args: argparse.Namespace) -> int:
+    configure_import_path()
+    load_root_env()
+
+    from redis.exceptions import RedisError
+
+    from app.cache.redis import get_redis_client
+    from app.config import get_settings
+    from app.services.document_ingestion_queue import process_next_ingestion_job
+
+    settings = get_settings()
+    redis_client = get_redis_client()
+
+    try:
+        while True:
+            processed = process_next_ingestion_job(redis_client, settings=settings)
+            if args.once:
+                if processed:
+                    print("Processed one document ingestion job")
+                    return 0
+                print("No document ingestion job available")
+                return 0
+    except RedisError as exc:
+        print(f"Document ingestion worker failed: {exc}", file=sys.stderr)
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="./app.py",
@@ -353,6 +382,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="replace stored document chunk embeddings using the configured provider",
     )
     embedding_reindex_parser.set_defaults(func=embedding_reindex)
+
+    ingestion_worker_parser = subparsers.add_parser(
+        "ingestion-worker",
+        help="process queued document ingestion jobs from Redis",
+    )
+    ingestion_worker_parser.add_argument("--once", action="store_true", help="process at most one queued job")
+    ingestion_worker_parser.set_defaults(func=ingestion_worker)
 
     return parser
 

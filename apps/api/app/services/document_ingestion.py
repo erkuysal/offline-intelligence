@@ -4,7 +4,9 @@ from pathlib import Path
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.models.document import Document, DocumentChunk
+from app.services.embeddings import EmbeddingError, embed_document_chunks, get_embedding_provider
 
 DOCUMENT_STATUS_PENDING = "pending"
 DOCUMENT_STATUS_PROCESSING = "processing"
@@ -158,5 +160,35 @@ def ingest_document(
     document.ingestion_error = None
     document.chunk_count = len(chunks)
     db.commit()
+    db.refresh(document)
+    return document
+
+
+def process_document_ingestion(
+    db: Session,
+    document_id: int,
+    *,
+    settings: Settings,
+) -> Document | None:
+    document = db.get(Document, document_id)
+    if document is None:
+        return None
+
+    document = ingest_document(
+        db,
+        document,
+        chunk_size_chars=settings.document_chunk_size_chars,
+        overlap_chars=settings.document_chunk_overlap_chars,
+    )
+    if document.status != DOCUMENT_STATUS_READY:
+        return document
+
+    try:
+        embed_document_chunks(db, document, get_embedding_provider())
+    except EmbeddingError as exc:
+        document.status = DOCUMENT_STATUS_FAILED
+        document.ingestion_error = str(exc)
+        db.commit()
+
     db.refresh(document)
     return document

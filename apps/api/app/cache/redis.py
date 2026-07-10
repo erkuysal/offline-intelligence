@@ -12,7 +12,7 @@ def get_redis_client() -> Redis:
         settings.redis_url,
         decode_responses=True,
         socket_connect_timeout=2,
-        socket_timeout=2,
+        socket_timeout=max(2, settings.document_ingestion_worker_poll_seconds + 1),
     )
 
 

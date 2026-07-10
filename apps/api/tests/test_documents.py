@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.db.session import SessionLocal
 from app.main import app
+from app.services.document_ingestion import process_document_ingestion
 from app.services.embeddings import EmbeddingError, FakeEmbeddingProvider, reembed_all_document_chunks
 
 client = TestClient(app)
@@ -161,6 +162,67 @@ def test_upload_txt_document_creates_multiple_chunks(
     chunks = chunks_response.json()
     assert len(chunks) == body["chunk_count"]
     assert [chunk["chunk_index"] for chunk in chunks] == list(range(body["chunk_count"]))
+
+
+def test_upload_txt_document_can_enqueue_redis_ingestion(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "document_ingestion_mode", "redis")
+    queued_document_ids: list[int] = []
+
+    def fake_enqueue_document_ingestion(redis_client, *, queue_name: str, document_id: int) -> None:
+        assert queue_name == settings.document_ingestion_queue_name
+        queued_document_ids.append(document_id)
+
+    monkeypatch.setattr("app.api.v1.documents.get_redis_client", lambda: object())
+    monkeypatch.setattr("app.api.v1.documents.enqueue_document_ingestion", fake_enqueue_document_ingestion)
+    token = get_access_token()
+
+    document = upload_txt_document(token)
+
+    assert document["status"] == "pending"
+    assert document["chunk_count"] == 0
+    assert queued_document_ids == [document["id"]]
+
+    chunks_response = client.get(
+        f"/api/v1/documents/{document['id']}/chunks",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert chunks_response.status_code == 200
+    assert chunks_response.json() == []
+
+
+def test_worker_processes_queued_document_ingestion(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "document_ingestion_mode", "redis")
+    monkeypatch.setattr("app.api.v1.documents.get_redis_client", lambda: object())
+    monkeypatch.setattr("app.api.v1.documents.enqueue_document_ingestion", lambda *args, **kwargs: None)
+    token = get_access_token()
+    document = upload_txt_document(token)
+
+    with SessionLocal() as db:
+        processed_document = process_document_ingestion(db, document["id"], settings=settings)
+
+    assert processed_document is not None
+    assert processed_document.status == "ready"
+    assert processed_document.chunk_count == 1
+
+    search_response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"query": "night backup", "limit": 5},
+    )
+
+    assert search_response.status_code == 200
+    assert search_response.json()[0]["document_id"] == document["id"]
 
 
 def test_search_documents_returns_relevant_chunks(

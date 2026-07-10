@@ -18,6 +18,9 @@ services:
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
       DOCUMENT_STORAGE_DIR: /app/storage/documents
       MAX_UPLOAD_SIZE_BYTES: 5242880
+      DOCUMENT_INGESTION_MODE: sync
+      DOCUMENT_INGESTION_QUEUE_NAME: document_ingestion
+      DOCUMENT_INGESTION_WORKER_POLL_SECONDS: 5
       EMBEDDING_DIMENSIONS: 768
       LLM_BACKEND: fake
       LLM_BASE_URL: http://host.docker.internal:8080/v1
@@ -64,6 +67,9 @@ services:
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
       DOCUMENT_STORAGE_DIR: /tmp/offline-intelligence-hub-tests/documents
       MAX_UPLOAD_SIZE_BYTES: 5242880
+      DOCUMENT_INGESTION_MODE: sync
+      DOCUMENT_INGESTION_QUEUE_NAME: document_ingestion
+      DOCUMENT_INGESTION_WORKER_POLL_SECONDS: 5
       EMBEDDING_DIMENSIONS: 768
       LLM_BACKEND: fake
       LLM_BASE_URL: http://host.docker.internal:8080/v1
@@ -82,6 +88,39 @@ services:
       - python
       - launcher.py
       - test
+
+  ingestion-worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    profiles:
+      - worker
+    environment:
+      APP_NAME: Offline Intelligence Hub API
+      APP_VERSION: 0.2.0
+      ENVIRONMENT: development
+      DEBUG: "false"
+      DATABASE_URL: postgresql+psycopg://offline_ai:offline_ai@postgres:5432/offline_ai
+      REDIS_URL: redis://redis:6379/0
+      DOCUMENT_STORAGE_DIR: /app/storage/documents
+      DOCUMENT_INGESTION_QUEUE_NAME: document_ingestion
+      DOCUMENT_INGESTION_WORKER_POLL_SECONDS: 5
+      EMBEDDING_DIMENSIONS: 768
+      EMBEDDING_BACKEND: fake
+      EMBEDDING_BASE_URL: http://host.docker.internal:8081/v1
+      EMBEDDING_MODEL: fake-bow
+    volumes:
+      - api_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    entrypoint: []
+    command:
+      - python
+      - launcher.py
+      - ingestion-worker
 
   redis:
     image: redis:7-alpine

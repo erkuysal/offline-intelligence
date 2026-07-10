@@ -1,9 +1,11 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.cache.redis import get_redis_client
 from app.config import Settings, get_settings
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
@@ -15,9 +17,10 @@ from app.schemas.documents import (
     DocumentSearchRequest,
     DocumentSearchResult,
 )
-from app.services.document_ingestion import ingest_document
+from app.services.document_ingestion import process_document_ingestion
+from app.services.document_ingestion_queue import enqueue_document_ingestion
 from app.services.document_storage import delete_stored_file, store_upload
-from app.services.embeddings import embed_document_chunks, get_embedding_provider, search_document_chunks
+from app.services.embeddings import get_embedding_provider, search_document_chunks
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -46,17 +49,38 @@ async def upload_document(
     db.commit()
     db.refresh(document)
 
-    document = ingest_document(
-        db,
-        document,
-        chunk_size_chars=settings.document_chunk_size_chars,
-        overlap_chars=settings.document_chunk_overlap_chars,
-    )
-    if document.status == "ready":
-        embed_document_chunks(db, document, get_embedding_provider())
-        db.refresh(document)
+    ingestion_mode = settings.document_ingestion_mode.strip().lower()
+    if ingestion_mode == "redis":
+        try:
+            enqueue_document_ingestion(
+                get_redis_client(),
+                queue_name=settings.document_ingestion_queue_name,
+                document_id=document.id,
+            )
+        except RedisError as exc:
+            document.status = "failed"
+            document.ingestion_error = "Ingestion queue is unavailable"
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Ingestion queue is unavailable",
+            ) from exc
+        return document
 
-    return document
+    if ingestion_mode != "sync":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unsupported document ingestion mode",
+        )
+
+    processed_document = process_document_ingestion(db, document.id, settings=settings)
+    if processed_document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    return processed_document
 
 
 @router.get("", response_model=list[DocumentRead])

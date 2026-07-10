@@ -256,6 +256,9 @@ Chunk sizing is controlled by:
 ```env
 DOCUMENT_CHUNK_SIZE_CHARS=2000
 DOCUMENT_CHUNK_OVERLAP_CHARS=200
+DOCUMENT_INGESTION_MODE=sync
+DOCUMENT_INGESTION_QUEUE_NAME=document_ingestion
+DOCUMENT_INGESTION_WORKER_POLL_SECONDS=5
 EMBEDDING_BACKEND=fake
 EMBEDDING_BASE_URL=http://127.0.0.1:8080/v1
 EMBEDDING_MODEL=fake-bow
@@ -275,6 +278,18 @@ Ready chunks are embedded during ingestion and stored in PostgreSQL as `vector(7
 RAG context is capped separately from user messages so retrieval cannot accidentally overload the local model context.
 
 The Phase 3 pgvector migration backfills existing JSON embeddings only when they already have 768 dimensions. Older incompatible embeddings are marked stale by clearing `embedding_model`; run `./app.py embedding-reindex` after configuring the desired embedding backend.
+
+Set `DOCUMENT_INGESTION_MODE=redis` to return uploads as `pending` and process them from Redis. Start a local worker with:
+
+```bash
+./app.py ingestion-worker
+```
+
+For Docker Compose, run the API with `DOCUMENT_INGESTION_MODE=redis` and start the worker profile:
+
+```bash
+docker compose --profile worker up ingestion-worker
+```
 
 ### Local semantic embeddings
 

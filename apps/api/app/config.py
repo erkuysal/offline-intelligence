@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_minutes: int = 7 * 24 * 60
     document_storage_dir: str = "storage/documents"
     max_upload_size_bytes: int = 5 * 1024 * 1024
+    document_ingestion_mode: str = "sync"
+    document_ingestion_queue_name: str = "document_ingestion"
+    document_ingestion_worker_poll_seconds: int = 5
     document_chunk_size_chars: int = 2_000
     document_chunk_overlap_chars: int = 200
     embedding_backend: str = "fake"
