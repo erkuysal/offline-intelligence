@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING
 
+from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.constants import EMBEDDING_DIMENSIONS
 from app.db.base import Base
 from app.models.mixins import TimestampMixin
 
@@ -65,7 +67,7 @@ class DocumentChunk(TimestampMixin, Base):
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
     token_start: Mapped[int] = mapped_column(Integer, nullable=False)
     token_end: Mapped[int] = mapped_column(Integer, nullable=False)
-    embedding_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(VECTOR(EMBEDDING_DIMENSIONS), nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     document: Mapped[Document] = relationship(back_populates="chunks")

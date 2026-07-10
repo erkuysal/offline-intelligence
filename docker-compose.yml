@@ -18,6 +18,7 @@ services:
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
       DOCUMENT_STORAGE_DIR: /app/storage/documents
       MAX_UPLOAD_SIZE_BYTES: 5242880
+      EMBEDDING_DIMENSIONS: 768
       LLM_BACKEND: fake
       LLM_BASE_URL: http://host.docker.internal:8080/v1
       LLM_MODEL: ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
@@ -63,6 +64,7 @@ services:
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: 10080
       DOCUMENT_STORAGE_DIR: /tmp/offline-intelligence-hub-tests/documents
       MAX_UPLOAD_SIZE_BYTES: 5242880
+      EMBEDDING_DIMENSIONS: 768
       LLM_BACKEND: fake
       LLM_BASE_URL: http://host.docker.internal:8080/v1
       LLM_MODEL: ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
@@ -96,7 +98,7 @@ services:
       retries: 10
 
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:0.8.2-pg16
     container_name: offline-ai-postgres
     environment:
       POSTGRES_DB: offline_ai

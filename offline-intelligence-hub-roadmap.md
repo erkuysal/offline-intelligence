@@ -61,7 +61,7 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1 ve Faz 2 tamamlandı. `v0.2.0` sürümü; doğrulanmış CPU/CUDA yerel LLM çalıştırma, streaming, cancellation, timeout, concurrency limitleri, token takibi ve Prometheus metriklerini içeriyor. Aktif geliştirme Faz 3 doküman ingestion ve vector RAG çalışmalarıyla devam ediyor.
+> **Şu anki konum:** Faz 1 ve Faz 2 tamamlandı. `v0.2.0` sürümü; doğrulanmış CPU/CUDA yerel LLM çalıştırma, streaming, cancellation, timeout, concurrency limitleri, token takibi ve Prometheus metriklerini içeriyor. Faz 3 aktif geliştirme aşamasında; ilk parça olarak `pgvector` tabanlı 768 boyutlu embedding saklama, HNSW cosine index ve SQL tabanlı retrieval tamamlandı.
 
 ### Özellikler
 
@@ -190,6 +190,8 @@ OpenAI API benzeri sözleşme:
 ## Faz 3 — Doküman Ingestion ve RAG
 
 Bu aşamada platform kurumsal bilgi sistemine dönüşür.
+
+> **Durum:** Devam ediyor. `pgvector` migration'ı, `vector(768)` embedding kolonu, HNSW cosine index, embedding boyut doğrulaması, stale embedding işaretleme ve SQL tabanlı retrieval tamamlandı. Sıradaki işler Redis-backed ingestion worker, format genişletme, duplicate/version yönetimi, doküman izinleri, conversation persistence ve gözlemlenebilirliktir.
 
 ### Doküman Pipeline'ı
 

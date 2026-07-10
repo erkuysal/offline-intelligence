@@ -2,6 +2,8 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.constants import EMBEDDING_DIMENSIONS
+
 
 class Settings(BaseSettings):
     app_name: str = "Offline Intelligence Hub API"
@@ -24,7 +26,7 @@ class Settings(BaseSettings):
     embedding_base_url: str = "http://127.0.0.1:8080/v1"
     embedding_model: str = "fake-bow"
     embedding_timeout_seconds: float = 30.0
-    fake_embedding_dimensions: int = 64
+    embedding_dimensions: int = EMBEDDING_DIMENSIONS
     embedding_reindex_batch_size: int = 32
     rag_retrieval_limit: int = 5
     rag_max_context_chars: int = 12_000

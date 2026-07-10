@@ -3,11 +3,12 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.db.session import SessionLocal
 from app.main import app
-from app.services.embeddings import FakeEmbeddingProvider, reembed_all_document_chunks
+from app.services.embeddings import EmbeddingError, FakeEmbeddingProvider, reembed_all_document_chunks
 
 client = TestClient(app)
 pytestmark = pytest.mark.usefixtures("clean_database")
@@ -256,7 +257,7 @@ def test_reembed_all_document_chunks_replaces_embedding_model(
     with SessionLocal() as db:
         processed = reembed_all_document_chunks(
             db,
-            provider=FakeEmbeddingProvider(model="replacement-model", dimensions=32),
+            provider=FakeEmbeddingProvider(model="replacement-model", dimensions=768),
             batch_size=1,
         )
 
@@ -268,6 +269,52 @@ def test_reembed_all_document_chunks_replaces_embedding_model(
     assert processed == 1
     assert chunks_response.status_code == 200
     assert chunks_response.json()[0]["embedding_model"] == "replacement-model"
+
+
+def test_reembed_rejects_wrong_embedding_dimensions(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    upload_txt_document(token)
+
+    with SessionLocal() as db, pytest.raises(EmbeddingError, match="32 dimensions; expected 768"):
+        reembed_all_document_chunks(
+            db,
+            provider=FakeEmbeddingProvider(model="wrong-size", dimensions=32),
+            batch_size=1,
+        )
+
+
+def test_pgvector_schema_has_hnsw_cosine_index() -> None:
+    with SessionLocal() as db:
+        column_type = db.scalar(
+            text(
+                """
+                SELECT format_type(a.atttypid, a.atttypmod)
+                FROM pg_attribute AS a
+                JOIN pg_class AS c ON c.oid = a.attrelid
+                WHERE c.relname = 'document_chunks'
+                  AND a.attname = 'embedding'
+                  AND a.attnum > 0
+                  AND NOT a.attisdropped
+                """
+            )
+        )
+        index_definition = db.scalar(
+            text(
+                """
+                SELECT indexdef
+                FROM pg_indexes
+                WHERE tablename = 'document_chunks'
+                  AND indexname = 'ix_document_chunks_embedding_hnsw_cosine'
+                """
+            )
+        )
+
+    assert column_type == "vector(768)"
+    assert index_definition is not None
+    assert "USING hnsw" in index_definition
+    assert "vector_cosine_ops" in index_definition
 
 
 def test_upload_document_requires_authentication(tmp_path: Path, monkeypatch) -> None:
