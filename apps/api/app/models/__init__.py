@@ -1,11 +1,12 @@
 from app.models.associations import user_roles
-from app.models.document import Document, DocumentChunk, DocumentVersion
+from app.models.document import Document, DocumentChunk, DocumentPermission, DocumentVersion
 from app.models.role import Role
 from app.models.user import User
 
 __all__ = [
     "Document",
     "DocumentChunk",
+    "DocumentPermission",
     "DocumentVersion",
     "Role",
     "User",

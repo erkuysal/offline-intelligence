@@ -33,6 +33,21 @@ class DocumentVersionRead(BaseModel):
     created_at: datetime
 
 
+class DocumentPermissionCreate(BaseModel):
+    user_email: str = Field(min_length=3, max_length=320)
+    permission: str = Field(default="read", pattern="^read$")
+
+
+class DocumentPermissionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    document_id: int
+    user_id: int
+    permission: str
+    created_at: datetime
+
+
 class DocumentChunkRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

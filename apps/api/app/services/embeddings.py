@@ -4,12 +4,12 @@ import math
 import re
 
 import httpx
-from sqlalchemy import or_, select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.constants import EMBEDDING_DIMENSIONS
-from app.models.document import Document, DocumentChunk
+from app.models.document import Document, DocumentChunk, DocumentPermission
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -123,7 +123,7 @@ def embed_document_chunks(
 def search_document_chunks(
     db: Session,
     *,
-    owner_id: int,
+    user_id: int,
     query: str,
     limit: int,
     provider: EmbeddingProvider,
@@ -137,8 +137,15 @@ def search_document_chunks(
         select(DocumentChunk, (1 - distance).label("score"))
         .join(Document)
         .where(
-            Document.owner_id == owner_id,
             Document.status == "ready",
+            or_(
+                Document.owner_id == user_id,
+                exists().where(
+                    DocumentPermission.document_id == Document.id,
+                    DocumentPermission.user_id == user_id,
+                    DocumentPermission.permission == "read",
+                ),
+            ),
             DocumentChunk.embedding.is_not(None),
             DocumentChunk.embedding_model == provider.model,
         )

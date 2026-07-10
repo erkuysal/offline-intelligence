@@ -9,10 +9,12 @@ from app.cache.redis import get_redis_client
 from app.config import Settings, get_settings
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
-from app.models.document import Document, DocumentChunk, DocumentVersion
+from app.models.document import Document, DocumentChunk, DocumentPermission, DocumentVersion
 from app.models.user import User
 from app.schemas.documents import (
     DocumentChunkRead,
+    DocumentPermissionCreate,
+    DocumentPermissionRead,
     DocumentRead,
     DocumentSearchRequest,
     DocumentSearchResult,
@@ -130,7 +132,13 @@ def list_documents(
 ) -> list[Document]:
     statement = (
         select(Document)
-        .where(Document.owner_id == current_user.id)
+        .where(
+            (Document.owner_id == current_user.id)
+            | Document.permissions.any(
+                (DocumentPermission.user_id == current_user.id)
+                & (DocumentPermission.permission == "read")
+            )
+        )
         .order_by(Document.created_at.desc())
     )
     return list(db.scalars(statement))
@@ -143,7 +151,7 @@ def get_document(
     db: Annotated[Session, Depends(get_db)],
 ) -> Document:
     document = db.get(Document, document_id)
-    if document is None or document.owner_id != current_user.id:
+    if document is None or not can_read_document(document, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found",
@@ -159,7 +167,7 @@ def list_document_chunks(
     db: Annotated[Session, Depends(get_db)],
 ) -> list[DocumentChunk]:
     document = db.get(Document, document_id)
-    if document is None or document.owner_id != current_user.id:
+    if document is None or not can_read_document(document, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found",
@@ -175,13 +183,75 @@ def list_document_versions(
     db: Annotated[Session, Depends(get_db)],
 ) -> list[DocumentVersion]:
     document = db.get(Document, document_id)
-    if document is None or document.owner_id != current_user.id:
+    if document is None or not can_read_document(document, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found",
         )
 
     return list(document.versions)
+
+
+@router.post("/{document_id}/permissions", response_model=DocumentPermissionRead, status_code=status.HTTP_201_CREATED)
+def grant_document_permission(
+    document_id: int,
+    request: DocumentPermissionCreate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DocumentPermission:
+    document = db.get(Document, document_id)
+    if document is None or document.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    target_user = db.scalar(select(User).where(User.email == request.user_email))
+    if target_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    if target_user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot grant document permission to the owner",
+        )
+
+    permission = db.scalar(
+        select(DocumentPermission).where(
+            DocumentPermission.document_id == document.id,
+            DocumentPermission.user_id == target_user.id,
+        )
+    )
+    if permission is None:
+        permission = DocumentPermission(
+            document_id=document.id,
+            user_id=target_user.id,
+            permission=request.permission,
+        )
+        db.add(permission)
+    else:
+        permission.permission = request.permission
+    db.commit()
+    db.refresh(permission)
+    return permission
+
+
+@router.get("/{document_id}/permissions", response_model=list[DocumentPermissionRead])
+def list_document_permissions(
+    document_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[DocumentPermission]:
+    document = db.get(Document, document_id)
+    if document is None or document.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    return list(document.permissions)
 
 
 @router.post("/search", response_model=list[DocumentSearchResult])
@@ -192,7 +262,7 @@ def search_documents(
 ) -> list[DocumentSearchResult]:
     results = search_document_chunks(
         db,
-        owner_id=current_user.id,
+        user_id=current_user.id,
         query=request.query,
         limit=request.limit,
         provider=get_embedding_provider(),
@@ -231,3 +301,12 @@ def delete_document(
     db.commit()
     for storage_path in storage_paths:
         delete_stored_file(storage_path)
+
+
+def can_read_document(document: Document, user_id: int) -> bool:
+    if document.owner_id == user_id:
+        return True
+    return any(
+        permission.user_id == user_id and permission.permission == "read"
+        for permission in document.permissions
+    )

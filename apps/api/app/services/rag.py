@@ -33,7 +33,7 @@ def augment_chat_request(
 
     results = search_document_chunks(
         db,
-        owner_id=owner_id,
+        user_id=owner_id,
         query=query,
         limit=request.retrieval_limit or settings.rag_retrieval_limit,
         provider=get_embedding_provider(),

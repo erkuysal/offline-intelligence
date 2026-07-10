@@ -20,6 +20,10 @@ pytestmark = pytest.mark.usefixtures("clean_database")
 
 def get_access_token() -> str:
     email = f"document-user-{uuid4().hex}@example.com"
+    return create_user_and_get_token(email)
+
+
+def create_user_and_get_token(email: str) -> str:
     password = "correct-horse-battery-staple"
     client.post(
         "/api/v1/auth/register",
@@ -438,6 +442,58 @@ def test_search_documents_hides_other_users_chunks(
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_owner_can_grant_document_read_permission(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    owner_token = get_access_token()
+    shared_email = f"shared-{uuid4().hex}@example.com"
+    shared_token = create_user_and_get_token(shared_email)
+    document = upload_txt_document_with_content(owner_token, b"Shared backup runbook.")
+
+    grant_response = client.post(
+        f"/api/v1/documents/{document['id']}/permissions",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"user_email": shared_email, "permission": "read"},
+    )
+    chunks_response = client.get(
+        f"/api/v1/documents/{document['id']}/chunks",
+        headers={"Authorization": f"Bearer {shared_token}"},
+    )
+    search_response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {shared_token}"},
+        json={"query": "backup runbook", "limit": 5},
+    )
+
+    assert grant_response.status_code == 201
+    assert grant_response.json()["permission"] == "read"
+    assert chunks_response.status_code == 200
+    assert chunks_response.json()[0]["content"] == "Shared backup runbook."
+    assert search_response.status_code == 200
+    assert search_response.json()[0]["document_id"] == document["id"]
+
+
+def test_shared_document_permission_does_not_allow_delete(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    owner_token = get_access_token()
+    shared_email = f"shared-{uuid4().hex}@example.com"
+    shared_token = create_user_and_get_token(shared_email)
+    document = upload_txt_document(owner_token)
+    client.post(
+        f"/api/v1/documents/{document['id']}/permissions",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"user_email": shared_email, "permission": "read"},
+    )
+
+    response = client.delete(
+        f"/api/v1/documents/{document['id']}",
+        headers={"Authorization": f"Bearer {shared_token}"},
+    )
+
+    assert response.status_code == 404
 
 
 def test_search_documents_ignores_embeddings_from_another_model(

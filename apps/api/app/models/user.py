@@ -8,7 +8,7 @@ from app.models.associations import user_roles
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
-    from app.models.document import Document
+    from app.models.document import Document, DocumentPermission
     from app.models.role import Role
 
 
@@ -50,5 +50,10 @@ class User(TimestampMixin, Base):
 
     documents: Mapped[list["Document"]] = relationship(
         back_populates="owner",
+        cascade="all, delete-orphan",
+    )
+
+    document_permissions: Mapped[list["DocumentPermission"]] = relationship(
+        back_populates="user",
         cascade="all, delete-orphan",
     )

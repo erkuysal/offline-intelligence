@@ -280,10 +280,18 @@ List immutable upload versions for a document:
 GET /api/v1/documents/{document_id}/versions
 ```
 
+Owners can grant read access to another user by email and list existing grants:
+
+```text
+POST /api/v1/documents/{document_id}/permissions
+GET  /api/v1/documents/{document_id}/permissions
+```
+
 Ready chunks are embedded during ingestion and stored in PostgreSQL as `vector(768)` values with an HNSW cosine index. The default fake embedding provider is deterministic and test-friendly; `EMBEDDING_BACKEND=openai_compatible` can target a local OpenAI-compatible `/embeddings` endpoint.
 RAG context is capped separately from user messages so retrieval cannot accidentally overload the local model context.
 Chunks include nullable `source_page` and `source_label` metadata. PDF chunks carry page numbers when extractable; Markdown and DOCX chunks carry heading labels when available.
 Uploading the same filename and checksum for the same owner is rejected as a duplicate. Uploading the same filename with changed content creates the next document version, replaces chunks, and keeps previous version file metadata for audit/history.
+Search and RAG retrieval include documents owned by the current user plus documents explicitly shared with read permission. Deletion and permission management remain owner-only.
 
 The Phase 3 pgvector migration backfills existing JSON embeddings only when they already have 768 dimensions. Older incompatible embeddings are marked stale by clearing `embedding_model`; run `./app.py embedding-reindex` after configuring the desired embedding backend.
 

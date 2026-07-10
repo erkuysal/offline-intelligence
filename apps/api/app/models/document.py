@@ -59,6 +59,34 @@ class Document(TimestampMixin, Base):
         passive_deletes=True,
         order_by="DocumentVersion.version_number",
     )
+    permissions: Mapped[list["DocumentPermission"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class DocumentPermission(TimestampMixin, Base):
+    __tablename__ = "document_permissions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "user_id", name="uq_document_permissions_document_id_user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    permission: Mapped[str] = mapped_column(String(30), default="read", server_default="read", nullable=False)
+
+    document: Mapped[Document] = relationship(back_populates="permissions")
+    user: Mapped["User"] = relationship(back_populates="document_permissions")
 
 
 class DocumentVersion(TimestampMixin, Base):
