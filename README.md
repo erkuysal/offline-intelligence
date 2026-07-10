@@ -22,6 +22,12 @@ Phase 2 backend for an offline/on-premise document intelligence platform.
 - Opt-in document retrieval for grounded chat responses with source metadata
 - Streaming chat completions via server-sent events
 
+## Product Plans
+
+- [UI engineering plan](docs/ui/README.md)
+- [MVP product and release plan](docs/mvp/README.md)
+- [Development roadmap](offline-intelligence-hub-roadmap.en.md)
+
 ## Local Setup
 
 Activate the project environment:
