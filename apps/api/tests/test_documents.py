@@ -5,11 +5,12 @@ from io import BytesIO
 from docx import Document as DocxDocument
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app.config import get_settings
 from app.db.session import SessionLocal
 from app.main import app
+from app.models.document import DocumentChunk
 from app.services.document_ingestion import process_document_ingestion
 from app.services.embeddings import EmbeddingError, FakeEmbeddingProvider, reembed_all_document_chunks
 
@@ -101,6 +102,7 @@ def test_upload_txt_document(tmp_path: Path, monkeypatch) -> None:
     assert body["status"] == "ready"
     assert body["chunk_count"] == 1
     assert body["ingestion_error"] is None
+    assert body["version_number"] == 1
     assert len(list(tmp_path.iterdir())) == 1
 
     list_response = client.get(
@@ -126,6 +128,69 @@ def test_upload_txt_document(tmp_path: Path, monkeypatch) -> None:
     assert chunks[0]["token_start"] == 0
     assert chunks[0]["token_end"] > 0
     assert chunks[0]["embedding_model"] == "fake-bow"
+
+
+def test_upload_rejects_duplicate_document_version(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    upload_txt_document(token)
+
+    response = client.post(
+        "/api/v1/documents",
+        headers={"Authorization": f"Bearer {token}"},
+        files={
+            "file": (
+                "policy.txt",
+                b"Backups run every night.",
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Duplicate document upload"
+    assert len(list(tmp_path.iterdir())) == 1
+
+
+def test_upload_new_document_version_replaces_chunks(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    document = upload_txt_document(token)
+
+    response = client.post(
+        "/api/v1/documents",
+        headers={"Authorization": f"Bearer {token}"},
+        files={
+            "file": (
+                "policy.txt",
+                b"Retention reports run monthly.",
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["id"] == document["id"]
+    assert body["version_number"] == 2
+    assert body["checksum_sha256"] != document["checksum_sha256"]
+
+    chunks_response = client.get(
+        f"/api/v1/documents/{document['id']}/chunks",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    versions_response = client.get(
+        f"/api/v1/documents/{document['id']}/versions",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert chunks_response.status_code == 200
+    assert chunks_response.json()[0]["content"] == "Retention reports run monthly."
+    assert versions_response.status_code == 200
+    assert [version["version_number"] for version in versions_response.json()] == [1, 2]
+    assert len(list(tmp_path.iterdir())) == 2
 
 
 def test_upload_txt_document_creates_multiple_chunks(
@@ -421,6 +486,49 @@ def test_reembed_all_document_chunks_replaces_embedding_model(
     assert chunks_response.json()[0]["embedding_model"] == "replacement-model"
 
 
+def test_reembed_stale_only_skips_current_embeddings(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    upload_txt_document(token)
+
+    with SessionLocal() as db:
+        processed = reembed_all_document_chunks(
+            db,
+            provider=FakeEmbeddingProvider(model="fake-bow", dimensions=768),
+            batch_size=1,
+            stale_only=True,
+        )
+
+    assert processed == 0
+
+
+def test_reembed_stale_only_replaces_mismatched_embedding_model(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    document = upload_txt_document(token)
+
+    with SessionLocal() as db:
+        chunk = db.scalars(select(DocumentChunk)).one()
+        chunk.embedding_model = "old-model"
+        db.commit()
+        processed = reembed_all_document_chunks(
+            db,
+            provider=FakeEmbeddingProvider(model="fake-bow", dimensions=768),
+            batch_size=1,
+            stale_only=True,
+        )
+
+    chunks_response = client.get(
+        f"/api/v1/documents/{document['id']}/chunks",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert processed == 1
+    assert chunks_response.json()[0]["embedding_model"] == "fake-bow"
+
+
 def test_reembed_rejects_wrong_embedding_dimensions(tmp_path: Path, monkeypatch) -> None:
     settings = get_settings()
     monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
@@ -578,10 +686,21 @@ def test_delete_document_removes_metadata_and_file(
     monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
     token = get_access_token()
     document = upload_txt_document(token)
+    client.post(
+        "/api/v1/documents",
+        headers={"Authorization": f"Bearer {token}"},
+        files={
+            "file": (
+                "policy.txt",
+                b"Retention reports run monthly.",
+                "text/plain",
+            )
+        },
+    )
 
     stored_files = list(tmp_path.iterdir())
-    assert len(stored_files) == 1
-    assert stored_files[0].exists()
+    assert len(stored_files) == 2
+    assert all(stored_file.exists() for stored_file in stored_files)
 
     response = client.delete(
         f"/api/v1/documents/{document['id']}",
@@ -590,7 +709,7 @@ def test_delete_document_removes_metadata_and_file(
 
     assert response.status_code == 204
     assert response.content == b""
-    assert not stored_files[0].exists()
+    assert not any(stored_file.exists() for stored_file in stored_files)
 
     list_response = client.get(
         "/api/v1/documents",

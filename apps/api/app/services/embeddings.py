@@ -4,7 +4,7 @@ import math
 import re
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -156,6 +156,7 @@ def reembed_all_document_chunks(
     *,
     provider: EmbeddingProvider,
     batch_size: int,
+    stale_only: bool = False,
 ) -> int:
     processed = 0
     last_chunk_id = 0
@@ -171,6 +172,14 @@ def reembed_all_document_chunks(
             .order_by(DocumentChunk.id)
             .limit(batch_size)
         )
+        if stale_only:
+            statement = statement.where(
+                or_(
+                    DocumentChunk.embedding.is_(None),
+                    DocumentChunk.embedding_model.is_(None),
+                    DocumentChunk.embedding_model != provider.model,
+                )
+            )
         chunks = list(db.scalars(statement))
         if not chunks:
             break

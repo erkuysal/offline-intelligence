@@ -237,7 +237,7 @@ def embedding_stop(_args: argparse.Namespace) -> int:
     return run_subprocess(["bash", str(ROOT / "scripts" / "stop_embedding_server.sh")])
 
 
-def embedding_reindex(_args: argparse.Namespace) -> int:
+def embedding_reindex(args: argparse.Namespace) -> int:
     configure_import_path()
     load_root_env()
 
@@ -256,12 +256,14 @@ def embedding_reindex(_args: argparse.Namespace) -> int:
                 db,
                 provider=get_embedding_provider(),
                 batch_size=settings.embedding_reindex_batch_size,
+                stale_only=args.stale_only,
             )
     except EmbeddingError as exc:
         print(f"Embedding reindex failed: {exc}", file=sys.stderr)
         return 1
 
-    print(f"Re-embedded {processed} document chunks with {settings.embedding_model}")
+    qualifier = "stale " if args.stale_only else ""
+    print(f"Re-embedded {processed} {qualifier}document chunks with {settings.embedding_model}")
     return 0
 
 
@@ -380,6 +382,11 @@ def build_parser() -> argparse.ArgumentParser:
     embedding_reindex_parser = subparsers.add_parser(
         "embedding-reindex",
         help="replace stored document chunk embeddings using the configured provider",
+    )
+    embedding_reindex_parser.add_argument(
+        "--stale-only",
+        action="store_true",
+        help="only re-embed chunks missing vectors or using another embedding model",
     )
     embedding_reindex_parser.set_defaults(func=embedding_reindex)
 

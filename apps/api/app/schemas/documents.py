@@ -15,8 +15,22 @@ class DocumentRead(BaseModel):
     status: str
     chunk_count: int
     ingestion_error: str | None
+    version_number: int
     created_at: datetime
     updated_at: datetime
+
+
+class DocumentVersionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    document_id: int
+    version_number: int
+    original_filename: str
+    content_type: str
+    size_bytes: int
+    checksum_sha256: str
+    created_at: datetime
 
 
 class DocumentChunkRead(BaseModel):

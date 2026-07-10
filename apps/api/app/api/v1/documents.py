@@ -9,13 +9,14 @@ from app.cache.redis import get_redis_client
 from app.config import Settings, get_settings
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
-from app.models.document import Document, DocumentChunk
+from app.models.document import Document, DocumentChunk, DocumentVersion
 from app.models.user import User
 from app.schemas.documents import (
     DocumentChunkRead,
     DocumentRead,
     DocumentSearchRequest,
     DocumentSearchResult,
+    DocumentVersionRead,
 )
 from app.services.document_ingestion import process_document_ingestion
 from app.services.document_ingestion_queue import enqueue_document_ingestion
@@ -37,15 +38,54 @@ async def upload_document(
         storage_dir=settings.document_storage_dir,
         max_size_bytes=settings.max_upload_size_bytes,
     )
-    document = Document(
-        owner_id=current_user.id,
-        original_filename=stored_document.original_filename,
-        content_type=stored_document.content_type,
-        size_bytes=stored_document.size_bytes,
-        storage_path=stored_document.storage_path,
-        checksum_sha256=stored_document.checksum_sha256,
+    document = db.scalar(
+        select(Document).where(
+            Document.owner_id == current_user.id,
+            Document.original_filename == stored_document.original_filename,
+        )
     )
-    db.add(document)
+
+    if document is not None and document.checksum_sha256 == stored_document.checksum_sha256:
+        delete_stored_file(stored_document.storage_path)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Duplicate document upload",
+        )
+
+    if document is None:
+        document = Document(
+            owner_id=current_user.id,
+            original_filename=stored_document.original_filename,
+            content_type=stored_document.content_type,
+            size_bytes=stored_document.size_bytes,
+            storage_path=stored_document.storage_path,
+            checksum_sha256=stored_document.checksum_sha256,
+            version_number=1,
+        )
+        db.add(document)
+    else:
+        document.content_type = stored_document.content_type
+        document.size_bytes = stored_document.size_bytes
+        document.storage_path = stored_document.storage_path
+        document.checksum_sha256 = stored_document.checksum_sha256
+        document.version_number += 1
+        document.status = "pending"
+        document.ingestion_error = None
+        document.chunk_count = 0
+
+    db.commit()
+    db.refresh(document)
+    db.add(
+        DocumentVersion(
+            document_id=document.id,
+            version_number=document.version_number,
+            original_filename=stored_document.original_filename,
+            content_type=stored_document.content_type,
+            size_bytes=stored_document.size_bytes,
+            storage_path=stored_document.storage_path,
+            checksum_sha256=stored_document.checksum_sha256,
+        )
+    )
     db.commit()
     db.refresh(document)
 
@@ -128,6 +168,22 @@ def list_document_chunks(
     return list(document.chunks)
 
 
+@router.get("/{document_id}/versions", response_model=list[DocumentVersionRead])
+def list_document_versions(
+    document_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[DocumentVersion]:
+    document = db.get(Document, document_id)
+    if document is None or document.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    return list(document.versions)
+
+
 @router.post("/search", response_model=list[DocumentSearchResult])
 def search_documents(
     request: DocumentSearchRequest,
@@ -169,7 +225,9 @@ def delete_document(
             detail="Document not found",
         )
 
-    storage_path = document.storage_path
+    storage_paths = {version.storage_path for version in document.versions}
+    storage_paths.add(document.storage_path)
     db.delete(document)
     db.commit()
-    delete_stored_file(storage_path)
+    for storage_path in storage_paths:
+        delete_stored_file(storage_path)

@@ -39,6 +39,12 @@ class Document(TimestampMixin, Base):
         nullable=False,
     )
     ingestion_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    version_number: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        server_default="1",
+        nullable=False,
+    )
 
     owner: Mapped["User"] = relationship(back_populates="documents")
     chunks: Mapped[list["DocumentChunk"]] = relationship(
@@ -47,6 +53,34 @@ class Document(TimestampMixin, Base):
         passive_deletes=True,
         order_by="DocumentChunk.chunk_index",
     )
+    versions: Mapped[list["DocumentVersion"]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="DocumentVersion.version_number",
+    )
+
+
+class DocumentVersion(TimestampMixin, Base):
+    __tablename__ = "document_versions"
+    __table_args__ = (
+        UniqueConstraint("document_id", "version_number", name="uq_document_versions_document_id_version_number"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
+    checksum_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    document: Mapped[Document] = relationship(back_populates="versions")
 
 
 class DocumentChunk(TimestampMixin, Base):

@@ -19,12 +19,18 @@ def pytest_sessionstart() -> None:
 def clean_database() -> None:
     with engine.begin() as connection:
         connection.execute(
-            text("TRUNCATE TABLE user_roles, document_chunks, documents, users, roles RESTART IDENTITY CASCADE")
+            text(
+                "TRUNCATE TABLE user_roles, document_chunks, document_versions, documents, users, roles "
+                "RESTART IDENTITY CASCADE"
+            )
         )
 
     yield
 
     with engine.begin() as connection:
         connection.execute(
-            text("TRUNCATE TABLE user_roles, document_chunks, documents, users, roles RESTART IDENTITY CASCADE")
+            text(
+                "TRUNCATE TABLE user_roles, document_chunks, document_versions, documents, users, roles "
+                "RESTART IDENTITY CASCADE"
+            )
         )
