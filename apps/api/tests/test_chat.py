@@ -218,6 +218,8 @@ def test_chat_completion_retrieves_document_sources(tmp_path: Path, monkeypatch)
             "document_filename": "backup-policy.txt",
             "chunk_id": chunks[0]["id"],
             "chunk_index": 0,
+            "source_page": None,
+            "source_label": "backup-policy.txt",
             "score": body["sources"][0]["score"],
         }
     ]

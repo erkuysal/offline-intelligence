@@ -1,6 +1,8 @@
 from pathlib import Path
 from uuid import uuid4
+from io import BytesIO
 
+from docx import Document as DocxDocument
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -162,6 +164,92 @@ def test_upload_txt_document_creates_multiple_chunks(
     chunks = chunks_response.json()
     assert len(chunks) == body["chunk_count"]
     assert [chunk["chunk_index"] for chunk in chunks] == list(range(body["chunk_count"]))
+
+
+def test_upload_markdown_document_extracts_heading_source(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+
+    response = client.post(
+        "/api/v1/documents",
+        headers={"Authorization": f"Bearer {token}"},
+        files={
+            "file": (
+                "runbook.md",
+                b"# Backup Runbook\n\nBackups run every night.\nRestore checks happen weekly.",
+                "text/markdown",
+            )
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "ready"
+    assert body["chunk_count"] == 1
+
+    chunks_response = client.get(
+        f"/api/v1/documents/{body['id']}/chunks",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    chunks = chunks_response.json()
+
+    assert chunks_response.status_code == 200
+    assert chunks[0]["source_label"] == "Backup Runbook"
+    assert chunks[0]["source_page"] is None
+
+    search_response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"query": "restore backup", "limit": 1},
+    )
+
+    assert search_response.status_code == 200
+    assert search_response.json()[0]["source_label"] == "Backup Runbook"
+
+
+def test_upload_docx_document_extracts_heading_source(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    docx_document = DocxDocument()
+    docx_document.add_heading("Operations Handbook", level=1)
+    docx_document.add_paragraph("Backups run every night.")
+    docx_document.add_paragraph("Restore checks happen weekly.")
+    buffer = BytesIO()
+    docx_document.save(buffer)
+
+    response = client.post(
+        "/api/v1/documents",
+        headers={"Authorization": f"Bearer {token}"},
+        files={
+            "file": (
+                "handbook.docx",
+                buffer.getvalue(),
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "ready"
+
+    chunks_response = client.get(
+        f"/api/v1/documents/{body['id']}/chunks",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    chunks = chunks_response.json()
+
+    assert chunks_response.status_code == 200
+    assert chunks[0]["source_label"] == "Operations Handbook"
+    assert "Backups run every night" in chunks[0]["content"]
 
 
 def test_upload_txt_document_can_enqueue_redis_ingestion(
@@ -411,9 +499,9 @@ def test_upload_rejects_unsupported_content_type(
         headers={"Authorization": f"Bearer {token}"},
         files={
             "file": (
-                "notes.md",
-                b"# Notes",
-                "text/markdown",
+                "notes.json",
+                b"{}",
+                "application/json",
             )
         },
     )

@@ -191,7 +191,7 @@ OpenAI API benzeri sözleşme:
 
 Bu aşamada platform kurumsal bilgi sistemine dönüşür.
 
-> **Durum:** Devam ediyor. `pgvector` migration'ı, `vector(768)` embedding kolonu, HNSW cosine index, embedding boyut doğrulaması, stale embedding işaretleme ve SQL tabanlı retrieval tamamlandı. Sıradaki işler Redis-backed ingestion worker, format genişletme, duplicate/version yönetimi, doküman izinleri, conversation persistence ve gözlemlenebilirliktir.
+> **Durum:** Devam ediyor. `pgvector` migration'ı, `vector(768)` embedding kolonu, HNSW cosine index, embedding boyut doğrulaması, stale embedding işaretleme, SQL tabanlı retrieval, Redis-backed ingestion worker, Markdown/DOCX desteği, temizleme, token sınırı odaklı chunking ve chunk source metadata tamamlandı. Sıradaki işler duplicate/version yönetimi, doküman izinleri, conversation persistence ve gözlemlenebilirliktir.
 
 ### Doküman Pipeline'ı
 

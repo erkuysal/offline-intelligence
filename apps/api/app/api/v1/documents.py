@@ -148,6 +148,8 @@ def search_documents(
             chunk_id=chunk.id,
             chunk_index=chunk.chunk_index,
             content=chunk.content,
+            source_page=chunk.source_page,
+            source_label=chunk.source_label,
             score=score,
         )
         for chunk, score in results

@@ -30,6 +30,8 @@ class DocumentChunkRead(BaseModel):
     char_end: int
     token_start: int
     token_end: int
+    source_page: int | None
+    source_label: str | None
     embedding_model: str | None
 
 
@@ -44,4 +46,6 @@ class DocumentSearchResult(BaseModel):
     chunk_id: int
     chunk_index: int
     content: str
+    source_page: int | None
+    source_label: str | None
     score: float

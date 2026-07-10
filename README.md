@@ -11,8 +11,8 @@ Phase 2 backend for an offline/on-premise document intelligence platform.
 - User registration and login
 - Access and refresh tokens
 - Basic RBAC with `user` and `admin` roles
-- TXT/PDF document upload with a 5 MB limit
-- TXT/PDF text extraction with persisted document chunks
+- TXT, PDF, Markdown, and DOCX document upload with a 5 MB limit
+- TXT, PDF, Markdown, and DOCX text extraction with persisted source-aware chunks
 - Document metadata listing, lookup, and deletion
 - Local file storage for uploaded documents
 - Structured request logging
@@ -249,7 +249,7 @@ Uploaded documents are stored on disk, then ingested into database-backed chunks
 pending -> processing -> ready
 ```
 
-If extraction fails, the document remains available with `status=failed`, `chunk_count=0`, and `ingestion_error` populated. TXT extraction is built in; PDF extraction uses `pypdf`.
+If extraction fails, the document remains available with `status=failed`, `chunk_count=0`, and `ingestion_error` populated. TXT and Markdown extraction are built in; PDF extraction uses `pypdf`; DOCX extraction uses `python-docx`.
 
 Chunk sizing is controlled by:
 
@@ -276,6 +276,7 @@ GET /api/v1/documents/{document_id}/chunks
 
 Ready chunks are embedded during ingestion and stored in PostgreSQL as `vector(768)` values with an HNSW cosine index. The default fake embedding provider is deterministic and test-friendly; `EMBEDDING_BACKEND=openai_compatible` can target a local OpenAI-compatible `/embeddings` endpoint.
 RAG context is capped separately from user messages so retrieval cannot accidentally overload the local model context.
+Chunks include nullable `source_page` and `source_label` metadata. PDF chunks carry page numbers when extractable; Markdown and DOCX chunks carry heading labels when available.
 
 The Phase 3 pgvector migration backfills existing JSON embeddings only when they already have 768 dimensions. Older incompatible embeddings are marked stale by clearing `embedding_model`; run `./app.py embedding-reindex` after configuring the desired embedding backend.
 

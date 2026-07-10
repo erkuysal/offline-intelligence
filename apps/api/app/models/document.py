@@ -67,6 +67,8 @@ class DocumentChunk(TimestampMixin, Base):
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
     token_start: Mapped[int] = mapped_column(Integer, nullable=False)
     token_end: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
     embedding: Mapped[list[float] | None] = mapped_column(VECTOR(EMBEDDING_DIMENSIONS), nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
 

@@ -6,7 +6,9 @@ from uuid import uuid4
 from fastapi import HTTPException, UploadFile, status
 
 ALLOWED_CONTENT_TYPES = {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/pdf": ".pdf",
+    "text/markdown": ".md",
     "text/plain": ".txt",
 }
 CHUNK_SIZE_BYTES = 1024 * 1024
@@ -31,7 +33,7 @@ async def store_upload(
     if expected_suffix is None:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Only PDF and TXT files are supported",
+            detail="Only DOCX, Markdown, PDF, and TXT files are supported",
         )
 
     original_filename = Path(file.filename or "").name

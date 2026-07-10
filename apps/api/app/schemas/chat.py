@@ -41,6 +41,8 @@ class ChatSource(BaseModel):
     document_filename: str
     chunk_id: int
     chunk_index: int
+    source_page: int | None
+    source_label: str | None
     score: float
 
 
