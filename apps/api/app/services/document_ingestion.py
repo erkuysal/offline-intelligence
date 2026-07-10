@@ -38,7 +38,7 @@ def extract_text(document: Document) -> str:
 
 def extract_pdf_text(path: Path) -> str:
     try:
-        from pypdf import PdfReader
+        from pypdf import PdfReader  # type: ignore[import-not-found]
     except ImportError as exc:
         raise DocumentIngestionError("PDF extraction requires pypdf") from exc
 

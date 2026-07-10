@@ -5,7 +5,7 @@ import argparse
 import os
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -30,8 +30,12 @@ def configure_import_path() -> None:
         del sys.modules["app"]
 
 
-def run_subprocess(args: Sequence[str], cwd: Path = ROOT) -> int:
-    return subprocess.call(args, cwd=cwd)
+def run_subprocess(
+    args: Sequence[str],
+    cwd: Path = ROOT,
+    environment: Mapping[str, str] | None = None,
+) -> int:
+    return subprocess.call(args, cwd=cwd, env=environment)
 
 
 def load_root_env() -> None:
@@ -74,14 +78,87 @@ def migrate(_args: argparse.Namespace) -> int:
     )
 
 
+def build_test_environment() -> dict[str, str]:
+    from sqlalchemy.engine import make_url
+
+    load_root_env()
+    configured_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not configured_url:
+        raise RuntimeError("DATABASE_URL or TEST_DATABASE_URL must be configured")
+
+    database_url = make_url(configured_url)
+    database_name = database_url.database or ""
+    if not database_name:
+        raise RuntimeError("The configured test database URL must include a database name")
+    if not database_name.endswith("_test"):
+        database_url = database_url.set(database=f"{database_name}_test")
+
+    admin_url = os.environ.get("TEST_DATABASE_ADMIN_URL")
+    if not admin_url:
+        admin_url = database_url.set(
+            drivername=database_url.drivername.split("+", 1)[0],
+            database="postgres",
+        ).render_as_string(hide_password=False)
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "ENVIRONMENT": "testing",
+            "DATABASE_URL": database_url.render_as_string(hide_password=False),
+            "TEST_DATABASE_ADMIN_URL": admin_url,
+            "DOCUMENT_STORAGE_DIR": os.environ.get(
+                "TEST_DOCUMENT_STORAGE_DIR",
+                "/tmp/offline-intelligence-hub-tests/documents",
+            ),
+            "LLM_BACKEND": "fake",
+            "LLM_WARMUP_ENABLED": "false",
+            "EMBEDDING_BACKEND": "fake",
+        }
+    )
+    return environment
+
+
 def test(args: argparse.Namespace) -> int:
     configure_import_path()
+    try:
+        environment = build_test_environment()
+    except (RuntimeError, ValueError) as exc:
+        print(f"Test setup failed: {exc}", file=sys.stderr)
+        return 2
+
+    prepare_status = run_subprocess(
+        [sys.executable, str(ROOT / "scripts" / "prepare_test_database.py")],
+        environment=environment,
+    )
+    if prepare_status != 0:
+        return prepare_status
+
+    migration_status = run_subprocess(
+        [
+            sys.executable,
+            "-m",
+            "alembic",
+            "-c",
+            str(ROOT / "alembic.ini"),
+            "upgrade",
+            "head",
+        ],
+        cwd=API_PATH,
+        environment=environment,
+    )
+    if migration_status != 0:
+        return migration_status
+
+    pytest_args = args.pytest_args
+    if pytest_args[:1] == ["--"]:
+        pytest_args = pytest_args[1:]
+
     command = [sys.executable, "-m", "pytest"]
-    if args.pytest_args:
-        command.extend(args.pytest_args)
+    if pytest_args:
+        command.extend(pytest_args)
     else:
         command.append("-q")
-    return run_subprocess(command)
+    return run_subprocess(command, environment=environment)
 
 
 def test_container(_args: argparse.Namespace) -> int:
@@ -91,6 +168,11 @@ def test_container(_args: argparse.Namespace) -> int:
 def lint(_args: argparse.Namespace) -> int:
     configure_import_path()
     return run_subprocess([sys.executable, "-m", "ruff", "check", "."])
+
+
+def typecheck(_args: argparse.Namespace) -> int:
+    configure_import_path()
+    return run_subprocess([sys.executable, "-m", "mypy", "apps/api/app"])
 
 
 def smoke(_args: argparse.Namespace) -> int:
@@ -206,6 +288,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     lint_parser = subparsers.add_parser("lint", help="run ruff")
     lint_parser.set_defaults(func=lint)
+
+    typecheck_parser = subparsers.add_parser("typecheck", help="run mypy")
+    typecheck_parser.set_defaults(func=typecheck)
 
     smoke_parser = subparsers.add_parser("smoke", help="run the HTTP smoke test")
     smoke_parser.set_defaults(func=smoke)

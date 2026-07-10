@@ -61,7 +61,7 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 2 başladı. Faz 1 tamamlandı; şimdi OpenAI uyumlu `/api/v1/chat/completions` sözleşmesi, fake LLM backend, `/health/llm` endpoint'i ve daha sonra `llama-server` gibi yerel OpenAI-compatible backend bağlantısı ekleniyor.
+> **Şu anki konum:** Faz 1 ve Faz 2 tamamlandı. `v0.2.0` sürümü; doğrulanmış CPU/CUDA yerel LLM çalıştırma, streaming, cancellation, timeout, concurrency limitleri, token takibi ve Prometheus metriklerini içeriyor. Aktif geliştirme Faz 3 doküman ingestion ve vector RAG çalışmalarıyla devam ediyor.
 
 ### Özellikler
 
@@ -121,6 +121,8 @@ Bu aşamada henüz LLM veya RAG bulunmaz.
 
 İkinci iterasyonda açık kaynaklı bir instruction model yerel olarak çalıştırılır.
 
+> **Durum:** Tamamlandı (`v0.2.0`, 10 Temmuz 2026). Runtime kararı, kabul kanıtları ve bilinen sınırlar `docs/adr/0002-phase-2-llm-runtime.md` ile `docs/phase-2-acceptance.md` dosyalarında kayıtlıdır.
+
 ### İlk Hedef
 
 ```text
@@ -154,22 +156,34 @@ OpenAI API benzeri sözleşme:
 
 ### Uygulanacak Bileşenler
 
-- OpenAI-compatible local backend adapter
-- Fake backend
-- Model configuration
-- Hardware safety rails
-- LLM request metrics
-- LLM probe command (`./app.py llm-probe`)
-- llama.cpp server integration
-- Model warm-up
-- Streaming response
-- Request cancellation
-- Streaming cancellation metric
-- Timeout
-- Concurrency limit
-- Token usage tracking
-- CPU/GPU seçimi
-- Prometheus metrics
+- [x] OpenAI-compatible local backend adapter
+- [x] Fake backend
+- [x] Model configuration
+- [x] Hardware safety rails
+- [x] LLM request metrics
+- [x] LLM probe command (`./app.py llm-probe`)
+- [x] llama.cpp server integration
+- [x] Model warm-up
+- [x] Streaming response
+- [x] Request cancellation
+- [x] Streaming cancellation metric
+- [x] Timeout
+- [x] Concurrency limit
+- [x] Non-streaming ve streaming token usage tracking
+- [x] CPU/GPU seçimi
+- [x] Prometheus metrics
+
+### Faz 2 Kabul Kanıtları
+
+- [x] İzole PostgreSQL test veritabanında 73 test geçti
+- [x] Ruff ve mypy kontrolleri geçti
+- [x] Docker Compose API image yeniden build edildi ve container testleri geçti
+- [x] Health, PostgreSQL, Redis, LLM readiness, metrics, auth, chat ve doküman akışını kapsayan HTTP smoke testi geçti
+- [x] Gemma 3 1B Q4 modeliyle CPU inference doğrulandı
+- [x] CUDA 13.3 ile `sm_120a` hedefli llama.cpp build alındı
+- [x] RTX 5070 üzerinde `-ngl 99` tam model offload ve flash attention doğrulandı
+- [x] GPU non-streaming ve streaming completion ile terminal token usage doğrulandı
+- [x] Uygulama sürümü `0.2.0` olarak güncellendi ve `v0.2.0` etiketi oluşturuldu
 
 ---
 
@@ -705,18 +719,18 @@ Document
 
 # Ürünün Aşamalı Sürümleri
 
-| Sürüm | Ürün Çıktısı | Öğrenilen Ana Yetkinlik |
-|---|---|---|
-| v0.1 | Auth ve document upload | FastAPI, SQL, Docker |
-| v0.2 | Local LLM chat | Open-source LLM inference |
-| v0.3 | Vector RAG | Embeddings, pgvector |
-| v0.4 | Hybrid RAG | Retrieval, reranking |
-| v0.5 | Evaluation suite | AI evaluation |
-| v0.6 | LoRA adapter | PyTorch, PEFT, fine-tuning |
-| v0.7 | Quantized inference | torchao, GGUF, optimization |
-| v0.8 | Air-gapped release | On-premise deployment |
-| v0.9 | Native C module | C/Python interoperability |
-| v1.0 | Production portfolio release | Dokümantasyon ve ürünleştirme |
+| Sürüm | Durum | Ürün Çıktısı | Öğrenilen Ana Yetkinlik |
+|---|---|---|---|
+| v0.1 | Tamamlandı | Auth ve document upload | FastAPI, SQL, Docker |
+| v0.2 | Tamamlandı | Local LLM chat | Open-source LLM inference |
+| v0.3 | Devam ediyor | Vector RAG | Embeddings, pgvector |
+| v0.4 | Planlandı | Hybrid RAG | Retrieval, reranking |
+| v0.5 | Planlandı | Evaluation suite | AI evaluation |
+| v0.6 | Planlandı | LoRA adapter | PyTorch, PEFT, fine-tuning |
+| v0.7 | Planlandı | Quantized inference | torchao, GGUF, optimization |
+| v0.8 | Planlandı | Air-gapped release | On-premise deployment |
+| v0.9 | Planlandı | Native C module | C/Python interoperability |
+| v1.0 | Planlandı | Production portfolio release | Dokümantasyon ve ürünleştirme |
 
 ---
 

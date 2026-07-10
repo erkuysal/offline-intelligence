@@ -242,9 +242,11 @@ def test_fake_backend_streams_openai_style_chunks() -> None:
 
     chunks = list(backend.stream_chat(chat_request()))
 
-    assert len(chunks) == 3
+    assert len(chunks) == 4
     assert chunks[0].startswith("data: ")
     assert "Fake LLM response: Hello" in chunks[0]
+    assert '"prompt_tokens": 3' in chunks[-2]
+    assert '"completion_tokens": 4' in chunks[-2]
     assert chunks[-1] == "data: [DONE]\n\n"
 
 
@@ -288,6 +290,7 @@ def test_openai_compatible_streaming_completion_proxies_sse_lines(monkeypatch) -
     chunks = list(backend.stream_chat(chat_request()))
 
     assert captured_payloads[0]["stream"] is True
+    assert captured_payloads[0]["stream_options"] == {"include_usage": True}
     assert chunks == [
         'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
         "data: [DONE]\n\n",

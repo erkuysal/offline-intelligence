@@ -1,6 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
@@ -9,6 +10,7 @@ from app.main import app
 from app.services.embeddings import FakeEmbeddingProvider, reembed_all_document_chunks
 
 client = TestClient(app)
+pytestmark = pytest.mark.usefixtures("clean_database")
 
 
 def get_access_token() -> str:

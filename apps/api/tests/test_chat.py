@@ -1,15 +1,18 @@
 from pathlib import Path
+from time import perf_counter
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
-from app.api.v1.chat import llm_request_semaphore, stream_llm_response
+from app.api.v1.chat import llm_request_semaphore, parse_stream_event, stream_llm_response
 from app.config import get_settings
 from app.main import app
 from app.schemas.chat import ChatCompletionRequest
 from app.services.llm import LLMTimeoutError, LLMUnavailableError
 
 client = TestClient(app)
+pytestmark = pytest.mark.usefixtures("clean_database")
 
 
 def get_access_token() -> str:
@@ -84,7 +87,7 @@ def test_chat_completion_uses_fake_backend() -> None:
 
 def test_chat_completion_records_success_metric() -> None:
     token = get_access_token()
-    before_response = client.get("/metrics")
+    before_response = client.get("/metrics.json")
     before_total = before_response.json()["llm_requests_total"]
 
     response = client.post(
@@ -95,7 +98,7 @@ def test_chat_completion_records_success_metric() -> None:
             "max_tokens": 64,
         },
     )
-    after_response = client.get("/metrics")
+    after_response = client.get("/metrics.json")
 
     assert response.status_code == 200
     after_body = after_response.json()
@@ -115,7 +118,7 @@ def test_chat_completion_records_success_metric() -> None:
 
 def test_chat_completion_streams_fake_backend() -> None:
     token = get_access_token()
-    before_response = client.get("/metrics")
+    before_response = client.get("/metrics.json")
     before_total = before_response.json()["llm_requests_total"]
 
     with client.stream(
@@ -131,14 +134,53 @@ def test_chat_completion_streams_fake_backend() -> None:
     assert "data: " in body
     assert "Fake LLM response: Hello" in body
     assert "data: [DONE]" in body
-    after_body = client.get("/metrics").json()
+    after_body = client.get("/metrics.json").json()
     assert after_body["llm_requests_total"] >= before_total + 1
     assert any(
         request["backend"] == get_settings().llm_backend
         and request["model"] == get_settings().llm_model
         and request["outcome"] == "stream_success"
         and request["count"] >= 1
+        and request["prompt_tokens"] >= 1
+        and request["completion_tokens"] >= 1
+        and request["total_tokens"] >= 2
         for request in after_body["llm_requests"]
+    )
+
+
+def test_parse_stream_event_returns_content_and_usage() -> None:
+    usage, content = parse_stream_event(
+        'data: {"choices":[{"delta":{"content":"Hello"}}],'
+        '"usage":{"prompt_tokens":2,"completion_tokens":1,"total_tokens":3}}\n\n'
+    )
+
+    assert content == "Hello"
+    assert usage is not None
+    assert usage.prompt_tokens == 2
+    assert usage.completion_tokens == 1
+    assert usage.total_tokens == 3
+
+
+def test_stream_estimates_usage_when_backend_omits_it() -> None:
+    class BackendWithoutUsage:
+        def stream_chat(self, request: ChatCompletionRequest):
+            yield 'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'
+            yield "data: [DONE]\n\n"
+
+    request = ChatCompletionRequest(
+        messages=[{"role": "user", "content": "Hello"}],
+        stream=True,
+    )
+    assert llm_request_semaphore.acquire(blocking=False) is True
+
+    events = list(stream_llm_response(BackendWithoutUsage(), request, perf_counter()))
+
+    assert events[-1] == "data: [DONE]\n\n"
+    assert any(
+        metric["outcome"] == "stream_success"
+        and metric["prompt_tokens"] >= 1
+        and metric["completion_tokens"] >= 1
+        for metric in client.get("/metrics.json").json()["llm_requests"]
     )
 
 
@@ -236,7 +278,7 @@ def test_stream_cancellation_records_metric_and_releases_semaphore() -> None:
         messages=[{"role": "user", "content": "Hello"}],
         stream=True,
     )
-    before_total = client.get("/metrics").json()["llm_requests_total"]
+    before_total = client.get("/metrics.json").json()["llm_requests_total"]
     acquired = llm_request_semaphore.acquire(blocking=False)
     assert acquired is True
 
@@ -247,12 +289,13 @@ def test_stream_cancellation_records_metric_and_releases_semaphore() -> None:
     reacquired = llm_request_semaphore.acquire(blocking=False)
     assert reacquired is True
     llm_request_semaphore.release()
-    after_body = client.get("/metrics").json()
+    after_body = client.get("/metrics.json").json()
     assert after_body["llm_requests_total"] >= before_total + 1
     assert any(
         request["outcome"] == "stream_cancelled" and request["count"] >= 1
         for request in after_body["llm_requests"]
     )
+    assert "offline_hub_llm_active_requests 0.0" in client.get("/metrics").text
 
 
 def test_chat_completion_validates_message_role() -> None:
@@ -337,6 +380,7 @@ def test_chat_completion_returns_429_when_llm_is_busy(monkeypatch) -> None:
     assert response.status_code == 429
     assert response.json() == {"detail": "LLM backend is busy"}
     assert was_called is False
+    assert 'reason="busy"' in client.get("/metrics").text
 
 
 def test_chat_completion_returns_503_when_backend_is_unavailable(monkeypatch) -> None:
@@ -349,7 +393,7 @@ def test_chat_completion_returns_503_when_backend_is_unavailable(monkeypatch) ->
         lambda: UnavailableBackend(),
     )
     token = get_access_token()
-    before_response = client.get("/metrics")
+    before_response = client.get("/metrics.json")
     before_total = before_response.json()["llm_requests_total"]
 
     response = client.post(
@@ -362,7 +406,7 @@ def test_chat_completion_returns_503_when_backend_is_unavailable(monkeypatch) ->
 
     assert response.status_code == 503
     assert response.json() == {"detail": "LLM backend is unavailable"}
-    after_body = client.get("/metrics").json()
+    after_body = client.get("/metrics.json").json()
     assert after_body["llm_requests_total"] >= before_total + 1
     assert any(
         request["outcome"] == "unavailable" and request["count"] >= 1

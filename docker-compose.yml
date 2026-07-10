@@ -6,7 +6,7 @@ services:
     container_name: offline-ai-api
     environment:
       APP_NAME: Offline Intelligence Hub API
-      APP_VERSION: 0.1.0
+      APP_VERSION: 0.2.0
       ENVIRONMENT: development
       DEBUG: "false"
       HOST: 0.0.0.0
@@ -50,7 +50,7 @@ services:
       - test
     environment:
       APP_NAME: Offline Intelligence Hub API
-      APP_VERSION: 0.1.0
+      APP_VERSION: 0.2.0
       ENVIRONMENT: testing
       DEBUG: "false"
       HOST: 0.0.0.0
@@ -77,9 +77,9 @@ services:
         condition: service_healthy
     entrypoint: []
     command:
-      - sh
-      - -c
-      - python scripts/prepare_test_database.py && alembic upgrade head && pytest -q
+      - python
+      - launcher.py
+      - test
 
   redis:
     image: redis:7-alpine

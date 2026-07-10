@@ -6,6 +6,7 @@ import logging
 from time import perf_counter
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -68,9 +69,11 @@ async def request_observability(
         return response
     finally:
         duration_ms = round((perf_counter() - started_at) * 1000, 3)
+        route = request.scope.get("route")
+        metric_path = getattr(route, "path", request.url.path)
         metrics_registry.record_request(
             method=request.method,
-            path=request.url.path,
+            path=metric_path,
             status_code=status_code,
         )
         log_event(
@@ -141,7 +144,15 @@ def llm_health_check(response: Response) -> dict[str, str | None]:
 
 
 @app.get("/metrics", tags=["system"])
-async def metrics() -> dict[str, object]:
+async def metrics() -> Response:
+    return Response(
+        content=generate_latest(metrics_registry.prometheus_registry),
+        media_type=CONTENT_TYPE_LATEST,
+    )
+
+
+@app.get("/metrics.json", tags=["system"])
+async def metrics_json() -> dict[str, object]:
     snapshot = metrics_registry.snapshot(
         app_name=settings.app_name,
         app_version=settings.app_version,

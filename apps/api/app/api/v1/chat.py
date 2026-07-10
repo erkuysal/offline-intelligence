@@ -19,6 +19,7 @@ from app.services.llm import (
     LLMError,
     LLMTimeoutError,
     LLMUnavailableError,
+    estimate_tokens,
     get_llm_backend,
 )
 from app.services.llm import LLMBackend
@@ -69,12 +70,29 @@ def stream_llm_response(
     started_at: float,
     sources: list[ChatSource] | None = None,
 ) -> Iterator[str]:
+    usage: ChatUsage | None = None
+    streamed_content: list[str] = []
+    metrics_registry.record_llm_started()
     try:
         if sources:
             source_data = [source.model_dump() for source in sources]
             yield f"event: sources\ndata: {json.dumps(source_data, separators=(',', ':'))}\n\n"
-        yield from backend.stream_chat(request)
-        record_llm_metric(request, "stream_success", started_at)
+        for event in backend.stream_chat(request):
+            event_usage, content = parse_stream_event(event)
+            if event_usage is not None:
+                usage = event_usage
+            if content:
+                streamed_content.append(content)
+            yield event
+        if usage is None:
+            prompt_tokens = estimate_tokens(" ".join(message.content for message in request.messages))
+            completion_tokens = estimate_tokens("".join(streamed_content)) if streamed_content else 0
+            usage = ChatUsage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            )
+        record_llm_metric(request, "stream_success", started_at, usage)
     except GeneratorExit:
         record_llm_metric(request, "stream_cancelled", started_at)
         raise
@@ -88,7 +106,39 @@ def stream_llm_response(
         record_llm_metric(request, "stream_error", started_at)
         yield 'event: error\ndata: {"detail":"LLM backend returned an invalid response"}\n\n'
     finally:
+        metrics_registry.record_llm_finished()
         llm_request_semaphore.release()
+
+
+def parse_stream_event(event: str) -> tuple[ChatUsage | None, str | None]:
+    usage: ChatUsage | None = None
+    content: str | None = None
+    for line in event.splitlines():
+        if not line.startswith("data:"):
+            continue
+        payload = line.removeprefix("data:").strip()
+        if not payload or payload == "[DONE]":
+            continue
+        try:
+            data = json.loads(payload)
+        except ValueError:
+            continue
+        if not isinstance(data, dict):
+            continue
+
+        raw_usage = data.get("usage")
+        if raw_usage is not None:
+            try:
+                usage = ChatUsage.model_validate(raw_usage)
+            except ValueError:
+                pass
+
+        choices = data.get("choices")
+        if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+            delta = choices[0].get("delta")
+            if isinstance(delta, dict) and isinstance(delta.get("content"), str):
+                content = delta["content"]
+    return usage, content
 
 
 @router.post("/completions", response_model=None)
@@ -140,6 +190,7 @@ def create_chat_completion(
             media_type="text/event-stream",
         )
 
+    metrics_registry.record_llm_started()
     try:
         response = backend.complete_chat(rag_context.request)
         if rag_context.sources:
@@ -165,4 +216,5 @@ def create_chat_completion(
             detail="LLM backend returned an invalid response",
         ) from exc
     finally:
+        metrics_registry.record_llm_finished()
         llm_request_semaphore.release()

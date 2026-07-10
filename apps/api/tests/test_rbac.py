@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -9,6 +10,7 @@ from app.models.user import User
 from app.services.roles import ADMIN_ROLE, assign_role, get_or_create_role
 
 client = TestClient(app)
+pytestmark = pytest.mark.usefixtures("clean_database")
 
 
 def create_user_token() -> tuple[str, str]:
@@ -85,4 +87,3 @@ def test_admin_health_allows_admin_user() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
-

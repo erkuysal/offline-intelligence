@@ -1,8 +1,10 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 client = TestClient(app)
+pytestmark = pytest.mark.usefixtures("clean_database")
 
 
 def test_database_health_check() -> None:

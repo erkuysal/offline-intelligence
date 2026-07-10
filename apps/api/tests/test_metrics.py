@@ -6,9 +6,22 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_metrics_returns_app_info() -> None:
-    settings = get_settings()
+def test_metrics_returns_prometheus_exposition() -> None:
     response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "offline_hub_http_requests_total" in response.text
+    assert "offline_hub_llm_requests_total" in response.text
+    assert "offline_hub_llm_request_duration_seconds" in response.text
+    assert "offline_hub_llm_tokens_total" in response.text
+    assert "offline_hub_llm_active_requests" in response.text
+    assert "offline_hub_llm_warmup_attempts_total" in response.text
+
+
+def test_metrics_json_returns_diagnostic_snapshot() -> None:
+    settings = get_settings()
+    response = client.get("/metrics.json")
 
     assert response.status_code == 200
     body = response.json()
@@ -34,11 +47,11 @@ def test_metrics_returns_app_info() -> None:
 
 
 def test_metrics_request_counter_increments() -> None:
-    before_response = client.get("/metrics")
+    before_response = client.get("/metrics.json")
     before_total = before_response.json()["requests_total"]
 
     health_response = client.get("/health")
-    after_response = client.get("/metrics")
+    after_response = client.get("/metrics.json")
 
     assert health_response.status_code == 200
     after_body = after_response.json()
@@ -50,3 +63,7 @@ def test_metrics_request_counter_increments() -> None:
         and request["count"] >= 1
         for request in after_body["requests"]
     )
+
+    prometheus_response = client.get("/metrics")
+    assert 'path="/health"' in prometheus_response.text
+    assert 'status_code="200"' in prometheus_response.text

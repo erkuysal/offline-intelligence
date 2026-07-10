@@ -1,10 +1,12 @@
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 client = TestClient(app)
+pytestmark = pytest.mark.usefixtures("clean_database")
 
 
 def unique_email() -> str:

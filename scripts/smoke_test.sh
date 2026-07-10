@@ -43,7 +43,7 @@ expect_status "200" "$redis_status" "redis health"
 llm_status="$(curl -sS -o /tmp/offline-hub-llm-health.json -w "%{http_code}" "${BASE_URL}/health/llm")"
 expect_status "200" "$llm_status" "llm health"
 
-metrics_status="$(curl -sS -o /tmp/offline-hub-metrics.json -w "%{http_code}" "${BASE_URL}/metrics")"
+metrics_status="$(curl -sS -o /tmp/offline-hub-metrics.prom -w "%{http_code}" "${BASE_URL}/metrics")"
 expect_status "200" "$metrics_status" "metrics"
 
 register_status="$(

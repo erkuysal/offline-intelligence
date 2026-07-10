@@ -121,9 +121,24 @@ class FakeLLMBackend(LLMBackend):
                 }
             ],
         }
+        usage_chunk = {
+            "id": "chatcmpl-fake-stream",
+            "object": "chat.completion.chunk",
+            "model": model,
+            "choices": [],
+            "usage": {
+                "prompt_tokens": estimate_tokens(" ".join(message.content for message in request.messages)),
+                "completion_tokens": estimate_tokens(content),
+                "total_tokens": estimate_tokens(
+                    " ".join(message.content for message in request.messages)
+                )
+                + estimate_tokens(content),
+            },
+        }
 
         yield f"data: {json.dumps(chunk)}\n\n"
         yield f"data: {json.dumps(done_chunk)}\n\n"
+        yield f"data: {json.dumps(usage_chunk)}\n\n"
         yield "data: [DONE]\n\n"
 
 
@@ -206,6 +221,7 @@ class OpenAICompatibleLLMBackend(LLMBackend):
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
 
         try:

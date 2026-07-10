@@ -15,7 +15,7 @@ def pytest_sessionstart() -> None:
         )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def clean_database() -> None:
     with engine.begin() as connection:
         connection.execute(

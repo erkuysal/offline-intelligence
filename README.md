@@ -1,6 +1,6 @@
 # Offline Intelligence Hub
 
-Phase 1 backend for an offline/on-premise document intelligence platform.
+Phase 2 backend for an offline/on-premise document intelligence platform.
 
 ## Current Capabilities
 
@@ -16,8 +16,8 @@ Phase 1 backend for an offline/on-premise document intelligence platform.
 - Document metadata listing, lookup, and deletion
 - Local file storage for uploaded documents
 - Structured request logging
-- Basic `/metrics` endpoint with HTTP and LLM request counters
-- Non-streaming LLM token usage tracking
+- Prometheus `/metrics` endpoint with HTTP and LLM request, latency, concurrency, and token metrics
+- Non-streaming and streaming LLM token usage tracking
 - OpenAI-style chat completions endpoint with a fake local LLM backend
 - Opt-in document retrieval for grounded chat responses with source metadata
 - Streaming chat completions via server-sent events
@@ -67,6 +67,10 @@ Phase 2 starts with a fake LLM backend so the API and tests run without a model 
 ```env
 LLM_BACKEND=fake
 ```
+
+The Phase 2 runtime decision is recorded in
+[`docs/adr/0002-phase-2-llm-runtime.md`](docs/adr/0002-phase-2-llm-runtime.md), and current
+acceptance evidence is tracked in [`docs/phase-2-acceptance.md`](docs/phase-2-acceptance.md).
 
 To use a local OpenAI-compatible server such as `llama-server`, start it on port `8080` and configure:
 
@@ -152,7 +156,7 @@ scripts/start_llama_3_1_8b_gpu.sh
 It maps to:
 
 ```bash
-~/tools/llama.cpp/build/bin/llama-server \
+~/tools/llama.cpp/build-cuda/bin/llama-server \
   -hf ggml-org/Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF:Q4_0 \
   --host 127.0.0.1 \
   --port 8080 \
@@ -171,6 +175,7 @@ For experimentation, use named runtime profiles. Profiles are simple env files i
 The included `llama31-8b-9950x-5070` profile sets:
 
 ```env
+LLAMA_CPP_BIN=~/tools/llama.cpp/build-cuda/bin/llama-server
 LLAMA_MODEL_REPO=ggml-org/Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF:Q4_0
 LLAMA_CTX_SIZE=8192
 LLAMA_GPU_LAYERS=99
@@ -182,8 +187,12 @@ LLAMA_FLASH_ATTN=true
 You can copy that file to create variants such as `llama31-8b-t8.env`, `llama31-8b-b1024.env`, or a CPU-only profile. `LLAMA_EXTRA_ARGS` is available for one-off llama.cpp flags that are not first-class config variables yet.
 
 At API startup, a background one-token completion verifies that the model can perform inference. `/health/llm` reports `503` while warming or unavailable and becomes ready after a successful probe; failed probes retry without blocking the rest of the API.
-LLM request outcomes and latency totals are exposed from `/metrics`.
-Non-streaming completion responses include `usage` when the backend provides token counts; the fake backend returns deterministic estimated counts for tests.
+LLM request outcomes, latency, active requests, rejections, warm-up attempts, and token totals are
+exposed in Prometheus format from `/metrics`. A structured diagnostic snapshot remains available
+from `/metrics.json`.
+Non-streaming completion responses include `usage` when the backend provides token counts.
+Streaming requests ask compatible backends for a terminal usage chunk and fall back to estimated
+counts when it is absent; the fake backend returns deterministic counts for tests.
 
 The chat endpoint is:
 
@@ -338,11 +347,24 @@ Run lint:
 ./app.py lint
 ```
 
+Run static type checks:
+
+```bash
+./app.py typecheck
+```
+
 Run tests:
 
 ```bash
 ./app.py test
 ```
+
+The local test command requires PostgreSQL and Redis to be running. It creates the isolated
+`offline_ai_test` database when needed, applies migrations, forces the fake LLM and embedding
+backends, and then runs `pytest`. By default the test database URL is derived from `DATABASE_URL`;
+set `TEST_DATABASE_URL` and `TEST_DATABASE_ADMIN_URL` to override it. The test fixtures and
+database preparation script both refuse non-test database names.
+Pass pytest options after `--`, for example `./app.py test -- -k chat`.
 
 Run tests inside Docker Compose:
 
@@ -350,7 +372,8 @@ Run tests inside Docker Compose:
 ./app.py test-container
 ```
 
-This rebuilds the API test image, waits for PostgreSQL and Redis, creates the isolated `offline_ai_test` database when needed, applies migrations, and runs `pytest` inside the container. The test fixtures refuse to run against a database whose name does not end in `_test`.
+This rebuilds the API test image and runs the same isolated database preparation, migrations,
+and test suite inside the container.
 
 ## Docker Compose
 

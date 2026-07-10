@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-export LLAMA_CPP_BIN="${LLAMA_CPP_BIN:-~/tools/llama.cpp/build/bin/llama-server}"
+export LLAMA_CPP_BIN="${LLAMA_CPP_BIN:-~/tools/llama.cpp/build-cuda/bin/llama-server}"
 export LLAMA_MODEL_REPO="${LLAMA_MODEL_REPO:-ggml-org/Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF:Q4_0}"
 export LLM_MODEL="${LLM_MODEL:-ggml-org/Meta-Llama-3.1-8B-Instruct-Q4_0-GGUF:Q4_0}"
 export LLAMA_HOST="${LLAMA_HOST:-127.0.0.1}"
