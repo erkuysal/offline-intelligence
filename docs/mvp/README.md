@@ -2,8 +2,8 @@
 
 ## Status
 
-Planned for `v0.3.0`. Phase 2 provides the accepted local LLM foundation; Phase 3 adds scalable
-retrieval and the first user-facing application.
+The Phase 3 backend was released as `v0.3.0`. The integrated browser MVP is now planned for
+`v0.4.0`. Implementation is tracked in the [v0.4.0 MVP task list](v0.4.0-task-list.md).
 
 ## Product Definition
 
@@ -182,4 +182,3 @@ This baseline is appropriate for a local/on-premise MVP, not an unrestricted pub
 browser workflow is covered by Playwright, the Compose deployment works from clean volumes, and
 known limitations are recorded. Desktop packaging and formal air-gapped distribution are
 separate follow-up releases rather than MVP blockers.
-
