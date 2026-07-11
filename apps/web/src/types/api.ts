@@ -3,6 +3,9 @@ export interface UserRead {
   email: string
   is_active: boolean
   is_verified: boolean
+}
+
+export interface CurrentUserRead extends UserRead {
   roles: string[]
 }
 
@@ -41,9 +44,51 @@ export interface DocumentChunkRead {
   embedding_model: string | null
 }
 
+export interface DocumentVersionRead {
+  id: number
+  document_id: number
+  version_number: number
+  original_filename: string
+  content_type: string
+  size_bytes: number
+  checksum_sha256: string
+  created_at: string
+}
+
+export interface DocumentPermissionRead {
+  id: number
+  document_id: number
+  user_id: number
+  permission: 'read'
+  created_at: string
+}
+
+export interface DocumentSearchResult {
+  document_id: number
+  document_filename: string
+  chunk_id: number
+  chunk_index: number
+  content: string
+  source_page: number | null
+  source_label: string | null
+  score: number
+}
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
+}
+
+export interface ChatCompletionRequest {
+  model?: string | null
+  messages: ChatMessage[]
+  temperature?: number
+  max_tokens?: number
+  stream?: boolean
+  use_documents?: boolean
+  document_ids?: number[] | null
+  retrieval_limit?: number | null
+  conversation_id?: number | null
 }
 
 export interface ChatSource {
@@ -67,7 +112,29 @@ export interface ChatCompletionResponse {
   conversation_id: number | null
 }
 
+export interface ConversationRead {
+  id: number
+  owner_id: number
+  title: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ConversationSourceRead extends Omit<ChatSource, 'chunk_id'> {
+  id: number
+  chunk_id: number | null
+}
+
+export interface ConversationMessageRead {
+  id: number
+  conversation_id: number
+  role: string
+  content: string
+  sources: ConversationSourceRead[]
+  created_at: string
+}
+
 export interface HealthResponse {
   status: string
-  [key: string]: string
+  [key: string]: unknown
 }

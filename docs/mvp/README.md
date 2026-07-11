@@ -126,7 +126,7 @@ are not exposed publicly in the production Compose profile.
 - Streaming and cancellation verified in a browser
 - Asynchronous ingestion states visible end to end
 
-### M4: `v0.3.0` MVP
+### M4: `v0.4.0` MVP
 
 - Single-origin production Compose deployment
 - Complete automated and manual acceptance suite
@@ -178,7 +178,7 @@ This baseline is appropriate for a local/on-premise MVP, not an unrestricted pub
 
 ## MVP Definition of Done
 
-`v0.3.0` is ready when all functional and operational acceptance criteria pass, the primary
+`v0.4.0` is ready when all functional and operational acceptance criteria pass, the primary
 browser workflow is covered by Playwright, the Compose deployment works from clean volumes, and
 known limitations are recorded. Desktop packaging and formal air-gapped distribution are
 separate follow-up releases rather than MVP blockers.

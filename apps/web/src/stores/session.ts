@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import { api, ApiError } from '@/api/client'
-import type { UserRead } from '@/types/api'
+import type { CurrentUserRead } from '@/types/api'
 
 const ACCESS_TOKEN_KEY = 'offlineHub.accessToken'
 const REFRESH_TOKEN_KEY = 'offlineHub.refreshToken'
@@ -10,7 +10,7 @@ const REFRESH_TOKEN_KEY = 'offlineHub.refreshToken'
 export const useSessionStore = defineStore('session', () => {
   const accessToken = ref<string | null>(sessionStorage.getItem(ACCESS_TOKEN_KEY))
   const refreshToken = ref<string | null>(sessionStorage.getItem(REFRESH_TOKEN_KEY))
-  const user = ref<UserRead | null>(null)
+  const user = ref<CurrentUserRead | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 

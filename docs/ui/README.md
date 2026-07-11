@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed for `feat/mvp-ui`. The first integrated UI is targeted for `v0.3.0`.
+In development on `feat/mvp-ui`. The first integrated UI is targeted for `v0.4.0`.
 
 ## Purpose
 
@@ -191,4 +191,3 @@ Server-owned data should be refetched after mutations. Stores must not become a 
 - The production frontend is served through the MVP reverse proxy.
 - The UI works against the Phase 3 API from a clean Docker Compose environment.
 - Setup, development, testing, and deployment commands are documented.
-

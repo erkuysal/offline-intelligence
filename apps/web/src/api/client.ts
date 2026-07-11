@@ -1,7 +1,14 @@
 import type {
+  ChatCompletionRequest,
   ChatCompletionResponse,
+  ConversationMessageRead,
+  ConversationRead,
+  CurrentUserRead,
   DocumentChunkRead,
+  DocumentPermissionRead,
   DocumentRead,
+  DocumentSearchResult,
+  DocumentVersionRead,
   HealthResponse,
   TokenPair,
   UserRead,
@@ -65,7 +72,7 @@ export const api = {
     })
   },
   me(token: string) {
-    return request<UserRead>('/api/v1/users/me', { token })
+    return request<CurrentUserRead>('/api/v1/users/me', { token })
   },
   documents(token: string) {
     return request<DocumentRead[]>('/api/v1/documents', { token })
@@ -76,6 +83,26 @@ export const api = {
   documentChunks(token: string, id: number) {
     return request<DocumentChunkRead[]>(`/api/v1/documents/${id}/chunks`, { token })
   },
+  documentVersions(token: string, id: number) {
+    return request<DocumentVersionRead[]>(`/api/v1/documents/${id}/versions`, { token })
+  },
+  documentPermissions(token: string, id: number) {
+    return request<DocumentPermissionRead[]>(`/api/v1/documents/${id}/permissions`, { token })
+  },
+  grantDocumentPermission(token: string, id: number, userEmail: string) {
+    return request<DocumentPermissionRead>(`/api/v1/documents/${id}/permissions`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ user_email: userEmail, permission: 'read' }),
+    })
+  },
+  searchDocuments(token: string, query: string, limit = 5) {
+    return request<DocumentSearchResult[]>('/api/v1/documents/search', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ query, limit }),
+    })
+  },
   uploadDocument(token: string, file: File) {
     const body = new FormData()
     body.set('file', file)
@@ -84,12 +111,18 @@ export const api = {
   deleteDocument(token: string, id: number) {
     return request<void>(`/api/v1/documents/${id}`, { method: 'DELETE', token })
   },
-  chat(token: string, payload: Record<string, unknown>) {
+  chat(token: string, payload: ChatCompletionRequest) {
     return request<ChatCompletionResponse>('/api/v1/chat/completions', {
       method: 'POST',
       token,
       body: JSON.stringify(payload),
     })
+  },
+  conversations(token: string) {
+    return request<ConversationRead[]>('/api/v1/chat/conversations', { token })
+  },
+  conversationMessages(token: string, id: number) {
+    return request<ConversationMessageRead[]>(`/api/v1/chat/conversations/${id}/messages`, { token })
   },
   health(path: '/health' | '/health/db' | '/health/redis' | '/health/llm') {
     return request<HealthResponse>(path)
