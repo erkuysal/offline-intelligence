@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Upload } from '@lucide/vue'
+import { LoaderCircle, Upload } from '@lucide/vue'
 
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { useDocumentsStore } from '@/stores/documents'
@@ -13,7 +13,13 @@ onMounted(() => documents.fetchDocuments())
 
 async function uploadSelected() {
   const file = fileInput.value?.files?.[0]
-  if (file) await documents.upload(file)
+  if (file) {
+    try {
+      await documents.upload(file)
+    } catch {
+      // The document store exposes a user-facing error.
+    }
+  }
   if (fileInput.value) fileInput.value.value = ''
 }
 </script>
@@ -25,15 +31,27 @@ async function uploadSelected() {
         <p class="eyebrow">Documents</p>
         <h1>Corpus</h1>
       </div>
-      <label class="file-button">
-        <Upload :size="18" /> Upload
+      <div class="upload-actions">
+        <button
+          class="file-button"
+          type="button"
+          :disabled="documents.uploading"
+          @click="fileInput?.click()"
+        >
+          <LoaderCircle v-if="documents.uploading" class="spin" :size="18" />
+          <Upload v-else :size="18" />
+          {{ documents.uploading ? 'Uploading' : 'Upload' }}
+        </button>
+        <span>TXT, MD, PDF, DOCX | 5 MB max</span>
         <input
           ref="fileInput"
+          class="visually-hidden"
           type="file"
           accept=".txt,.pdf,.md,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          :disabled="documents.uploading"
           @change="uploadSelected"
         />
-      </label>
+      </div>
     </header>
 
     <p v-if="documents.error" class="form-error" role="alert">{{ documents.error }}</p>
@@ -44,7 +62,10 @@ async function uploadSelected() {
         <tbody>
           <tr v-for="document in documents.items" :key="document.id">
             <td>{{ document.original_filename }}</td>
-            <td><StatusBadge :status="document.status" /></td>
+            <td>
+              <StatusBadge :status="document.status" />
+              <span v-if="document.ingestion_error" class="status-detail">{{ document.ingestion_error }}</span>
+            </td>
             <td>{{ document.chunk_count }}</td>
             <td>{{ document.version_number }}</td>
             <td><RouterLink :to="`/documents/${document.id}`">Open</RouterLink></td>
