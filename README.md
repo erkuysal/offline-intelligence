@@ -1,6 +1,6 @@
 # Offline Intelligence Hub
 
-Phase 2 backend for an offline/on-premise document intelligence platform.
+Phase 3 backend for an offline/on-premise document intelligence platform.
 
 ## Current Capabilities
 

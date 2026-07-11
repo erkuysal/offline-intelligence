@@ -7,7 +7,7 @@ from app.constants import EMBEDDING_DIMENSIONS
 
 class Settings(BaseSettings):
     app_name: str = "Offline Intelligence Hub API"
-    app_version: str = "0.2.0"
+    app_version: str = "0.3.0"
     environment: str = "development"
     debug: bool = False
     host: str = "127.0.0.1"

@@ -61,7 +61,7 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1 ve Faz 2 tamamlandı. `v0.2.0` sürümü; doğrulanmış CPU/CUDA yerel LLM çalıştırma, streaming, cancellation, timeout, concurrency limitleri, token takibi ve Prometheus metriklerini içeriyor. Faz 3 aktif geliştirme aşamasında; ilk parça olarak `pgvector` tabanlı 768 boyutlu embedding saklama, HNSW cosine index ve SQL tabanlı retrieval tamamlandı.
+> **Şu anki konum:** Faz 1, Faz 2 ve Faz 3 tamamlandı. `v0.3.0` sürümü; yerel LLM runtime üzerine pgvector tabanlı RAG, async ingestion worker, format genişletme, document versioning, read permissions ve conversation persistence ekler.
 
 ### Özellikler
 
@@ -191,7 +191,7 @@ OpenAI API benzeri sözleşme:
 
 Bu aşamada platform kurumsal bilgi sistemine dönüşür.
 
-> **Durum:** Devam ediyor. `pgvector` migration'ı, `vector(768)` embedding kolonu, HNSW cosine index, embedding boyut doğrulaması, stale embedding işaretleme, SQL tabanlı retrieval, Redis-backed ingestion worker, Markdown/DOCX desteği, temizleme, token sınırı odaklı chunking, chunk source metadata, duplicate detection, document version history, incremental stale-only reindex, doküman izinleri, retrieval authorization ve non-streaming conversation/message/source persistence tamamlandı. Sıradaki işler gözlemlenebilirlik, kabul kanıtları ve `v0.3.0` sürümlemedir.
+> **Durum:** Tamamlandı (`v0.3.0`, 10 Temmuz 2026). Kabul kanıtları `docs/phase-3-acceptance.md` dosyasında kayıtlıdır.
 
 ### Doküman Pipeline'ı
 
