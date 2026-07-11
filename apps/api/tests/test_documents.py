@@ -389,6 +389,37 @@ def test_worker_processes_queued_document_ingestion(
     assert search_response.json()[0]["document_id"] == document["id"]
 
 
+def test_owner_can_reindex_ready_document(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    document = upload_txt_document(token)
+
+    response = client.post(
+        f"/api/v1/documents/{document['id']}/reindex",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "ready"
+    assert response.json()["chunk_count"] == 1
+
+
+def test_reindex_hides_other_users_document(tmp_path: Path, monkeypatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    owner_token = get_access_token()
+    other_token = get_access_token()
+    document = upload_txt_document(owner_token)
+
+    response = client.post(
+        f"/api/v1/documents/{document['id']}/reindex",
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+
+    assert response.status_code == 404
+
+
 def test_search_documents_returns_relevant_chunks(
     tmp_path: Path,
     monkeypatch,
@@ -788,6 +819,32 @@ def test_delete_document_removes_metadata_and_file(
     )
 
     assert chunks_response.status_code == 404
+
+    versions_response = client.get(
+        f"/api/v1/documents/{document['id']}/versions",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    search_response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"query": "retention reports", "limit": 5},
+    )
+    with SessionLocal() as db:
+        remaining_rows = db.execute(
+            text(
+                "SELECT "
+                "(SELECT count(*) FROM documents WHERE id = :document_id), "
+                "(SELECT count(*) FROM document_versions WHERE document_id = :document_id), "
+                "(SELECT count(*) FROM document_chunks WHERE document_id = :document_id), "
+                "(SELECT count(*) FROM document_permissions WHERE document_id = :document_id)"
+            ),
+            {"document_id": document["id"]},
+        ).one()
+
+    assert versions_response.status_code == 404
+    assert search_response.status_code == 200
+    assert search_response.json() == []
+    assert tuple(remaining_rows) == (0, 0, 0, 0)
 
 
 def test_delete_document_requires_authentication() -> None:

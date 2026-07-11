@@ -33,9 +33,11 @@ h2 { margin: 0 0 12px; font-size: 18px; letter-spacing: 0; }
 .auth-panel { width: min(420px, 100%); display: grid; gap: 16px; padding: 28px; background: #fff; border: 1px solid #d8e0e5; border-radius: 8px; }
 label { display: grid; gap: 6px; color: #37464f; font-weight: 600; }
 input, textarea { width: 100%; border: 1px solid #cad5dc; border-radius: 8px; padding: 10px 12px; background: #fff; color: #172026; }
-.primary-button, .secondary-button, .file-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border-radius: 8px; padding: 8px 14px; border: 1px solid transparent; font-weight: 700; }
+.primary-button, .secondary-button, .danger-button, .file-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border-radius: 8px; padding: 8px 14px; border: 1px solid transparent; font-weight: 700; }
 .primary-button { background: #1f6f78; color: #fff; }
 .secondary-button, .file-button { background: #fff; border-color: #cad5dc; color: #172026; }
+.danger-button { background: #b42318; color: #fff; }
+.header-actions, .dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .upload-actions { display: grid; justify-items: end; gap: 4px; }
 .upload-actions span, .muted-status, .status-detail { color: #5f6f78; font-size: 13px; }
 .status-detail { display: block; max-width: 360px; margin-top: 4px; white-space: normal; }
@@ -57,6 +59,13 @@ th { color: #5f6f78; font-size: 13px; }
 .chunk-item, .health-item, .source-item { background: #fff; border: 1px solid #d8e0e5; border-radius: 8px; padding: 14px; }
 .chunk-item header { display: flex; justify-content: space-between; gap: 16px; color: #5f6f78; font-size: 13px; font-weight: 700; }
 .chunk-item p { margin: 8px 0 0; white-space: pre-wrap; }
+.chunk-item small { display: block; margin-top: 6px; color: #5f6f78; }
+.detail-section { display: grid; gap: 10px; }
+.checksum { max-width: 260px; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.confirm-dialog { width: min(480px, calc(100% - 32px)); padding: 22px; border: 1px solid #cad5dc; border-radius: 8px; color: #172026; }
+.confirm-dialog::backdrop { background: rgb(16 24 32 / 55%); }
+.confirm-dialog form { display: grid; gap: 16px; }
+.confirm-dialog p { margin: 0; color: #5f6f78; }
 .chat-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; min-height: calc(100vh - 56px); }
 .conversation-panel, .sources-panel { background: #fff; border: 1px solid #d8e0e5; border-radius: 8px; padding: 16px; }
 .conversation-panel { display: grid; grid-template-rows: 1fr auto; gap: 16px; }

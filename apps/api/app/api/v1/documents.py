@@ -91,6 +91,10 @@ async def upload_document(
     db.commit()
     db.refresh(document)
 
+    return schedule_document_ingestion(document, db=db, settings=settings)
+
+
+def schedule_document_ingestion(document: Document, *, db: Session, settings: Settings) -> Document:
     ingestion_mode = settings.document_ingestion_mode.strip().lower()
     if ingestion_mode == "redis":
         try:
@@ -190,6 +194,33 @@ def list_document_versions(
         )
 
     return list(document.versions)
+
+
+@router.post("/{document_id}/reindex", response_model=DocumentRead, status_code=status.HTTP_202_ACCEPTED)
+def reindex_document(
+    document_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> Document:
+    document = db.get(Document, document_id)
+    if document is None or document.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+    if document.status in {"pending", "processing"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document ingestion is already in progress",
+        )
+
+    document.status = "pending"
+    document.ingestion_error = None
+    document.chunk_count = 0
+    db.commit()
+    db.refresh(document)
+    return schedule_document_ingestion(document, db=db, settings=settings)
 
 
 @router.post("/{document_id}/permissions", response_model=DocumentPermissionRead, status_code=status.HTTP_201_CREATED)

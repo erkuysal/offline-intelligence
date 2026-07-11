@@ -79,3 +79,82 @@ test('polls asynchronous ingestion from pending to ready', async ({ page }) => {
   await expect(documentRow).toContainText('ready', { timeout: 3_000 })
   expect(statusChecks).toBe(2)
 })
+
+test('shows version history after uploading changed content with the same filename', async ({ page }) => {
+  await uploadTextDocument(page, 'versioned-policy.txt', 'Backups run nightly.')
+  await uploadTextDocument(page, 'versioned-policy.txt', 'Backups run nightly and verify monthly.')
+
+  const documentRow = page.getByRole('row').filter({ hasText: 'versioned-policy.txt' })
+  await expect(documentRow).toContainText('2')
+  await documentRow.getByRole('link', { name: 'Open' }).click()
+
+  const versionHistory = page.getByRole('region', { name: 'Version history' })
+  await expect(versionHistory.getByRole('cell', { name: 'v1' })).toBeVisible()
+  await expect(versionHistory.getByRole('cell', { name: 'v2' })).toBeVisible()
+})
+
+test('requires confirmation and deletes a document', async ({ page }) => {
+  await uploadTextDocument(page, 'temporary-policy.txt', 'Temporary retention policy.')
+  const documentRow = page.getByRole('row').filter({ hasText: 'temporary-policy.txt' })
+  await documentRow.getByRole('link', { name: 'Open' }).click()
+
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Delete document?' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toBeHidden()
+
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Delete permanently' }).click()
+
+  await expect(page).toHaveURL(/\/documents$/)
+  await expect(page.getByRole('row').filter({ hasText: 'temporary-policy.txt' })).toHaveCount(0)
+})
+
+test('reindexes an owned document and returns to ready', async ({ page }) => {
+  const uploaded = await uploadTextDocument(page, 'reindex-policy.txt', 'Reindex this policy.')
+  const documentRow = page.getByRole('row').filter({ hasText: 'reindex-policy.txt' })
+  await documentRow.getByRole('link', { name: 'Open' }).click()
+
+  await page.route(`**/api/v1/documents/${uploaded.id}/reindex`, async route => {
+    await route.fulfill({
+      status: 202,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...uploaded, status: 'pending', chunk_count: 0 }),
+    })
+  })
+
+  await page.getByRole('button', { name: 'Reindex' }).click()
+  await expect(page.getByText('pending', { exact: true })).toBeVisible()
+  await expect(page.getByText('ready', { exact: true })).toBeVisible({ timeout: 3_000 })
+})
+
+test('shows failed ingestion and recovers with a corrected version', async ({ page }) => {
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'recover-policy.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from([0xff, 0xfe]),
+  })
+
+  const documentRow = page.getByRole('row').filter({ hasText: 'recover-policy.txt' })
+  await expect(documentRow).toContainText('failed')
+
+  await uploadTextDocument(page, 'recover-policy.txt', 'Corrected recovery policy.')
+  await expect(documentRow).toContainText('ready')
+  await expect(documentRow).toContainText('2')
+})
+
+async function uploadTextDocument(page: import('@playwright/test').Page, name: string, content: string) {
+  const responsePromise = page.waitForResponse(
+    response => response.request().method() === 'POST' && response.url().endsWith('/api/v1/documents'),
+  )
+  await page.locator('input[type="file"]').setInputFiles({
+    name,
+    mimeType: 'text/plain',
+    buffer: Buffer.from(content),
+  })
+  const response = await responsePromise
+  expect(response.ok()).toBe(true)
+  await expect(page.getByRole('row').filter({ hasText: name })).toContainText('ready')
+  return (await response.json()) as { id: number; [key: string]: unknown }
+}

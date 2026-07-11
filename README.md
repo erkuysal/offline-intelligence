@@ -281,6 +281,15 @@ List immutable upload versions for a document:
 GET /api/v1/documents/{document_id}/versions
 ```
 
+Owners can rebuild extraction, chunks, and embeddings for an existing document:
+
+```text
+POST /api/v1/documents/{document_id}/reindex
+```
+
+Redis mode returns `202` with a pending document; synchronous test mode completes the rebuild
+before returning.
+
 Owners can grant read access to another user by email and list existing grants:
 
 ```text

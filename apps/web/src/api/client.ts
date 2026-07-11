@@ -99,6 +99,9 @@ export const api = {
   documentVersions(token: string, id: number) {
     return request<DocumentVersionRead[]>(`/api/v1/documents/${id}/versions`, { token })
   },
+  reindexDocument(token: string, id: number) {
+    return request<DocumentRead>(`/api/v1/documents/${id}/reindex`, { method: 'POST', token })
+  },
   documentPermissions(token: string, id: number) {
     return request<DocumentPermissionRead[]>(`/api/v1/documents/${id}/permissions`, { token })
   },
