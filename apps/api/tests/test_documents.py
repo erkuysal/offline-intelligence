@@ -372,6 +372,13 @@ def test_worker_processes_queued_document_ingestion(
     assert processed_document.status == "ready"
     assert processed_document.chunk_count == 1
 
+    with SessionLocal() as db:
+        duplicate_delivery = process_document_ingestion(db, document["id"], settings=settings)
+
+    assert duplicate_delivery is not None
+    assert duplicate_delivery.status == "ready"
+    assert duplicate_delivery.chunk_count == 1
+
     search_response = client.post(
         "/api/v1/documents/search",
         headers={"Authorization": f"Bearer {token}"},

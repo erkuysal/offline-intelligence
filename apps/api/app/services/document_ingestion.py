@@ -349,6 +349,8 @@ def process_document_ingestion(
     document = db.get(Document, document_id)
     if document is None:
         return None
+    if document.status == DOCUMENT_STATUS_READY:
+        return document
 
     document = ingest_document(
         db,

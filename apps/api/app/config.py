@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     document_ingestion_mode: str = "sync"
     document_ingestion_queue_name: str = "document_ingestion"
     document_ingestion_worker_poll_seconds: int = 5
+    document_ingestion_max_attempts: int = 3
     document_chunk_size_chars: int = 2_000
     document_chunk_overlap_chars: int = 200
     embedding_backend: str = "fake"

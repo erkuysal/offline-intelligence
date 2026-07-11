@@ -256,9 +256,10 @@ Chunk sizing is controlled by:
 ```env
 DOCUMENT_CHUNK_SIZE_CHARS=2000
 DOCUMENT_CHUNK_OVERLAP_CHARS=200
-DOCUMENT_INGESTION_MODE=sync
+DOCUMENT_INGESTION_MODE=redis
 DOCUMENT_INGESTION_QUEUE_NAME=document_ingestion
 DOCUMENT_INGESTION_WORKER_POLL_SECONDS=5
+DOCUMENT_INGESTION_MAX_ATTEMPTS=3
 EMBEDDING_BACKEND=fake
 EMBEDDING_BASE_URL=http://127.0.0.1:8080/v1
 EMBEDDING_MODEL=fake-bow
@@ -302,16 +303,22 @@ GET /api/v1/chat/conversations/{conversation_id}/messages
 
 The Phase 3 pgvector migration backfills existing JSON embeddings only when they already have 768 dimensions. Older incompatible embeddings are marked stale by clearing `embedding_model`; run `./app.py embedding-reindex` after configuring the desired embedding backend.
 
-Set `DOCUMENT_INGESTION_MODE=redis` to return uploads as `pending` and process them from Redis. Start a local worker with:
+Redis ingestion is the default application mode. Uploads return as `pending` and are processed by
+a worker. Use `DOCUMENT_INGESTION_MODE=sync` only for focused development or tests. Start a local
+worker with:
 
 ```bash
 ./app.py ingestion-worker
 ```
 
-For Docker Compose, run the API with `DOCUMENT_INGESTION_MODE=redis` and start the worker profile:
+The worker reserves jobs in a processing list, acknowledges successful or terminal jobs, recovers
+interrupted reservations on startup, and retries unexpected failures up to
+`DOCUMENT_INGESTION_MAX_ATTEMPTS`.
+
+For Docker Compose, start the API and worker profile together:
 
 ```bash
-docker compose --profile worker up ingestion-worker
+docker compose --profile worker up -d api ingestion-worker
 ```
 
 ### Local semantic embeddings

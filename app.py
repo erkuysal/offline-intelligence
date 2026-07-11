@@ -276,11 +276,18 @@ def ingestion_worker(args: argparse.Namespace) -> int:
     from app.cache.redis import get_redis_client
     from app.config import get_settings
     from app.services.document_ingestion_queue import process_next_ingestion_job
+    from app.services.document_ingestion_queue import recover_reserved_ingestion_jobs
 
     settings = get_settings()
     redis_client = get_redis_client()
 
     try:
+        recovered = recover_reserved_ingestion_jobs(
+            redis_client,
+            queue_name=settings.document_ingestion_queue_name,
+        )
+        if recovered:
+            print(f"Recovered {recovered} interrupted document ingestion jobs")
         while True:
             processed = process_next_ingestion_job(redis_client, settings=settings)
             if args.once:
