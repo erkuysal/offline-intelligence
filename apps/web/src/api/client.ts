@@ -27,6 +27,19 @@ export class ApiError extends Error {
   }
 }
 
+export function readableApiError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    if (typeof error.detail === 'string') return error.detail
+    if (error.detail && typeof error.detail === 'object' && 'detail' in error.detail) {
+      return String(error.detail.detail)
+    }
+    if (error.status === 403) return 'You do not have permission to perform this action'
+    return fallback
+  }
+  if (error instanceof TypeError) return 'Unable to reach the API'
+  return fallback
+}
+
 export interface RequestOptions extends RequestInit {
   token?: string | null
 }

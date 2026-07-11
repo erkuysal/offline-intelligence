@@ -10,8 +10,12 @@ const session = useSessionStore()
 const router = useRouter()
 
 async function submit() {
-  await session.register(email.value, password.value)
-  router.push({ name: 'documents' })
+  try {
+    await session.register(email.value, password.value)
+    await router.push({ name: 'documents' })
+  } catch {
+    // The session store exposes a user-facing error.
+  }
 }
 </script>
 

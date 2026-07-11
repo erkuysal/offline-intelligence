@@ -4,6 +4,7 @@ import hmac
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 from app.config import get_settings
 
@@ -43,6 +44,7 @@ def _create_token(
         "sub": subject,
         "iat": int(now.timestamp()),
         "exp": int((now + expires_delta).timestamp()),
+        "jti": uuid4().hex,
         "typ": token_type,
     }
     return _encode_jwt(payload, secret_key)

@@ -36,6 +36,8 @@ async function uploadSelected() {
       </label>
     </header>
 
+    <p v-if="documents.error" class="form-error" role="alert">{{ documents.error }}</p>
+
     <div class="table-shell">
       <table>
         <thead><tr><th>Name</th><th>Status</th><th>Chunks</th><th>Version</th><th></th></tr></thead>

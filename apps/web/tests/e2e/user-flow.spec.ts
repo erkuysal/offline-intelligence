@@ -43,4 +43,21 @@ test('registers, uploads a document, asks a grounded question, and logs out', as
   await page.getByRole('button', { name: 'Log out' }).click()
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill('Playwright-Test-2026!')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page).toHaveURL(/\/documents$/)
+
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Corpus' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Log out' }).click()
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(
+    page.evaluate(() => ({
+      access: sessionStorage.getItem('offlineHub.accessToken'),
+      refresh: sessionStorage.getItem('offlineHub.refreshToken'),
+    })),
+  ).resolves.toEqual({ access: null, refresh: null })
 })

@@ -34,6 +34,10 @@ export const router = createRouter({
   ],
 })
 
+window.addEventListener('offlineHub:session-expired', () => {
+  void router.push({ name: 'login' })
+})
+
 router.beforeEach(async to => {
   const session = useSessionStore()
   if (!session.user && session.accessToken) await session.loadUser()
