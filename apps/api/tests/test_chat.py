@@ -83,6 +83,38 @@ def test_chat_completion_uses_fake_backend() -> None:
         "completion_tokens": 6,
         "total_tokens": 9,
     }
+    assert body["conversation_id"] is not None
+
+
+def test_chat_completion_persists_conversation_messages() -> None:
+    token = get_access_token()
+
+    response = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "messages": [{"role": "user", "content": "Remember this"}],
+            "max_tokens": 64,
+        },
+    )
+    conversation_id = response.json()["conversation_id"]
+    conversations_response = client.get(
+        "/api/v1/chat/conversations",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    messages_response = client.get(
+        f"/api/v1/chat/conversations/{conversation_id}/messages",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert conversations_response.status_code == 200
+    assert conversations_response.json()[0]["id"] == conversation_id
+    assert messages_response.status_code == 200
+    assert [(message["role"], message["content"]) for message in messages_response.json()] == [
+        ("user", "Remember this"),
+        ("assistant", "Fake LLM response: Remember this"),
+    ]
 
 
 def test_chat_completion_records_success_metric() -> None:
@@ -223,6 +255,14 @@ def test_chat_completion_retrieves_document_sources(tmp_path: Path, monkeypatch)
             "score": body["sources"][0]["score"],
         }
     ]
+    messages_response = client.get(
+        f"/api/v1/chat/conversations/{body['conversation_id']}/messages",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assistant_message = messages_response.json()[-1]
+
+    assert assistant_message["role"] == "assistant"
+    assert assistant_message["sources"][0]["chunk_id"] == chunks[0]["id"]
 
 
 def test_streaming_chat_emits_document_sources(tmp_path: Path, monkeypatch) -> None:

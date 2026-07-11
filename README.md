@@ -293,6 +293,13 @@ Chunks include nullable `source_page` and `source_label` metadata. PDF chunks ca
 Uploading the same filename and checksum for the same owner is rejected as a duplicate. Uploading the same filename with changed content creates the next document version, replaces chunks, and keeps previous version file metadata for audit/history.
 Search and RAG retrieval include documents owned by the current user plus documents explicitly shared with read permission. Deletion and permission management remain owner-only.
 
+Non-streaming chat completions are persisted as conversations with user/assistant messages and assistant source links:
+
+```text
+GET /api/v1/chat/conversations
+GET /api/v1/chat/conversations/{conversation_id}/messages
+```
+
 The Phase 3 pgvector migration backfills existing JSON embeddings only when they already have 768 dimensions. Older incompatible embeddings are marked stale by clearing `embedding_model`; run `./app.py embedding-reindex` after configuring the desired embedding backend.
 
 Set `DOCUMENT_INGESTION_MODE=redis` to return uploads as `pending` and process them from Redis. Start a local worker with:

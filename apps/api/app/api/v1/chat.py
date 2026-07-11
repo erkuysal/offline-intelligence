@@ -6,14 +6,24 @@ from time import perf_counter
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
+from app.models.conversation import Conversation, ConversationMessage
 from app.models.user import User
 from app.observability.metrics import metrics_registry
-from app.schemas.chat import ChatCompletionRequest, ChatCompletionResponse, ChatSource, ChatUsage
+from app.schemas.chat import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatSource,
+    ChatUsage,
+    ConversationMessageRead,
+    ConversationRead,
+)
+from app.services.conversations import persist_chat_exchange
 from app.services.embeddings import EmbeddingError
 from app.services.llm import (
     LLMError,
@@ -195,6 +205,20 @@ def create_chat_completion(
         response = backend.complete_chat(rag_context.request)
         if rag_context.sources:
             response.sources = rag_context.sources
+        try:
+            conversation = persist_chat_exchange(
+                db,
+                owner_id=current_user.id,
+                request=request,
+                assistant_content=response.choices[0].message.content,
+                sources=rag_context.sources,
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            ) from exc
+        response.conversation_id = conversation.id
         record_llm_metric(request, "success", started_at, response.usage)
         return response
     except LLMTimeoutError as exc:
@@ -218,3 +242,32 @@ def create_chat_completion(
     finally:
         metrics_registry.record_llm_finished()
         llm_request_semaphore.release()
+
+
+@router.get("/conversations", response_model=list[ConversationRead])
+def list_conversations(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[Conversation]:
+    return list(
+        db.scalars(
+            select(Conversation)
+            .where(Conversation.owner_id == current_user.id)
+            .order_by(Conversation.updated_at.desc(), Conversation.id.desc())
+        )
+    )
+
+
+@router.get("/conversations/{conversation_id}/messages", response_model=list[ConversationMessageRead])
+def list_conversation_messages(
+    conversation_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[ConversationMessage]:
+    conversation = db.get(Conversation, conversation_id)
+    if conversation is None or conversation.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+    return list(conversation.messages)

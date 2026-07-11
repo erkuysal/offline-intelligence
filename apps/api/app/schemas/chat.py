@@ -1,8 +1,9 @@
 from typing import Literal
+from datetime import datetime
 from uuid import uuid4
 import time
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ChatRole = Literal["system", "user", "assistant"]
@@ -22,6 +23,7 @@ class ChatCompletionRequest(BaseModel):
     use_documents: bool = False
     document_ids: list[int] | None = Field(default=None, min_length=1, max_length=100)
     retrieval_limit: int | None = Field(default=None, ge=1, le=20)
+    conversation_id: int | None = Field(default=None, ge=1)
 
 
 class ChatCompletionChoice(BaseModel):
@@ -54,3 +56,38 @@ class ChatCompletionResponse(BaseModel):
     choices: list[ChatCompletionChoice]
     usage: ChatUsage | None = None
     sources: list[ChatSource] | None = None
+    conversation_id: int | None = None
+
+
+class ConversationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    owner_id: int
+    title: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationSourceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    document_id: int
+    document_filename: str
+    chunk_id: int | None
+    chunk_index: int
+    source_page: int | None
+    source_label: str | None
+    score: float
+
+
+class ConversationMessageRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    conversation_id: int
+    role: str
+    content: str
+    sources: list[ConversationSourceRead]
+    created_at: datetime
