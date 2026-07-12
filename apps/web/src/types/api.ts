@@ -98,6 +98,9 @@ export interface ChatSource {
   chunk_index: number
   source_page: number | null
   source_label: string | null
+  content: string
+  char_start: number
+  char_end: number
   score: number
 }
 
@@ -138,9 +141,14 @@ export interface ConversationRead {
   updated_at: string
 }
 
-export interface ConversationSourceRead extends Omit<ChatSource, 'chunk_id'> {
+export interface ConversationSourceRead
+  extends Omit<ChatSource, 'chunk_id' | 'content' | 'char_start' | 'char_end'> {
   id: number
   chunk_id: number | null
+  content: string | null
+  char_start: number | null
+  char_end: number | null
+  document_accessible: boolean
 }
 
 export interface ConversationMessageRead {

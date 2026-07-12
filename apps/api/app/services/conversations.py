@@ -63,6 +63,9 @@ def persist_chat_exchange(
                 chunk_index=source.chunk_index,
                 source_page=source.source_page,
                 source_label=source.source_label,
+                content=source.content,
+                char_start=source.char_start,
+                char_end=source.char_end,
                 score=source.score,
             )
         )

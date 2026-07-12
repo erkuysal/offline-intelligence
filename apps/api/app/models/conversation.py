@@ -67,6 +67,9 @@ class ConversationSource(TimestampMixin, Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     source_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    char_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    char_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     score: Mapped[float] = mapped_column(nullable=False)
 
     message: Mapped[ConversationMessage] = relationship(back_populates="sources")

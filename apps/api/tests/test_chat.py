@@ -272,6 +272,9 @@ def test_chat_completion_retrieves_document_sources(tmp_path: Path, monkeypatch)
             "chunk_index": 0,
             "source_page": None,
             "source_label": "backup-policy.txt",
+            "content": chunks[0]["content"],
+            "char_start": chunks[0]["char_start"],
+            "char_end": chunks[0]["char_end"],
             "score": body["sources"][0]["score"],
         }
     ]
@@ -283,6 +286,10 @@ def test_chat_completion_retrieves_document_sources(tmp_path: Path, monkeypatch)
 
     assert assistant_message["role"] == "assistant"
     assert assistant_message["sources"][0]["chunk_id"] == chunks[0]["id"]
+    assert assistant_message["sources"][0]["content"] == chunks[0]["content"]
+    assert assistant_message["sources"][0]["char_start"] == chunks[0]["char_start"]
+    assert assistant_message["sources"][0]["char_end"] == chunks[0]["char_end"]
+    assert assistant_message["sources"][0]["document_accessible"] is True
 
 
 def test_streaming_chat_emits_document_sources(tmp_path: Path, monkeypatch) -> None:
@@ -336,6 +343,90 @@ def test_rag_chat_hides_other_users_documents(tmp_path: Path, monkeypatch) -> No
 
     assert response.status_code == 200
     assert response.json()["sources"] is None
+
+
+def test_conversation_detail_and_delete_are_owner_only() -> None:
+    owner_token = get_access_token()
+    other_token = get_access_token()
+    completion = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"messages": [{"role": "user", "content": "Private conversation"}]},
+    )
+    conversation_id = completion.json()["conversation_id"]
+
+    detail = client.get(
+        f"/api/v1/chat/conversations/{conversation_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert detail.status_code == 200
+    assert detail.json()["id"] == conversation_id
+
+    for method, path in (
+        ("get", f"/api/v1/chat/conversations/{conversation_id}"),
+        ("get", f"/api/v1/chat/conversations/{conversation_id}/messages"),
+        ("delete", f"/api/v1/chat/conversations/{conversation_id}"),
+    ):
+        response = getattr(client, method)(
+            path,
+            headers={"Authorization": f"Bearer {other_token}"},
+        )
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Conversation not found"}
+
+    deletion = client.delete(
+        f"/api/v1/chat/conversations/{conversation_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert deletion.status_code == 204
+    assert client.get(
+        f"/api/v1/chat/conversations/{conversation_id}",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    ).status_code == 404
+    assert client.get(
+        "/api/v1/chat/conversations",
+        headers={"Authorization": f"Bearer {owner_token}"},
+    ).json() == []
+
+
+def test_conversation_redacts_passage_after_cited_document_is_deleted(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    token = get_access_token()
+    document = upload_document(token, "A confidential retained passage.", "retained.txt")
+    completion = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "messages": [{"role": "user", "content": "What is retained?"}],
+            "use_documents": True,
+            "document_ids": [document["id"]],
+        },
+    ).json()
+    messages_url = f"/api/v1/chat/conversations/{completion['conversation_id']}/messages"
+
+    source_before = client.get(
+        messages_url,
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()[-1]["sources"][0]
+    assert source_before["document_accessible"] is True
+    assert source_before["content"] == "A confidential retained passage."
+
+    deletion = client.delete(
+        f"/api/v1/documents/{document['id']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert deletion.status_code == 204
+    source_after = client.get(
+        messages_url,
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()[-1]["sources"][0]
+    assert source_after["document_accessible"] is False
+    assert source_after["content"] is None
+    assert source_after["chunk_id"] is None
 
 
 def test_stream_cancellation_records_metric_and_releases_semaphore() -> None:

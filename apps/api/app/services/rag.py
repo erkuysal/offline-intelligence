@@ -63,6 +63,9 @@ def augment_chat_request(
             chunk_index=chunk.chunk_index,
             source_page=chunk.source_page,
             source_label=chunk.source_label,
+            content=chunk.content,
+            char_start=chunk.char_start,
+            char_end=chunk.char_end,
             score=score,
         )
         for chunk, score in included_chunks

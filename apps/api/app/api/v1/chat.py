@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
-from app.models.conversation import Conversation, ConversationMessage
+from app.models.conversation import Conversation
+from app.models.document import Document, DocumentPermission
 from app.models.user import User
 from app.observability.metrics import metrics_registry
 from app.schemas.chat import (
@@ -22,6 +23,7 @@ from app.schemas.chat import (
     ChatUsage,
     ConversationMessageRead,
     ConversationRead,
+    ConversationSourceRead,
 )
 from app.services.conversations import persist_chat_exchange
 from app.services.embeddings import EmbeddingError
@@ -312,16 +314,89 @@ def list_conversations(
     )
 
 
+@router.get("/conversations/{conversation_id}", response_model=ConversationRead)
+def get_conversation(
+    conversation_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Conversation:
+    return get_owned_conversation(db, conversation_id=conversation_id, owner_id=current_user.id)
+
+
 @router.get("/conversations/{conversation_id}/messages", response_model=list[ConversationMessageRead])
 def list_conversation_messages(
     conversation_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
-) -> list[ConversationMessage]:
+) -> list[ConversationMessageRead]:
+    conversation = get_owned_conversation(db, conversation_id=conversation_id, owner_id=current_user.id)
+    document_ids = {
+        source.document_id
+        for message in conversation.messages
+        for source in message.sources
+    }
+    accessible_document_ids = set(
+        db.scalars(
+            select(Document.id).where(
+                Document.id.in_(document_ids),
+                (Document.owner_id == current_user.id)
+                | Document.permissions.any(
+                    (DocumentPermission.user_id == current_user.id)
+                    & (DocumentPermission.permission == "read")
+                ),
+            )
+        )
+    ) if document_ids else set()
+
+    return [
+        ConversationMessageRead(
+            id=message.id,
+            conversation_id=message.conversation_id,
+            role=message.role,
+            content=message.content,
+            model=message.model,
+            prompt_tokens=message.prompt_tokens,
+            completion_tokens=message.completion_tokens,
+            total_tokens=message.total_tokens,
+            created_at=message.created_at,
+            sources=[
+                ConversationSourceRead(
+                    id=source.id,
+                    document_id=source.document_id,
+                    document_filename=source.document_filename,
+                    chunk_id=source.chunk_id,
+                    chunk_index=source.chunk_index,
+                    source_page=source.source_page,
+                    source_label=source.source_label,
+                    content=source.content if source.document_id in accessible_document_ids else None,
+                    char_start=source.char_start,
+                    char_end=source.char_end,
+                    document_accessible=source.document_id in accessible_document_ids,
+                    score=source.score,
+                )
+                for source in message.sources
+            ],
+        )
+        for message in conversation.messages
+    ]
+
+
+@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(
+    conversation_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    conversation = get_owned_conversation(db, conversation_id=conversation_id, owner_id=current_user.id)
+    db.delete(conversation)
+    db.commit()
+
+
+def get_owned_conversation(db: Session, *, conversation_id: int, owner_id: int) -> Conversation:
     conversation = db.get(Conversation, conversation_id)
-    if conversation is None or conversation.owner_id != current_user.id:
+    if conversation is None or conversation.owner_id != owner_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
-    return list(conversation.messages)
+    return conversation

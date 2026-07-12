@@ -45,6 +45,9 @@ class ChatSource(BaseModel):
     chunk_index: int
     source_page: int | None
     source_label: str | None
+    content: str
+    char_start: int
+    char_end: int
     score: float
 
 
@@ -79,6 +82,10 @@ class ConversationSourceRead(BaseModel):
     chunk_index: int
     source_page: int | None
     source_label: str | None
+    content: str | None
+    char_start: int | None
+    char_end: int | None
+    document_accessible: bool
     score: float
 
 
