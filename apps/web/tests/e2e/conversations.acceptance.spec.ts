@@ -1,4 +1,6 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import type { APIRequestContext, Page } from '@playwright/test'
+
+import { expect, test } from './fixtures'
 
 const API_BASE_URL = process.env.PACKAGE4_API_BASE_URL ?? 'http://127.0.0.1:8000'
 
@@ -52,6 +54,10 @@ test('inspects a persisted citation and opens its exact document chunk', async (
 })
 
 test('deletes the active conversation with confirmation', async ({ page }) => {
+  test.info().annotations.push({
+    type: 'allow-browser-error',
+    description: 'network: DELETE .*/api/v1/chat/conversations/\\d+.*ERR_ABORTED',
+  })
   await registerInBrowser(page, 'delete')
   await page.getByRole('link', { name: 'Chat' }).click()
   await page.getByLabel('Document grounding').uncheck()

@@ -1,6 +1,7 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test('shows an actionable error for invalid credentials', async ({ page }) => {
+  allowExpected401()
   await page.goto('/login')
   await page.getByLabel('Email').fill('missing-user@example.com')
   await page.getByLabel('Password').fill('incorrect-password')
@@ -11,6 +12,7 @@ test('shows an actionable error for invalid credentials', async ({ page }) => {
 })
 
 test('refreshes an invalid access token and restores the session', async ({ page, request }) => {
+  allowExpected401()
   const email = `playwright-refresh-${Date.now()}-${test.info().workerIndex}@example.com`
   const password = 'Playwright-Test-2026!'
 
@@ -43,3 +45,10 @@ test('refreshes an invalid access token and restores the session', async ({ page
   await page.getByRole('button', { name: 'Log out' }).click()
   await expect(page).toHaveURL(/\/login$/)
 })
+
+function allowExpected401() {
+  test.info().annotations.push({
+    type: 'allow-browser-error',
+    description: 'console: Failed to load resource:.*401',
+  })
+}

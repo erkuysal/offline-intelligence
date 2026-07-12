@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 
 test.beforeEach(async ({ page }) => {
   const uniqueId = `${Date.now()}-${test.info().workerIndex}`
@@ -94,6 +94,10 @@ test('shows version history after uploading changed content with the same filena
 })
 
 test('requires confirmation and deletes a document', async ({ page }) => {
+  test.info().annotations.push({
+    type: 'allow-browser-error',
+    description: 'network: DELETE .*/api/v1/documents/\\d+.*ERR_ABORTED',
+  })
   await uploadTextDocument(page, 'temporary-policy.txt', 'Temporary retention policy.')
   const documentRow = page.getByRole('row').filter({ hasText: 'temporary-policy.txt' })
   await documentRow.getByRole('link', { name: 'Open' }).click()
