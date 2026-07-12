@@ -37,11 +37,21 @@ export function readableApiError(error: unknown, fallback: string): string {
     if (error.detail && typeof error.detail === 'object' && 'detail' in error.detail) {
       return String(error.detail.detail)
     }
-    if (error.status === 403) return 'You do not have permission to perform this action'
-    return fallback
+    return HTTP_ERROR_MESSAGES[error.status] ?? fallback
   }
   if (error instanceof TypeError) return 'Unable to reach the API'
   return fallback
+}
+
+const HTTP_ERROR_MESSAGES: Record<number, string> = {
+  401: 'Your session has expired',
+  403: 'You do not have permission to perform this action',
+  404: 'The requested resource was not found',
+  413: 'The request exceeds the configured size limit',
+  429: 'The model is busy. Try again shortly',
+  502: 'The model returned an invalid response',
+  503: 'A required service is unavailable',
+  504: 'The model request timed out',
 }
 
 export interface RequestOptions extends RequestInit {
@@ -219,7 +229,16 @@ export const api = {
   deleteConversation(token: string, id: number) {
     return request<void>(`/api/v1/chat/conversations/${id}`, { method: 'DELETE', token })
   },
-  health(path: '/health' | '/health/db' | '/health/redis' | '/health/llm') {
+  health(
+    path:
+      | '/health'
+      | '/health/db'
+      | '/health/redis'
+      | '/health/llm'
+      | '/health/embedding'
+      | '/health/worker'
+      | '/health/runtime',
+  ) {
     return request<HealthResponse>(path)
   },
 }

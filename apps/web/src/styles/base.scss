@@ -181,7 +181,28 @@ th { color: #5f6f78; font-size: 13px; }
 .source-item p { margin: 6px 0; font-size: 14px; white-space: pre-wrap; }
 .source-unavailable { color: #b42318 !important; }
 .health-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-.health-item { display: flex; align-items: center; justify-content: space-between; }
+.health-summary { display: flex; justify-content: space-between; gap: 12px; margin: 0; color: #5f6f78; font-size: 13px; }
+.health-item {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  h2, p { margin: 0; }
+  p { color: #43535c; font-size: 14px; }
+  code { overflow-wrap: anywhere; color: #b42318; font-size: 12px; }
+}
+.health-metadata {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 12px;
+
+  dt { min-width: 0; overflow-wrap: anywhere; color: #5f6f78; }
+  dd { min-width: 0; margin: 0; overflow-wrap: anywhere; text-align: right; }
+}
 @media (max-width: 820px) {
   .app-frame { grid-template-columns: 1fr; }
   .sidebar { position: static; }

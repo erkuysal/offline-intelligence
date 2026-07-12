@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { api, ApiError } from '@/api/client'
+import { api, ApiError, readableApiError } from '@/api/client'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -22,6 +22,19 @@ describe('api client', () => {
     )
 
     await expect(api.documents('bad-token')).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it.each([
+    [401, 'Your session has expired'],
+    [403, 'You do not have permission to perform this action'],
+    [404, 'The requested resource was not found'],
+    [413, 'The request exceeds the configured size limit'],
+    [429, 'The model is busy. Try again shortly'],
+    [502, 'The model returned an invalid response'],
+    [503, 'A required service is unavailable'],
+    [504, 'The model request timed out'],
+  ])('maps HTTP %i when the API provides no safe detail', (status, expected) => {
+    expect(readableApiError(new ApiError('failed', status, null), 'Fallback')).toBe(expected)
   })
 
   it('streams split token, source, and completion events incrementally', async () => {

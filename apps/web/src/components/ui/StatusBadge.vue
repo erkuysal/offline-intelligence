@@ -3,8 +3,8 @@ defineProps<{ status: string | null | undefined }>()
 
 function tone(status: string | null | undefined) {
   if (status === 'ready' || status === 'healthy') return 'success'
-  if (status === 'failed' || status === 'unhealthy') return 'danger'
-  if (status === 'pending' || status === 'processing' || status === 'warming') return 'warning'
+  if (status === 'failed' || status === 'unhealthy' || status === 'unavailable') return 'danger'
+  if (status === 'pending' || status === 'processing' || status === 'warming' || status === 'degraded') return 'warning'
   return 'neutral'
 }
 </script>

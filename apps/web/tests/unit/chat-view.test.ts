@@ -138,6 +138,22 @@ describe('ChatView streaming', () => {
     expect(wrapper.text()).toContain('Document unavailable')
     expect(wrapper.find('a[href="/documents/202"]').exists()).toBe(false)
   })
+
+  it('preserves recoverable prompt input after a network failure', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    vi.spyOn(api, 'streamChat').mockRejectedValue(new TypeError('network failed'))
+    const wrapper = await mountChat(pinia)
+
+    await checkboxFor(wrapper, 'Document grounding').setValue(false)
+    await wrapper.get('textarea').setValue('Keep this recoverable prompt')
+    await wrapper.get('form').trigger('submit')
+    await vi.waitFor(() => expect(wrapper.get('[role="alert"]').text()).toBe('Unable to reach the API'))
+
+    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe(
+      'Keep this recoverable prompt',
+    )
+  })
 })
 
 function checkboxFor(wrapper: VueWrapper, label: string) {

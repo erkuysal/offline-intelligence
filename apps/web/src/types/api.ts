@@ -165,6 +165,10 @@ export interface ConversationMessageRead {
 }
 
 export interface HealthResponse {
-  status: string
-  [key: string]: unknown
+  service: string
+  status: 'healthy' | 'degraded' | 'unavailable' | 'disabled'
+  detail: string
+  code: string | null
+  checked_at: string
+  metadata: Record<string, string | number | boolean | null>
 }
