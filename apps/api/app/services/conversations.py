@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.conversation import Conversation, ConversationMessage, ConversationSource
-from app.schemas.chat import ChatCompletionRequest, ChatSource
+from app.schemas.chat import ChatCompletionRequest, ChatSource, ChatUsage
 
 
 def get_or_create_conversation(
@@ -31,6 +31,8 @@ def persist_chat_exchange(
     request: ChatCompletionRequest,
     assistant_content: str,
     sources: list[ChatSource],
+    model: str | None = None,
+    usage: ChatUsage | None = None,
 ) -> Conversation:
     user_content = latest_user_message(request)
     conversation = get_or_create_conversation(
@@ -44,6 +46,10 @@ def persist_chat_exchange(
         conversation_id=conversation.id,
         role="assistant",
         content=assistant_content,
+        model=model,
+        prompt_tokens=usage.prompt_tokens if usage else None,
+        completion_tokens=usage.completion_tokens if usage else None,
+        total_tokens=usage.total_tokens if usage else None,
     )
     db.add(assistant_message)
     db.flush()

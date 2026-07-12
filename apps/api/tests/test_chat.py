@@ -1,6 +1,7 @@
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -165,7 +166,26 @@ def test_chat_completion_streams_fake_backend() -> None:
     assert response.headers["content-type"].startswith("text/event-stream")
     assert "data: " in body
     assert "Fake LLM response: Hello" in body
+    assert "event: complete" in body
     assert "data: [DONE]" in body
+    complete_payload = next(
+        json.loads(line.removeprefix("data: "))
+        for index, line in enumerate(body.splitlines())
+        if index > 0 and body.splitlines()[index - 1] == "event: complete" and line.startswith("data: ")
+    )
+    conversation_id = complete_payload["conversation_id"]
+    messages = client.get(
+        f"/api/v1/chat/conversations/{conversation_id}/messages",
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert [(message["role"], message["content"]) for message in messages] == [
+        ("user", "Hello"),
+        ("assistant", "Fake LLM response: Hello"),
+    ]
+    assert messages[-1]["model"] == get_settings().llm_model
+    assert messages[-1]["prompt_tokens"] == complete_payload["usage"]["prompt_tokens"]
+    assert messages[-1]["completion_tokens"] == complete_payload["usage"]["completion_tokens"]
+    assert messages[-1]["total_tokens"] == complete_payload["usage"]["total_tokens"]
     after_body = client.get("/metrics.json").json()
     assert after_body["llm_requests_total"] >= before_total + 1
     assert any(
@@ -287,6 +307,14 @@ def test_streaming_chat_emits_document_sources(tmp_path: Path, monkeypatch) -> N
     assert "event: sources" in body
     assert '"document_filename":"support.txt"' in body
     assert "Fake LLM response: When does support open?" in body
+    complete_data = json.loads(
+        body.split("event: complete\ndata: ", maxsplit=1)[1].split("\n", maxsplit=1)[0]
+    )
+    messages = client.get(
+        f"/api/v1/chat/conversations/{complete_data['conversation_id']}/messages",
+        headers={"Authorization": f"Bearer {token}"},
+    ).json()
+    assert messages[-1]["sources"][0]["document_filename"] == "support.txt"
 
 
 def test_rag_chat_hides_other_users_documents(tmp_path: Path, monkeypatch) -> None:
@@ -338,6 +366,57 @@ def test_stream_cancellation_records_metric_and_releases_semaphore() -> None:
         for request in after_body["llm_requests"]
     )
     assert "offline_hub_llm_active_requests 0.0" in client.get("/metrics").text
+
+
+@pytest.mark.parametrize(
+    ("exception", "code", "detail"),
+    [
+        (LLMTimeoutError("timeout"), "llm_timeout", "LLM backend timed out"),
+        (LLMUnavailableError("offline"), "llm_unavailable", "LLM backend is unavailable"),
+    ],
+)
+def test_stream_failures_emit_stable_error_and_release_semaphore(
+    exception: Exception,
+    code: str,
+    detail: str,
+) -> None:
+    class FailingBackend:
+        def stream_chat(self, request: ChatCompletionRequest):
+            raise exception
+            yield
+
+    request = ChatCompletionRequest(
+        messages=[{"role": "user", "content": "Hello"}],
+        stream=True,
+    )
+    assert llm_request_semaphore.acquire(blocking=False) is True
+
+    body = "".join(stream_llm_response(FailingBackend(), request, perf_counter()))
+
+    assert f'"code":"{code}"' in body
+    assert f'"detail":"{detail}"' in body
+    assert '"retryable":true' in body
+    assert "event: complete" not in body
+    assert "data: [DONE]" not in body
+    assert llm_request_semaphore.acquire(blocking=False) is True
+    llm_request_semaphore.release()
+
+
+def test_stream_rejects_unknown_conversation_before_sending_headers() -> None:
+    token = get_access_token()
+
+    response = client.post(
+        "/api/v1/chat/completions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "messages": [{"role": "user", "content": "Hello"}],
+            "conversation_id": 999999,
+            "stream": True,
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Conversation not found"}
 
 
 def test_chat_completion_validates_message_role() -> None:

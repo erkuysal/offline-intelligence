@@ -38,6 +38,10 @@ class ConversationMessage(TimestampMixin, Base):
     )
     role: Mapped[str] = mapped_column(String(30), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
     sources: Mapped[list["ConversationSource"]] = relationship(

@@ -79,6 +79,10 @@ def stream_llm_response(
     request: ChatCompletionRequest,
     started_at: float,
     sources: list[ChatSource] | None = None,
+    *,
+    db: Session | None = None,
+    owner_id: int | None = None,
+    persistence_request: ChatCompletionRequest | None = None,
 ) -> Iterator[str]:
     usage: ChatUsage | None = None
     streamed_content: list[str] = []
@@ -93,7 +97,8 @@ def stream_llm_response(
                 usage = event_usage
             if content:
                 streamed_content.append(content)
-            yield event
+            if not is_done_event(event):
+                yield event
         if usage is None:
             prompt_tokens = estimate_tokens(" ".join(message.content for message in request.messages))
             completion_tokens = estimate_tokens("".join(streamed_content)) if streamed_content else 0
@@ -102,22 +107,58 @@ def stream_llm_response(
                 completion_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
             )
+        conversation_id: int | None = None
+        if db is not None and owner_id is not None and persistence_request is not None:
+            conversation = persist_chat_exchange(
+                db,
+                owner_id=owner_id,
+                request=persistence_request,
+                assistant_content="".join(streamed_content),
+                sources=sources or [],
+                model=request.model or get_settings().llm_model,
+                usage=usage,
+            )
+            conversation_id = conversation.id
+        completion_data = {
+            "conversation_id": conversation_id,
+            "model": request.model or get_settings().llm_model,
+            "usage": usage.model_dump(),
+        }
+        yield f"event: complete\ndata: {json.dumps(completion_data, separators=(',', ':'))}\n\n"
+        yield "data: [DONE]\n\n"
         record_llm_metric(request, "stream_success", started_at, usage)
     except GeneratorExit:
         record_llm_metric(request, "stream_cancelled", started_at)
         raise
     except LLMTimeoutError:
         record_llm_metric(request, "stream_timeout", started_at)
-        yield 'event: error\ndata: {"detail":"LLM backend timed out"}\n\n'
+        yield stream_error_event("llm_timeout", "LLM backend timed out", retryable=True)
     except LLMUnavailableError:
         record_llm_metric(request, "stream_unavailable", started_at)
-        yield 'event: error\ndata: {"detail":"LLM backend is unavailable"}\n\n'
+        yield stream_error_event("llm_unavailable", "LLM backend is unavailable", retryable=True)
     except LLMError:
         record_llm_metric(request, "stream_error", started_at)
-        yield 'event: error\ndata: {"detail":"LLM backend returned an invalid response"}\n\n'
+        yield stream_error_event(
+            "llm_invalid_response",
+            "LLM backend returned an invalid response",
+            retryable=False,
+        )
     finally:
         metrics_registry.record_llm_finished()
         llm_request_semaphore.release()
+
+
+def is_done_event(event: str) -> bool:
+    return any(
+        line.removeprefix("data:").strip() == "[DONE]"
+        for line in event.splitlines()
+        if line.startswith("data:")
+    )
+
+
+def stream_error_event(code: str, detail: str, *, retryable: bool) -> str:
+    data = {"code": code, "detail": detail, "retryable": retryable}
+    return f"event: error\ndata: {json.dumps(data, separators=(',', ':'))}\n\n"
 
 
 def parse_stream_event(event: str) -> tuple[ChatUsage | None, str | None]:
@@ -166,6 +207,14 @@ def create_chat_completion(
         record_llm_metric(request, "safety_rejected", started_at)
         raise
 
+    if request.conversation_id is not None:
+        conversation = db.get(Conversation, request.conversation_id)
+        if conversation is None or conversation.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+
     try:
         rag_context = augment_chat_request(
             db,
@@ -196,6 +245,9 @@ def create_chat_completion(
                 rag_context.request,
                 started_at,
                 rag_context.sources,
+                db=db,
+                owner_id=current_user.id,
+                persistence_request=request,
             ),
             media_type="text/event-stream",
         )
@@ -212,6 +264,8 @@ def create_chat_completion(
                 request=request,
                 assistant_content=response.choices[0].message.content,
                 sources=rag_context.sources,
+                model=response.model,
+                usage=response.usage,
             )
         except ValueError as exc:
             raise HTTPException(
