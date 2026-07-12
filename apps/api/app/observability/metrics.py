@@ -23,6 +23,13 @@ class LLMMetric:
     outcome: str
 
 
+@dataclass(frozen=True)
+class OperationMetric:
+    stage: str
+    operation: str
+    outcome: str
+
+
 class MetricsRegistry:
     def __init__(self) -> None:
         self.prometheus_registry = CollectorRegistry()
@@ -37,6 +44,9 @@ class MetricsRegistry:
         self._llm_total_tokens: Counter[LLMMetric] = Counter()
         self._llm_warmup_attempts: Counter[str] = Counter()
         self._llm_warmup_latency_ms: defaultdict[str, float] = defaultdict(float)
+        self._operations: Counter[OperationMetric] = Counter()
+        self._operation_latency_ms: defaultdict[OperationMetric, float] = defaultdict(float)
+        self._operation_items: Counter[OperationMetric] = Counter()
         self._lock = Lock()
         self.http_requests = PrometheusCounter(
             "offline_hub_http_requests",
@@ -83,6 +93,24 @@ class MetricsRegistry:
             "offline_hub_llm_warmup_duration_seconds",
             "LLM warm-up duration in seconds.",
             ("outcome",),
+            registry=self.prometheus_registry,
+        )
+        self.operations = PrometheusCounter(
+            "offline_hub_operations",
+            "Backend operations by stage, operation, and outcome.",
+            ("stage", "operation", "outcome"),
+            registry=self.prometheus_registry,
+        )
+        self.operation_duration = Histogram(
+            "offline_hub_operation_duration_seconds",
+            "Backend operation duration in seconds.",
+            ("stage", "operation", "outcome"),
+            registry=self.prometheus_registry,
+        )
+        self.operation_items = PrometheusCounter(
+            "offline_hub_operation_items",
+            "Items processed or returned by backend operations.",
+            ("stage", "operation", "outcome"),
             registry=self.prometheus_registry,
         )
 
@@ -141,6 +169,25 @@ class MetricsRegistry:
         self.llm_warmup_attempts.labels(outcome=outcome).inc()
         self.llm_warmup_duration.labels(outcome=outcome).observe(duration_ms / 1000)
 
+    def record_operation(
+        self,
+        *,
+        stage: str,
+        operation: str,
+        outcome: str,
+        duration_ms: float,
+        item_count: int = 0,
+    ) -> None:
+        metric = OperationMetric(stage=stage, operation=operation, outcome=outcome)
+        with self._lock:
+            self._operations[metric] += 1
+            self._operation_latency_ms[metric] += duration_ms
+            self._operation_items[metric] += item_count
+        labels = {"stage": stage, "operation": operation, "outcome": outcome}
+        self.operations.labels(**labels).inc()
+        self.operation_duration.labels(**labels).observe(duration_ms / 1000)
+        self.operation_items.labels(**labels).inc(item_count)
+
     def snapshot(
         self,
         app_name: str,
@@ -180,6 +227,17 @@ class MetricsRegistry:
                 }
                 for outcome, count in self._llm_warmup_attempts.items()
             ]
+            operations = [
+                {
+                    "stage": metric.stage,
+                    "operation": metric.operation,
+                    "outcome": metric.outcome,
+                    "count": count,
+                    "total_latency_ms": round(self._operation_latency_ms[metric], 3),
+                    "item_count": self._operation_items[metric],
+                }
+                for metric, count in self._operations.items()
+            ]
 
         return {
             "app": {
@@ -207,6 +265,14 @@ class MetricsRegistry:
                 ),
             ),
             "llm_warmups": sorted(llm_warmups, key=lambda item: str(item["outcome"])),
+            "operations": sorted(
+                operations,
+                key=lambda item: (
+                    str(item["stage"]),
+                    str(item["operation"]),
+                    str(item["outcome"]),
+                ),
+            ),
         }
 
 

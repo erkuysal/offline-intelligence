@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.db.session import SessionLocal
+from app.observability.metrics import metrics_registry
 from app.services.document_ingestion import process_document_ingestion
 
 
@@ -123,9 +124,23 @@ def process_next_ingestion_job(redis_client: Redis, *, settings: Settings) -> bo
                 document_id=job.document_id,
                 attempt=job.attempt + 1,
             )
+            metrics_registry.record_operation(
+                stage="ingestion",
+                operation="queue_delivery",
+                outcome="retry",
+                duration_ms=0,
+                item_count=1,
+            )
         else:
             with SessionLocal() as db:
                 mark_document_ingestion_failed(db, job.document_id, job.attempt)
+            metrics_registry.record_operation(
+                stage="ingestion",
+                operation="queue_delivery",
+                outcome="failed",
+                duration_ms=0,
+                item_count=1,
+            )
     acknowledge_document_ingestion(
         redis_client,
         queue_name=settings.document_ingestion_queue_name,

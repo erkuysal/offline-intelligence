@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import hashlib
 import math
 import re
+from time import perf_counter
 
 import httpx
 from sqlalchemy import exists, or_, select
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.constants import EMBEDDING_DIMENSIONS
 from app.models.document import Document, DocumentChunk, DocumentPermission
+from app.observability.metrics import metrics_registry
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -112,12 +114,18 @@ def embed_document_chunks(
     if not chunks:
         return
 
-    embeddings = provider.embed_texts([chunk.content for chunk in chunks])
-    validate_embeddings(embeddings, expected_count=len(chunks), dimensions=EMBEDDING_DIMENSIONS)
+    started_at = perf_counter()
+    try:
+        embeddings = provider.embed_texts([chunk.content for chunk in chunks])
+        validate_embeddings(embeddings, expected_count=len(chunks), dimensions=EMBEDDING_DIMENSIONS)
+    except Exception:
+        record_embedding_metric("document", "failure", started_at)
+        raise
     for chunk, embedding in zip(chunks, embeddings, strict=True):
         chunk.embedding = embedding
         chunk.embedding_model = provider.model
     db.commit()
+    record_embedding_metric("document", "success", started_at, item_count=len(chunks))
 
 
 def search_document_chunks(
@@ -129,8 +137,14 @@ def search_document_chunks(
     provider: EmbeddingProvider,
     document_ids: list[int] | None = None,
 ) -> list[tuple[DocumentChunk, float]]:
-    query_embeddings = provider.embed_texts([query])
-    validate_embeddings(query_embeddings, expected_count=1, dimensions=EMBEDDING_DIMENSIONS)
+    embedding_started_at = perf_counter()
+    try:
+        query_embeddings = provider.embed_texts([query])
+        validate_embeddings(query_embeddings, expected_count=1, dimensions=EMBEDDING_DIMENSIONS)
+    except Exception:
+        record_embedding_metric("query", "failure", embedding_started_at)
+        raise
+    record_embedding_metric("query", "success", embedding_started_at, item_count=1)
     query_embedding = query_embeddings[0]
     distance = DocumentChunk.embedding.cosine_distance(query_embedding)
     statement = (
@@ -155,7 +169,44 @@ def search_document_chunks(
     if document_ids is not None:
         statement = statement.where(Document.id.in_(document_ids))
 
-    return [(chunk, float(score)) for chunk, score in db.execute(statement)]
+    retrieval_started_at = perf_counter()
+    try:
+        results = [(chunk, float(score)) for chunk, score in db.execute(statement)]
+    except Exception:
+        record_retrieval_metric("failure", retrieval_started_at)
+        raise
+    record_retrieval_metric(
+        "success" if results else "no_result",
+        retrieval_started_at,
+        item_count=len(results),
+    )
+    return results
+
+
+def record_embedding_metric(
+    operation: str,
+    outcome: str,
+    started_at: float,
+    *,
+    item_count: int = 0,
+) -> None:
+    metrics_registry.record_operation(
+        stage="embedding",
+        operation=operation,
+        outcome=outcome,
+        duration_ms=(perf_counter() - started_at) * 1000,
+        item_count=item_count,
+    )
+
+
+def record_retrieval_metric(outcome: str, started_at: float, *, item_count: int = 0) -> None:
+    metrics_registry.record_operation(
+        stage="retrieval",
+        operation="dense_search",
+        outcome=outcome,
+        duration_ms=(perf_counter() - started_at) * 1000,
+        item_count=item_count,
+    )
 
 
 def reembed_all_document_chunks(

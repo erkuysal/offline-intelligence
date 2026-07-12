@@ -113,6 +113,11 @@ def test_failed_ingestion_is_requeued_with_incremented_attempt(monkeypatch) -> N
         "app.services.document_ingestion_queue.process_document_ingestion",
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("temporary failure")),
     )
+    recorded: list[dict] = []
+    monkeypatch.setattr(
+        "app.services.document_ingestion_queue.metrics_registry.record_operation",
+        lambda **kwargs: recorded.append(kwargs),
+    )
 
     assert process_next_ingestion_job(redis_client, settings=settings) is True  # type: ignore[arg-type]
 
@@ -120,6 +125,15 @@ def test_failed_ingestion_is_requeued_with_incremented_attempt(monkeypatch) -> N
     assert retry is not None
     assert retry.document_id == 42
     assert retry.attempt == 2
+    assert recorded == [
+        {
+            "stage": "ingestion",
+            "operation": "queue_delivery",
+            "outcome": "retry",
+            "duration_ms": 0,
+            "item_count": 1,
+        }
+    ]
 
 
 def test_final_failed_ingestion_is_not_requeued(monkeypatch) -> None:
@@ -139,12 +153,26 @@ def test_final_failed_ingestion_is_not_requeued(monkeypatch) -> None:
         "app.services.document_ingestion_queue.mark_document_ingestion_failed",
         lambda db, document_id, attempts: failed.append((document_id, attempts)),
     )
+    recorded: list[dict] = []
+    monkeypatch.setattr(
+        "app.services.document_ingestion_queue.metrics_registry.record_operation",
+        lambda **kwargs: recorded.append(kwargs),
+    )
 
     assert process_next_ingestion_job(redis_client, settings=settings) is True  # type: ignore[arg-type]
 
     assert failed == [(42, 3)]
     assert redis_client.queues["documents"] == []
     assert redis_client.queues[processing_queue_name("documents")] == []
+    assert recorded == [
+        {
+            "stage": "ingestion",
+            "operation": "queue_delivery",
+            "outcome": "failed",
+            "duration_ms": 0,
+            "item_count": 1,
+        }
+    ]
 
 
 @contextmanager

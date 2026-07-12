@@ -33,3 +33,22 @@ heartbeats are implemented, Redis ingestion mode therefore reports `degraded` wi
 
 The runtime response exposes upload, prompt, completion, and concurrency limits plus model names
 and embedding dimensions. It does not expose paths, secrets, tokens, or backend URLs.
+
+## Operation Metrics
+
+`/metrics` exposes these bounded-label Prometheus families:
+
+- `offline_hub_operations_total`
+- `offline_hub_operation_duration_seconds`
+- `offline_hub_operation_items_total`
+
+Labels are `stage`, `operation`, and `outcome`. Current stages and outcomes are:
+
+| Stage | Operations | Outcomes |
+| --- | --- | --- |
+| `ingestion` | `process_document`, `queue_delivery` | `success`, `failure`, `skipped`, `not_found`, `retry`, `failed` |
+| `embedding` | `document`, `query` | `success`, `failure` |
+| `retrieval` | `dense_search` | `success`, `no_result`, `failure` |
+
+`/metrics.json` returns the same data in `operations`, including cumulative count, total latency,
+and item count. HTTP and LLM metrics remain in their existing dedicated families.

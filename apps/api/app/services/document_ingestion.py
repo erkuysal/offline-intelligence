@@ -2,12 +2,14 @@ from dataclasses import dataclass
 from collections.abc import Sequence
 from pathlib import Path
 import re
+from time import perf_counter
 
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models.document import Document, DocumentChunk
+from app.observability.metrics import metrics_registry
 from app.services.embeddings import EmbeddingError, embed_document_chunks, get_embedding_provider
 
 DOCUMENT_STATUS_PENDING = "pending"
@@ -346,27 +348,50 @@ def process_document_ingestion(
     *,
     settings: Settings,
 ) -> Document | None:
-    document = db.get(Document, document_id)
-    if document is None:
-        return None
-    if document.status == DOCUMENT_STATUS_READY:
-        return document
-
-    document = ingest_document(
-        db,
-        document,
-        chunk_size_chars=settings.document_chunk_size_chars,
-        overlap_chars=settings.document_chunk_overlap_chars,
-    )
-    if document.status != DOCUMENT_STATUS_READY:
-        return document
-
+    started_at = perf_counter()
     try:
-        embed_document_chunks(db, document, get_embedding_provider())
-    except EmbeddingError as exc:
-        document.status = DOCUMENT_STATUS_FAILED
-        document.ingestion_error = str(exc)
-        db.commit()
+        document = db.get(Document, document_id)
+        if document is None:
+            record_ingestion_metric("not_found", started_at)
+            return None
+        if document.status == DOCUMENT_STATUS_READY:
+            record_ingestion_metric("skipped", started_at, item_count=document.chunk_count)
+            return document
 
-    db.refresh(document)
-    return document
+        document = ingest_document(
+            db,
+            document,
+            chunk_size_chars=settings.document_chunk_size_chars,
+            overlap_chars=settings.document_chunk_overlap_chars,
+        )
+        if document.status != DOCUMENT_STATUS_READY:
+            record_ingestion_metric("failure", started_at)
+            return document
+
+        try:
+            embed_document_chunks(db, document, get_embedding_provider())
+        except EmbeddingError as exc:
+            document.status = DOCUMENT_STATUS_FAILED
+            document.ingestion_error = str(exc)
+            db.commit()
+
+        db.refresh(document)
+        record_ingestion_metric(
+            "success" if document.status == DOCUMENT_STATUS_READY else "failure",
+            started_at,
+            item_count=document.chunk_count if document.status == DOCUMENT_STATUS_READY else 0,
+        )
+        return document
+    except Exception:
+        record_ingestion_metric("failure", started_at)
+        raise
+
+
+def record_ingestion_metric(outcome: str, started_at: float, *, item_count: int = 0) -> None:
+    metrics_registry.record_operation(
+        stage="ingestion",
+        operation="process_document",
+        outcome=outcome,
+        duration_ms=(perf_counter() - started_at) * 1000,
+        item_count=item_count,
+    )
