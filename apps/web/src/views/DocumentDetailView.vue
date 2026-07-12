@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { RefreshCw, Trash2 } from '@lucide/vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { api, readableApiError } from '@/api/client'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -11,6 +11,7 @@ import type { DocumentChunkRead, DocumentRead, DocumentVersionRead } from '@/typ
 const props = defineProps<{ id: number }>()
 const session = useSessionStore()
 const router = useRouter()
+const route = useRoute()
 const document = ref<DocumentRead | null>(null)
 const chunks = ref<DocumentChunkRead[]>([])
 const versions = ref<DocumentVersionRead[]>([])
@@ -33,6 +34,10 @@ async function loadDocument() {
     ])
     chunks.value = loadedChunks
     versions.value = loadedVersions
+    if (/^#chunk-\d+$/.test(route.hash)) {
+      await nextTick()
+      globalThis.document.querySelector(route.hash)?.scrollIntoView({ block: 'center' })
+    }
     if (loadedDocument.status === 'pending' || loadedDocument.status === 'processing') {
       pollTimer = window.setTimeout(() => void loadDocument(), 1_000)
     }
@@ -155,7 +160,7 @@ onUnmounted(() => {
     <section class="detail-section" aria-labelledby="chunks-heading">
       <h2 id="chunks-heading">Indexed chunks</h2>
       <div class="chunk-list">
-      <article v-for="chunk in chunks" :key="chunk.id" class="chunk-item">
+      <article v-for="chunk in chunks" :id="`chunk-${chunk.id}`" :key="chunk.id" class="chunk-item">
         <header>
           <span>Chunk {{ chunk.chunk_index }}</span>
           <span>{{ chunk.source_label ?? `Page ${chunk.source_page ?? '-'}` }}</span>

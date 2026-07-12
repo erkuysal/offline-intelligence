@@ -64,7 +64,7 @@ test('stops a stream and permits a subsequent request', async ({ page }) => {
 
   await page.getByPlaceholder('Ask a question').fill('Second answer')
   await page.getByRole('button', { name: 'Send' }).click()
-  await expect(page.locator('.message.assistant')).toContainText('Recovered answer')
+  await expect(page.locator('.message.assistant').last()).toContainText('Recovered answer')
   await expect(page.getByText('completed', { exact: true })).toBeVisible()
   await expect.poll(async () => (await chatRequests(page)).length).toBe(2)
 })

@@ -210,8 +210,14 @@ export const api = {
   conversations(token: string) {
     return request<ConversationRead[]>('/api/v1/chat/conversations', { token })
   },
+  conversation(token: string, id: number) {
+    return request<ConversationRead>(`/api/v1/chat/conversations/${id}`, { token })
+  },
   conversationMessages(token: string, id: number) {
     return request<ConversationMessageRead[]>(`/api/v1/chat/conversations/${id}/messages`, { token })
+  },
+  deleteConversation(token: string, id: number) {
+    return request<void>(`/api/v1/chat/conversations/${id}`, { method: 'DELETE', token })
   },
   health(path: '/health' | '/health/db' | '/health/redis' | '/health/llm') {
     return request<HealthResponse>(path)
