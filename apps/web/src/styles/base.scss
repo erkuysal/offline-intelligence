@@ -110,6 +110,31 @@ th { color: #5f6f78; font-size: 13px; }
   &-actions { display: flex; justify-content: flex-end; gap: 8px; }
 }
 .sources-panel { align-self: start; display: grid; gap: 10px; }
+.grounding-controls { display: grid; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid #e7edf0; }
+.toggle-control, .check-control {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 600;
+
+  input { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; }
+  span { min-width: 0; overflow-wrap: anywhere; }
+}
+.document-scope {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #d8e0e5;
+  border-radius: 8px;
+
+  legend { padding: 0 5px; color: #5f6f78; font-size: 13px; font-weight: 700; }
+}
+.document-options { display: grid; gap: 8px; max-height: 220px; overflow-y: auto; }
+.selection-error { margin: 0; color: #b42318; font-size: 13px; }
 .source-item { display: grid; gap: 4px; }
 .source-item span { color: #5f6f78; font-size: 13px; }
 .health-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }

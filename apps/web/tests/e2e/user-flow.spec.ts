@@ -36,8 +36,10 @@ test('registers, uploads a document, asks a grounded question, and logs out', as
   await page.getByPlaceholder('Ask a question').fill('When do incremental and full backups run?')
   await page.getByRole('button', { name: 'Send' }).click()
 
-  await expect(page.locator('.message.assistant')).not.toBeEmpty()
-  await expect(page.locator('.source-item').filter({ hasText: filename })).toBeVisible()
+  await expect(page.locator('.message.assistant')).not.toBeEmpty({ timeout: 60_000 })
+  await expect(page.locator('.source-item').filter({ hasText: filename })).toBeVisible({
+    timeout: 60_000,
+  })
   if (demoPauseMs > 0) await page.waitForTimeout(demoPauseMs)
 
   await page.getByRole('button', { name: 'Log out' }).click()

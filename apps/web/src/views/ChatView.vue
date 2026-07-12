@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Send, Square } from '@lucide/vue'
+import { computed, onMounted, ref } from 'vue'
+import { FileText, Send, Square } from '@lucide/vue'
 
 import { api, ChatStreamApiError, readableApiError } from '@/api/client'
+import { useDocumentsStore } from '@/stores/documents'
 import { useSessionStore } from '@/stores/session'
 import type { ChatSource, ChatStreamComplete } from '@/types/api'
 
 const session = useSessionStore()
+const documents = useDocumentsStore()
 const prompt = ref('')
 const answer = ref('')
 const submittedPrompt = ref('')
@@ -15,11 +17,28 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const result = ref<ChatStreamComplete | null>(null)
 const generationState = ref<'idle' | 'generating' | 'completed' | 'cancelled' | 'failed'>('idle')
+const grounded = ref(true)
+const useAllDocuments = ref(true)
+const selectedDocumentIds = ref<number[]>([])
 let controller: AbortController | null = null
+
+const readyDocuments = computed(() => documents.items.filter(document => document.status === 'ready'))
+const needsDocumentSelection = computed(
+  () => grounded.value && !useAllDocuments.value && selectedDocumentIds.value.length === 0,
+)
+const canSubmit = computed(
+  () => Boolean(prompt.value.trim()) && !loading.value && !needsDocumentSelection.value,
+)
+
+onMounted(() => documents.fetchDocuments())
 
 async function submit() {
   const content = prompt.value.trim()
   if (!session.accessToken || !content || loading.value) return
+  if (needsDocumentSelection.value) {
+    error.value = 'Select at least one ready document'
+    return
+  }
   loading.value = true
   generationState.value = 'generating'
   error.value = null
@@ -34,7 +53,9 @@ async function submit() {
         token,
         {
           messages: [{ role: 'user', content }],
-          use_documents: true,
+          use_documents: grounded.value,
+          document_ids:
+            grounded.value && !useAllDocuments.value ? selectedDocumentIds.value : undefined,
         },
         {
           onToken: tokenContent => (answer.value += tokenContent),
@@ -89,13 +110,37 @@ function stop() {
           <button v-if="loading" class="secondary-button" type="button" @click="stop">
             <Square :size="16" fill="currentColor" /> Stop
           </button>
-          <button class="primary-button" type="submit" :disabled="loading || !prompt.trim()">
+          <button class="primary-button" type="submit" :disabled="!canSubmit">
             <Send :size="18" /> Send
           </button>
         </div>
       </form>
     </div>
     <aside class="sources-panel">
+      <div class="grounding-controls">
+        <label class="toggle-control">
+          <input v-model="grounded" type="checkbox" :disabled="loading" />
+          <span>Document grounding</span>
+        </label>
+        <fieldset v-if="grounded" class="document-scope" :disabled="loading || documents.loading">
+          <legend>Retrieval scope</legend>
+          <label class="check-control">
+            <input v-model="useAllDocuments" type="checkbox" />
+            <span>All ready documents</span>
+          </label>
+          <div v-if="!useAllDocuments" class="document-options">
+            <label v-for="document in readyDocuments" :key="document.id" class="check-control">
+              <input v-model="selectedDocumentIds" type="checkbox" :value="document.id" />
+              <FileText :size="16" />
+              <span>{{ document.original_filename }}</span>
+            </label>
+            <p v-if="!documents.loading && readyDocuments.length === 0" class="muted-status">
+              No ready documents
+            </p>
+          </div>
+          <p v-if="needsDocumentSelection" class="selection-error">Select at least one document</p>
+        </fieldset>
+      </div>
       <h2>Sources</h2>
       <article v-for="source in sources" :key="source.chunk_id" class="source-item">
         <strong>{{ source.document_filename }}</strong>
