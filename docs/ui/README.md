@@ -187,6 +187,19 @@ Server-owned data should be refetched after mutations. Stores must not become a 
 - Responsive screenshots at desktop and mobile viewports
 - Production image build and reverse-proxy smoke test in Docker Compose
 
+Streaming browser checks are intentionally split by responsibility:
+
+```bash
+# Deterministic timed chunks, cancellation, filtering, and service failures
+npx playwright test tests/e2e/chat-streaming.mock.spec.ts --workers=1
+
+# Live API, retrieval, and local-model acceptance
+npx playwright test tests/e2e/user-flow.spec.ts --workers=1
+```
+
+The mocked suite replaces only the browser chat request. Authentication remains real, and its
+fetch override is scoped to each Playwright page so it cannot leak into the acceptance workflow.
+
 ## UI Definition of Done
 
 - Authentication, document management, grounded streaming chat, sources, and service status work
