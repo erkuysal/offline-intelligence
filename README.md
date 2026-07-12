@@ -435,6 +435,24 @@ set `TEST_DATABASE_URL` and `TEST_DATABASE_ADMIN_URL` to override it. The test f
 database preparation script both refuse non-test database names.
 Pass pytest options after `--`, for example `./app.py test -- -k chat`.
 
+Prepare the isolated browser-test database and document storage before starting its API:
+
+```bash
+./app.py e2e-setup
+```
+
+The E2E environment uses `offline_ai_e2e`, synchronous ingestion, and deterministic fake LLM
+and embedding providers by default. Clear all browser-test rows and uploaded files with:
+
+```bash
+./app.py e2e-cleanup
+```
+
+Both commands refuse database names without the `_e2e` suffix and storage paths outside
+`/tmp/offline-intelligence-hub-e2e`. Override the defaults with `E2E_DATABASE_URL`,
+`E2E_DATABASE_ADMIN_URL`, `E2E_DOCUMENT_STORAGE_ROOT`, and `E2E_DOCUMENT_STORAGE_DIR`; a custom
+storage directory must remain beneath its configured E2E storage root.
+
 Run tests inside Docker Compose:
 
 ```bash

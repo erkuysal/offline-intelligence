@@ -120,6 +120,90 @@ def build_test_environment() -> dict[str, str]:
     return environment
 
 
+def build_e2e_environment() -> dict[str, str]:
+    from sqlalchemy.engine import make_url
+
+    load_root_env()
+    configured_url = os.environ.get("E2E_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not configured_url:
+        raise RuntimeError("DATABASE_URL or E2E_DATABASE_URL must be configured")
+
+    database_url = make_url(configured_url)
+    database_name = database_url.database or ""
+    if not database_name:
+        raise RuntimeError("The configured E2E database URL must include a database name")
+    if not database_name.endswith("_e2e"):
+        database_url = database_url.set(database=f"{database_name}_e2e")
+
+    admin_url = os.environ.get("E2E_DATABASE_ADMIN_URL")
+    if not admin_url:
+        admin_url = database_url.set(
+            drivername=database_url.drivername.split("+", 1)[0],
+            database="postgres",
+        ).render_as_string(hide_password=False)
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "ENVIRONMENT": "testing",
+            "DATABASE_URL": database_url.render_as_string(hide_password=False),
+            "E2E_DATABASE_ADMIN_URL": admin_url,
+            "DOCUMENT_STORAGE_DIR": os.environ.get(
+                "E2E_DOCUMENT_STORAGE_DIR",
+                "/tmp/offline-intelligence-hub-e2e/documents",
+            ),
+            "DOCUMENT_INGESTION_MODE": "sync",
+            "LLM_BACKEND": "fake",
+            "LLM_WARMUP_ENABLED": "false",
+            "EMBEDDING_BACKEND": "fake",
+            "EMBEDDING_MODEL": "fake-bow",
+        }
+    )
+    return environment
+
+
+def e2e_setup(_args: argparse.Namespace) -> int:
+    configure_import_path()
+    try:
+        environment = build_e2e_environment()
+    except (RuntimeError, ValueError) as exc:
+        print(f"E2E setup failed: {exc}", file=sys.stderr)
+        return 2
+
+    prepare_status = run_subprocess(
+        [sys.executable, str(ROOT / "scripts" / "manage_e2e_environment.py"), "setup"],
+        environment=environment,
+    )
+    if prepare_status != 0:
+        return prepare_status
+    return run_subprocess(
+        [
+            sys.executable,
+            "-m",
+            "alembic",
+            "-c",
+            str(ROOT / "alembic.ini"),
+            "upgrade",
+            "head",
+        ],
+        cwd=API_PATH,
+        environment=environment,
+    )
+
+
+def e2e_cleanup(_args: argparse.Namespace) -> int:
+    configure_import_path()
+    try:
+        environment = build_e2e_environment()
+    except (RuntimeError, ValueError) as exc:
+        print(f"E2E cleanup failed: {exc}", file=sys.stderr)
+        return 2
+    return run_subprocess(
+        [sys.executable, str(ROOT / "scripts" / "manage_e2e_environment.py"), "cleanup"],
+        environment=environment,
+    )
+
+
 def test(args: argparse.Namespace) -> int:
     configure_import_path()
     try:
@@ -323,6 +407,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="run the test suite inside Docker Compose",
     )
     test_container_parser.set_defaults(func=test_container)
+
+    e2e_setup_parser = subparsers.add_parser(
+        "e2e-setup",
+        help="create and migrate the isolated browser-test environment",
+    )
+    e2e_setup_parser.set_defaults(func=e2e_setup)
+
+    e2e_cleanup_parser = subparsers.add_parser(
+        "e2e-cleanup",
+        help="clear data and files from the isolated browser-test environment",
+    )
+    e2e_cleanup_parser.set_defaults(func=e2e_cleanup)
 
     lint_parser = subparsers.add_parser("lint", help="run ruff")
     lint_parser.set_defaults(func=lint)
