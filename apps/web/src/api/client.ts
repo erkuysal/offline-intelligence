@@ -1,6 +1,9 @@
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
+  ChatSource,
+  ChatStreamComplete,
+  ChatStreamError,
   ConversationMessageRead,
   ConversationRead,
   CurrentUserRead,
@@ -13,6 +16,7 @@ import type {
   TokenPair,
   UserRead,
 } from '@/types/api'
+import { createSseParser } from '@/api/sse'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -63,6 +67,74 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
+}
+
+export interface ChatStreamHandlers {
+  onToken(content: string): void
+  onSources(sources: ChatSource[]): void
+  onComplete(result: ChatStreamComplete): void
+}
+
+export class ChatStreamApiError extends Error {
+  readonly detail: ChatStreamError
+
+  constructor(detail: ChatStreamError) {
+    super(detail.detail)
+    this.detail = detail
+  }
+}
+
+async function streamChat(
+  token: string,
+  payload: ChatCompletionRequest,
+  handlers: ChatStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...payload, stream: true }),
+    signal,
+  })
+  if (!response.ok) {
+    let detail: unknown = null
+    try {
+      detail = await response.json()
+    } catch {
+      detail = await response.text()
+    }
+    throw new ApiError(`Request failed with ${response.status}`, response.status, detail)
+  }
+  if (!response.body) throw new Error('Streaming response body is unavailable')
+
+  const decoder = new TextDecoder()
+  let completed = false
+  const parser = createSseParser(({ event, data }) => {
+    if (data === '[DONE]') return
+    if (event === 'sources') {
+      handlers.onSources(JSON.parse(data) as ChatSource[])
+      return
+    }
+    if (event === 'complete') {
+      completed = true
+      handlers.onComplete(JSON.parse(data) as ChatStreamComplete)
+      return
+    }
+    if (event === 'error') throw new ChatStreamApiError(JSON.parse(data) as ChatStreamError)
+
+    const chunk = JSON.parse(data) as { choices?: Array<{ delta?: { content?: unknown } }> }
+    const content = chunk.choices?.[0]?.delta?.content
+    if (typeof content === 'string') handlers.onToken(content)
+  })
+  const reader = response.body.getReader()
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    parser.feed(decoder.decode(value, { stream: true }))
+  }
+  parser.feed(decoder.decode())
+  parser.finish()
+  if (!completed) throw new Error('The response stream ended before completion')
 }
 
 export const api = {
@@ -134,6 +206,7 @@ export const api = {
       body: JSON.stringify(payload),
     })
   },
+  streamChat,
   conversations(token: string) {
     return request<ConversationRead[]>('/api/v1/chat/conversations', { token })
   },

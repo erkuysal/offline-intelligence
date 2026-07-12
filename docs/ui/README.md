@@ -17,6 +17,7 @@ without using curl or the OpenAPI console.
 - Vite-based development and production builds
 - Vue Router for application routes
 - Pinia for session and shared application state
+- SCSS for application styles, compiled by Vite
 - A small typed API client aligned with the FastAPI OpenAPI contract
 - Fetch streaming for POST-based chat completions
 - Playwright for browser-level workflows
@@ -24,6 +25,10 @@ without using curl or the OpenAPI console.
 
 Dependency versions will be pinned when the frontend is scaffolded. New dependencies require a
 clear product or maintenance benefit.
+
+Global styles live in `src/styles/base.scss`. New styles should use SCSS rather than plain CSS;
+keep nesting shallow and colocate feature-specific rules when a view grows beyond the shared
+foundation.
 
 ## Repository Location
 

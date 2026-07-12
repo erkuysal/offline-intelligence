@@ -112,6 +112,24 @@ export interface ChatCompletionResponse {
   conversation_id: number | null
 }
 
+export interface ChatUsage {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+}
+
+export interface ChatStreamComplete {
+  conversation_id: number
+  model: string
+  usage: ChatUsage
+}
+
+export interface ChatStreamError {
+  code: 'llm_timeout' | 'llm_unavailable' | 'llm_invalid_response' | string
+  detail: string
+  retryable: boolean
+}
+
 export interface ConversationRead {
   id: number
   owner_id: number
@@ -130,6 +148,10 @@ export interface ConversationMessageRead {
   conversation_id: number
   role: string
   content: string
+  model: string | null
+  prompt_tokens: number | null
+  completion_tokens: number | null
+  total_tokens: number | null
   sources: ConversationSourceRead[]
   created_at: string
 }
