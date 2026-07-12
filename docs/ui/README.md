@@ -195,10 +195,15 @@ npx playwright test tests/e2e/chat-streaming.mock.spec.ts --workers=1
 
 # Live API, retrieval, and local-model acceptance
 npx playwright test tests/e2e/user-flow.spec.ts --workers=1
+
+# Conversation persistence, citation navigation, deletion, and owner isolation
+npx playwright test tests/e2e/conversations.acceptance.spec.ts --workers=1
 ```
 
 The mocked suite replaces only the browser chat request. Authentication remains real, and its
 fetch override is scoped to each Playwright page so it cannot leak into the acceptance workflow.
+The conversation acceptance suite requires the current branch API and migrations. Set
+`PACKAGE4_API_BASE_URL` when validating against an isolated API port.
 
 ## UI Definition of Done
 
