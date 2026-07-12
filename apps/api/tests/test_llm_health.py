@@ -15,8 +15,9 @@ def test_llm_health_check_returns_ready_state() -> None:
     response = client.get("/health/llm")
 
     assert response.status_code == 200
-    assert response.json()["status"] == "ready"
-    assert response.json()["error"] is None
+    assert response.json()["service"] == "llm"
+    assert response.json()["status"] == "healthy"
+    assert response.json()["metadata"]["failure_type"] is None
 
 
 def test_llm_health_check_returns_503_while_warming() -> None:
@@ -25,7 +26,8 @@ def test_llm_health_check_returns_503_while_warming() -> None:
     response = client.get("/health/llm")
 
     assert response.status_code == 503
-    assert response.json()["status"] == "warming"
+    assert response.json()["status"] == "degraded"
+    assert response.json()["detail"] == "LLM is warming up"
 
 
 def test_llm_health_check_returns_503_when_backend_is_unavailable() -> None:
@@ -35,7 +37,8 @@ def test_llm_health_check_returns_503_when_backend_is_unavailable() -> None:
 
     assert response.status_code == 503
     assert response.json()["status"] == "unavailable"
-    assert response.json()["error"] == "LLMUnavailableError"
+    assert response.json()["code"] == "llm_unavailable"
+    assert response.json()["metadata"]["failure_type"] == "LLMUnavailableError"
 
 
 def test_warm_up_once_marks_backend_ready(monkeypatch) -> None:

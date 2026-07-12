@@ -5,7 +5,9 @@ from typing import Annotated
 import logging
 from time import perf_counter
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from datetime import UTC, datetime
+
+from fastapi import Depends, FastAPI, Request, Response, status
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from redis.exceptions import RedisError
 from sqlalchemy import text
@@ -18,6 +20,8 @@ from app.config import get_settings
 from app.db.session import get_db
 from app.observability.logging import configure_logging, log_event
 from app.observability.metrics import metrics_registry
+from app.schemas.system import MetadataValue, ServiceHealthResponse, ServiceStatus
+from app.services.embeddings import EmbeddingError, get_embedding_provider
 from app.services.llm_readiness import llm_readiness
 
 settings = get_settings()
@@ -96,51 +100,174 @@ async def root() -> dict[str, str]:
     }
 
 
-@app.get("/health", tags=["system"])
-async def health_check() -> dict[str, str]:
-    return {"status": "healthy"}
+def service_health(
+    service: str,
+    service_status: ServiceStatus,
+    detail: str,
+    *,
+    code: str | None = None,
+    metadata: dict[str, MetadataValue] | None = None,
+) -> ServiceHealthResponse:
+    return ServiceHealthResponse(
+        service=service,
+        status=service_status,
+        detail=detail,
+        code=code,
+        checked_at=datetime.now(UTC),
+        metadata=metadata or {},
+    )
 
 
-@app.get("/health/db", tags=["system"])
+@app.get("/health", tags=["system"], response_model=ServiceHealthResponse)
+async def health_check() -> ServiceHealthResponse:
+    return service_health(
+        "api",
+        "healthy",
+        "API is accepting requests",
+        metadata={"version": settings.app_version, "environment": settings.environment},
+    )
+
+
+@app.get("/health/db", tags=["system"], response_model=ServiceHealthResponse)
 def database_health_check(
+    response: Response,
     db: Annotated[Session, Depends(get_db)],
-) -> dict[str, str]:
+) -> ServiceHealthResponse:
     try:
         db.execute(text("SELECT 1"))
-    except SQLAlchemyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database is unavailable",
-        ) from exc
+    except SQLAlchemyError:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return service_health(
+            "database",
+            "unavailable",
+            "Database connection failed",
+            code="database_unavailable",
+        )
 
-    return {
-        "status": "healthy",
-        "database": "reachable",
-    }
+    return service_health("database", "healthy", "Database is reachable")
 
 
-@app.get("/health/redis", tags=["system"])
-def redis_health_check() -> dict[str, str]:
+@app.get("/health/redis", tags=["system"], response_model=ServiceHealthResponse)
+def redis_health_check(response: Response) -> ServiceHealthResponse:
     try:
         ping_redis()
-    except RedisError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Redis is unavailable",
-        ) from exc
-
-    return {
-        "status": "healthy",
-        "redis": "reachable",
-    }
-
-
-@app.get("/health/llm", tags=["system"])
-def llm_health_check(response: Response) -> dict[str, str | None]:
-    snapshot = llm_readiness.snapshot()
-    if snapshot.status not in {"ready", "disabled"}:
+    except RedisError:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    return snapshot.as_dict()
+        return service_health(
+            "redis",
+            "unavailable",
+            "Redis connection failed",
+            code="redis_unavailable",
+        )
+
+    return service_health("redis", "healthy", "Redis is reachable")
+
+
+@app.get("/health/llm", tags=["system"], response_model=ServiceHealthResponse)
+def llm_health_check(response: Response) -> ServiceHealthResponse:
+    snapshot = llm_readiness.snapshot()
+    status_map: dict[str, ServiceStatus] = {
+        "ready": "healthy",
+        "warming": "degraded",
+        "unavailable": "unavailable",
+        "disabled": "disabled",
+    }
+    service_status = status_map[snapshot.status]
+    if service_status in {"degraded", "unavailable"}:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    details = {
+        "ready": "LLM is ready",
+        "warming": "LLM is warming up",
+        "unavailable": "LLM backend is unavailable",
+        "disabled": "LLM warm-up is disabled",
+    }
+    return service_health(
+        "llm",
+        service_status,
+        details[snapshot.status],
+        code="llm_unavailable" if snapshot.status == "unavailable" else None,
+        metadata={
+            "backend": settings.llm_backend,
+            "model": settings.llm_model,
+            "last_check": snapshot.checked_at,
+            "failure_type": snapshot.error,
+        },
+    )
+
+
+@app.get("/health/embedding", tags=["system"], response_model=ServiceHealthResponse)
+def embedding_health_check(response: Response) -> ServiceHealthResponse:
+    try:
+        provider = get_embedding_provider()
+        embeddings = provider.embed_texts(["health check"])
+        if len(embeddings) != 1 or len(embeddings[0]) != settings.embedding_dimensions:
+            raise EmbeddingError("Embedding dimensions do not match configuration")
+    except EmbeddingError:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return service_health(
+            "embedding",
+            "unavailable",
+            "Embedding backend health check failed",
+            code="embedding_unavailable",
+            metadata={"backend": settings.embedding_backend, "model": settings.embedding_model},
+        )
+    return service_health(
+        "embedding",
+        "healthy",
+        "Embedding backend is ready",
+        metadata={
+            "backend": settings.embedding_backend,
+            "model": provider.model,
+            "dimensions": provider.dimensions,
+        },
+    )
+
+
+@app.get("/health/worker", tags=["system"], response_model=ServiceHealthResponse)
+def worker_health_check(response: Response) -> ServiceHealthResponse:
+    if settings.document_ingestion_mode == "sync":
+        return service_health(
+            "worker",
+            "healthy",
+            "Document ingestion runs in the API process",
+            metadata={"mode": "sync"},
+        )
+    try:
+        ping_redis()
+    except RedisError:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return service_health(
+            "worker",
+            "unavailable",
+            "Document ingestion queue is unavailable",
+            code="ingestion_queue_unavailable",
+            metadata={"mode": settings.document_ingestion_mode},
+        )
+    return service_health(
+        "worker",
+        "degraded",
+        "Ingestion queue is reachable; worker heartbeat is not configured",
+        code="worker_heartbeat_unavailable",
+        metadata={"mode": settings.document_ingestion_mode},
+    )
+
+
+@app.get("/health/runtime", tags=["system"], response_model=ServiceHealthResponse)
+def runtime_configuration() -> ServiceHealthResponse:
+    return service_health(
+        "runtime",
+        "healthy",
+        "Runtime limits and model identities are loaded",
+        metadata={
+            "max_upload_bytes": settings.max_upload_size_bytes,
+            "max_prompt_characters": settings.llm_max_total_message_chars,
+            "max_completion_tokens": settings.llm_max_completion_tokens,
+            "max_concurrent_requests": settings.llm_max_concurrent_requests,
+            "embedding_model": settings.embedding_model,
+            "embedding_dimensions": settings.embedding_dimensions,
+            "llm_model": settings.llm_model,
+        },
+    )
 
 
 @app.get("/metrics", tags=["system"])

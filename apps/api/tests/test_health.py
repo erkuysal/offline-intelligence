@@ -9,4 +9,10 @@ def test_health_check() -> None:
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "healthy"}
+    body = response.json()
+    assert body["service"] == "api"
+    assert body["status"] == "healthy"
+    assert body["detail"] == "API is accepting requests"
+    assert body["code"] is None
+    assert body["checked_at"]
+    assert body["metadata"]["version"]

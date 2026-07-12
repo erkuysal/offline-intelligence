@@ -11,7 +11,8 @@ def test_database_health_check() -> None:
     response = client.get("/health/db")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "healthy",
-        "database": "reachable",
-    }
+    body = response.json()
+    assert body["service"] == "database"
+    assert body["status"] == "healthy"
+    assert body["detail"] == "Database is reachable"
+    assert body["code"] is None

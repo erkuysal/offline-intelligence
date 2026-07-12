@@ -12,19 +12,24 @@ def test_redis_health_check(monkeypatch) -> None:
     response = client.get("/health/redis")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "healthy",
-        "redis": "reachable",
-    }
+    body = response.json()
+    assert body["service"] == "redis"
+    assert body["status"] == "healthy"
+    assert body["detail"] == "Redis is reachable"
 
 
 def test_redis_health_check_returns_503_when_unavailable(monkeypatch) -> None:
     def raise_redis_error() -> None:
-        raise RedisError("connection failed")
+        raise RedisError("redis://user:password@private-host")
 
     monkeypatch.setattr("app.main.ping_redis", raise_redis_error)
 
     response = client.get("/health/redis")
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Redis is unavailable"}
+    body = response.json()
+    assert body["service"] == "redis"
+    assert body["status"] == "unavailable"
+    assert body["detail"] == "Redis connection failed"
+    assert body["code"] == "redis_unavailable"
+    assert "private-host" not in response.text
