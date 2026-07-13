@@ -10,6 +10,7 @@
     "typecheck": "vue-tsc -b",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:production": "playwright test --config playwright.production.config.ts",
     "test:e2e:demo": "PW_SLOW_MO=700 PW_DEMO_PAUSE_MS=5000 playwright test tests/e2e/user-flow.spec.ts --headed --workers=1",
     "test:e2e:real": "E2E_MODEL_MODE=real playwright test tests/e2e/user-flow.spec.ts --workers=1",
     "test:e2e:report": "PLAYWRIGHT_HTML_OPEN=never playwright test --reporter=html",

@@ -21,6 +21,16 @@ The API uses `offline_ai_e2e`, isolated document storage, synchronous ingestion,
 providers with enough concurrency for parallel workers. The suite clears its database and stored files before and after every complete run.
 Override the ports with `E2E_API_PORT` and `E2E_WEB_PORT`.
 
+To test the built application through the production reverse proxy, start the production Compose
+stack with `.env.test`, then run:
+
+```bash
+npm run test:e2e:production
+```
+
+The production suite targets `http://127.0.0.1:18081` by default. Override it with
+`E2E_PRODUCTION_BASE_URL` when the reverse proxy is exposed on a different origin.
+
 Run the primary workflow slowly in a visible browser without changing normal test timing:
 
 ```bash
