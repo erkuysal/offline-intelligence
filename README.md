@@ -506,9 +506,11 @@ docker compose --env-file .env.production -f docker-compose.production.yml up --
 
 The production stack publishes the Vue and Nginx application on `WEB_PORT` (port `3000` by
 default). FastAPI, the ingestion worker, PostgreSQL, and Redis are reachable only through the
-Compose network. The API and worker use the `LLM_BASE_URL` and `EMBEDDING_BASE_URL` endpoints from
-`.env.production`; the example targets model servers running on the Docker host. The Compose file
-does not publish model-server ports.
+Compose network. The production example also starts internal CPU model services; switch
+`COMPOSE_PROFILES` to `models-gpu` for NVIDIA acceleration. Model paths, image pins, hardware
+requirements, and startup diagnostics are documented in
+[`docs/mvp/model-runtime.md`](docs/mvp/model-runtime.md). The Compose file does not publish
+model-server ports.
 
 PostgreSQL data, uploaded documents, and the Redis ingestion queue use the named
 `postgres_data`, `api_storage`, and `redis_data` volumes under the

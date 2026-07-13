@@ -35,7 +35,13 @@ args=(
 )
 
 if [[ -n "$LLAMA_MODEL_PATH" ]]; then
-  args+=(-m "$(expand_llama_path "$LLAMA_MODEL_PATH")")
+  resolved_model_path="$(expand_llama_path "$LLAMA_MODEL_PATH")"
+  if [[ ! -r "$resolved_model_path" ]]; then
+    echo "LLM model file is missing or unreadable: ${resolved_model_path}" >&2
+    echo "Set LLAMA_MODEL_PATH to a readable GGUF file or clear it to use LLAMA_MODEL_REPO." >&2
+    exit 2
+  fi
+  args+=(-m "$resolved_model_path")
 elif [[ -n "$LLAMA_MODEL_REPO" ]]; then
   args+=(-hf "$LLAMA_MODEL_REPO")
 else

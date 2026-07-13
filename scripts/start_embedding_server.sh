@@ -22,6 +22,7 @@ fi
 
 if [[ ! -x "$EMBEDDING_LLAMA_CPP_BIN" ]]; then
   echo "llama-server binary not found or not executable: ${EMBEDDING_LLAMA_CPP_BIN}" >&2
+  echo "Set EMBEDDING_LLAMA_CPP_BIN in ${ENV_FILE} or rebuild llama.cpp." >&2
   exit 1
 fi
 
@@ -35,9 +36,18 @@ args=(
 )
 
 if [[ -n "$EMBEDDING_SERVER_MODEL_PATH" ]]; then
-  args+=(-m "$(expand_llama_path "$EMBEDDING_SERVER_MODEL_PATH")")
-else
+  resolved_model_path="$(expand_llama_path "$EMBEDDING_SERVER_MODEL_PATH")"
+  if [[ ! -r "$resolved_model_path" ]]; then
+    echo "Embedding model file is missing or unreadable: ${resolved_model_path}" >&2
+    echo "Set EMBEDDING_SERVER_MODEL_PATH to a readable GGUF file or clear it to use EMBEDDING_SERVER_MODEL_REPO." >&2
+    exit 2
+  fi
+  args+=(-m "$resolved_model_path")
+elif [[ -n "$EMBEDDING_SERVER_MODEL_REPO" ]]; then
   args+=(-hf "$EMBEDDING_SERVER_MODEL_REPO")
+else
+  echo "Set EMBEDDING_SERVER_MODEL_PATH or EMBEDDING_SERVER_MODEL_REPO before starting llama-server." >&2
+  exit 2
 fi
 
 [[ -n "$EMBEDDING_SERVER_THREADS" ]] && args+=(-t "$EMBEDDING_SERVER_THREADS")
