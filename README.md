@@ -497,6 +497,12 @@ Compose network. The API and worker use the `LLM_BASE_URL` and `EMBEDDING_BASE_U
 `.env.production`; the example targets model servers running on the Docker host. The Compose file
 does not publish model-server ports.
 
+PostgreSQL data, uploaded documents, and the Redis ingestion queue use the named
+`postgres_data`, `api_storage`, and `redis_data` volumes under the
+`offline-intelligence-hub-production` Compose project. Containers restart automatically unless
+an operator explicitly stops them. A normal `docker compose down` retains these volumes; adding
+`--volumes` permanently deletes application data.
+
 Inspect or stop this stack with the same file and environment arguments:
 
 ```bash
