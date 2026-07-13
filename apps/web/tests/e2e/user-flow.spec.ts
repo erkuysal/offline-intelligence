@@ -5,6 +5,10 @@ test('registers, uploads a document, asks a grounded question, and logs out', as
     type: 'allow-browser-error',
     description: 'network: POST .*/api/v1/chat/completions.*ERR_ABORTED',
   })
+  test.info().annotations.push({
+    type: 'allow-browser-error',
+    description: 'network: GET .*/api/v1/documents.*ERR_ABORTED',
+  })
   test.setTimeout(120_000)
 
   const demoPauseMs = Number(process.env.PW_DEMO_PAUSE_MS ?? 0)

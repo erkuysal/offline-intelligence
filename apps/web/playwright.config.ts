@@ -8,6 +8,7 @@ const apiBaseUrl = `http://127.0.0.1:${apiPort}`
 
 export default defineConfig({
   testDir: './tests/e2e',
+  fullyParallel: true,
   timeout: 30_000,
   globalTeardown: './tests/e2e/global-teardown.ts',
   use: {

@@ -11,14 +11,32 @@ export E2E_DOCUMENT_STORAGE_DIR=${E2E_DOCUMENT_STORAGE_DIR:-${E2E_DOCUMENT_STORA
 export DATABASE_URL=${E2E_DATABASE_URL}
 export DOCUMENT_STORAGE_DIR=${E2E_DOCUMENT_STORAGE_DIR}
 export DOCUMENT_INGESTION_MODE=sync
-export LLM_BACKEND=fake
-export LLM_WARMUP_ENABLED=false
-export LLM_MAX_CONCURRENT_REQUESTS=${E2E_LLM_MAX_CONCURRENT_REQUESTS:-16}
-export EMBEDDING_BACKEND=fake
-export EMBEDDING_MODEL=fake-bow
 export ENVIRONMENT=testing
 export HOST=127.0.0.1
 export PORT=${E2E_API_PORT:-8002}
+
+case "${E2E_MODEL_MODE:-fake}" in
+  fake)
+    export LLM_BACKEND=fake
+    export LLM_WARMUP_ENABLED=false
+    export LLM_MAX_CONCURRENT_REQUESTS=${E2E_LLM_MAX_CONCURRENT_REQUESTS:-16}
+    export EMBEDDING_BACKEND=fake
+    export EMBEDDING_MODEL=fake-bow
+    ;;
+  real)
+    export LLM_BACKEND=openai_compatible
+    export LLM_BASE_URL=${LLM_BASE_URL:-http://127.0.0.1:8080/v1}
+    export LLM_WARMUP_ENABLED=true
+    export LLM_MAX_CONCURRENT_REQUESTS=${E2E_LLM_MAX_CONCURRENT_REQUESTS:-1}
+    export EMBEDDING_BACKEND=openai_compatible
+    export EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL:-http://127.0.0.1:8081/v1}
+    echo "Starting opt-in E2E API with real local model servers" >&2
+    ;;
+  *)
+    echo "E2E_MODEL_MODE must be 'fake' or 'real'" >&2
+    exit 2
+    ;;
+esac
 
 run_python() {
   if [[ -n "${E2E_PYTHON:-}" ]]; then

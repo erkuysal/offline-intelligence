@@ -9,7 +9,12 @@
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "vue-tsc -b",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:demo": "PW_SLOW_MO=700 PW_DEMO_PAUSE_MS=5000 playwright test tests/e2e/user-flow.spec.ts --headed --workers=1",
+    "test:e2e:real": "E2E_MODEL_MODE=real playwright test tests/e2e/user-flow.spec.ts --workers=1",
+    "test:e2e:report": "PLAYWRIGHT_HTML_OPEN=never playwright test --reporter=html",
+    "test:e2e:report:open": "playwright show-report",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@lucide/vue": "^1.24.0",

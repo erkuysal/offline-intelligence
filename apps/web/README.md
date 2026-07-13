@@ -21,6 +21,32 @@ The API uses `offline_ai_e2e`, isolated document storage, synchronous ingestion,
 providers with enough concurrency for parallel workers. The suite clears its database and stored files before and after every complete run.
 Override the ports with `E2E_API_PORT` and `E2E_WEB_PORT`.
 
+Run the primary workflow slowly in a visible browser without changing normal test timing:
+
+```bash
+npm run test:e2e:demo
+```
+
+Generate and inspect an HTML report, or use Playwright's interactive test runner:
+
+```bash
+npm run test:e2e:report
+npm run test:e2e:report:open
+npm run test:e2e:ui
+```
+
+Real-model acceptance is deliberately opt-in. Start the local LLM and embedding servers first,
+then run the single-worker acceptance flow:
+
+```bash
+npm run test:e2e:real
+```
+
+This switches the isolated API to `openai_compatible` backends at
+`http://127.0.0.1:8080/v1` and `http://127.0.0.1:8081/v1`. Override those endpoints with
+`LLM_BASE_URL` and `EMBEDDING_BASE_URL`. Normal `test:e2e`, report, UI, and demo commands always
+use deterministic fake providers unless `E2E_MODEL_MODE=real` is explicitly supplied.
+
 ## Structure
 
 ```text
