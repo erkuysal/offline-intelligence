@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.venv
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+node_modules/
+apps/web/node_modules/
+apps/web/dist/
+apps/web/playwright-report/
+apps/web/test-results/
+storage/

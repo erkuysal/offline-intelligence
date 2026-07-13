@@ -47,6 +47,19 @@ This switches the isolated API to `openai_compatible` backends at
 `LLM_BASE_URL` and `EMBEDDING_BASE_URL`. Normal `test:e2e`, report, UI, and demo commands always
 use deterministic fake providers unless `E2E_MODEL_MODE=real` is explicitly supplied.
 
+## Production Image
+
+Build the Vue application into its Nginx runtime image from the repository root:
+
+```bash
+docker build -f apps/web/Dockerfile -t offline-intelligence-hub-web .
+```
+
+The image serves the SPA on port `80`, exposes `/web-health` for its container health check, and
+proxies `/api`, `/health`, and `/metrics` to the `api:8000` service. API buffering is disabled so
+streaming chat events are delivered immediately. The production Compose topology supplies the
+`api` service name; it is added in the next infrastructure slice.
+
 ## Structure
 
 ```text
