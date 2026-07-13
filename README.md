@@ -28,6 +28,7 @@
 ## Product Plans
 
 - [Installation and contributor setup](docs/installation.md)
+- [Retrieval evaluation](evaluation/README.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)
 - [v0.4.0 acceptance record](docs/acceptance/v0.4.0.md)

@@ -347,6 +347,71 @@ def embedding_reindex(args: argparse.Namespace) -> int:
     return 0
 
 
+def evaluate_retrieval(args: argparse.Namespace) -> int:
+    configure_import_path()
+    load_root_env()
+
+    from app.config import get_settings
+    from app.db.session import SessionLocal
+    from app.evaluation.retrieval import (
+        EvaluationThresholds,
+        build_database_retriever,
+        evaluate_dataset,
+        format_summary,
+        load_dataset,
+        prepare_corpus,
+        write_report,
+    )
+    from app.services.embeddings import EmbeddingError, get_embedding_provider
+
+    try:
+        dataset = load_dataset(Path(args.dataset))
+        provider = get_embedding_provider()
+        if dataset.manifest.embedding_model != provider.model and not args.allow_model_mismatch:
+            raise ValueError(
+                f"Dataset requires embedding model {dataset.manifest.embedding_model!r}; "
+                f"configured model is {provider.model!r}. Use --allow-model-mismatch only for experiments."
+            )
+        settings = get_settings()
+        thresholds = EvaluationThresholds(
+            min_recall_at_k=args.min_recall,
+            min_precision_at_k=args.min_precision,
+            min_mean_reciprocal_rank=args.min_mrr,
+            min_hit_rate=args.min_hit_rate,
+            min_no_result_accuracy=args.min_no_result_accuracy,
+            max_mean_latency_ms=args.max_mean_latency_ms,
+            max_authorization_leaks=args.max_authorization_leaks,
+        )
+        with SessionLocal() as db:
+            user_id, key_by_document_id, id_by_document_key = prepare_corpus(
+                db,
+                dataset,
+                provider=provider,
+                settings=settings,
+            )
+            report = evaluate_dataset(
+                dataset,
+                retrieve=build_database_retriever(
+                    db,
+                    user_id=user_id,
+                    provider=provider,
+                    key_by_document_id=key_by_document_id,
+                    id_by_document_key=id_by_document_key,
+                ),
+                retrieval_limit=args.limit,
+                thresholds=thresholds,
+                embedding_model=provider.model,
+            )
+        write_report(report, Path(args.output))
+    except (EmbeddingError, OSError, ValueError) as exc:
+        print(f"Retrieval evaluation failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report.passed else 1
+
+
 def ingestion_worker(args: argparse.Namespace) -> int:
     configure_import_path()
     load_root_env()
@@ -492,6 +557,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="only re-embed chunks missing vectors or using another embedding model",
     )
     embedding_reindex_parser.set_defaults(func=embedding_reindex)
+
+    evaluation_parser = subparsers.add_parser(
+        "evaluate-retrieval",
+        help="seed a versioned corpus and evaluate dense retrieval",
+    )
+    evaluation_parser.add_argument(
+        "--dataset",
+        default="evaluation/datasets/dense-baseline-smoke-v1.jsonl",
+    )
+    evaluation_parser.add_argument(
+        "--output",
+        default="var/evaluation/dense-baseline-latest.json",
+    )
+    evaluation_parser.add_argument("--limit", type=int, default=5, choices=range(1, 21))
+    evaluation_parser.add_argument("--min-recall", type=float)
+    evaluation_parser.add_argument("--min-precision", type=float)
+    evaluation_parser.add_argument("--min-mrr", type=float)
+    evaluation_parser.add_argument("--min-hit-rate", type=float)
+    evaluation_parser.add_argument("--min-no-result-accuracy", type=float)
+    evaluation_parser.add_argument("--max-mean-latency-ms", type=float)
+    evaluation_parser.add_argument("--max-authorization-leaks", type=int, default=0)
+    evaluation_parser.add_argument("--allow-model-mismatch", action="store_true")
+    evaluation_parser.set_defaults(func=evaluate_retrieval)
 
     ingestion_worker_parser = subparsers.add_parser(
         "ingestion-worker",

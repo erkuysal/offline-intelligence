@@ -46,30 +46,30 @@ This package must precede retrieval changes.
 
 ### Dataset
 
-- [ ] Define a versioned JSONL evaluation schema
-- [ ] Include question, expected answer facts, relevant document IDs, and relevant passage labels
-- [ ] Include answerable, unanswerable, ambiguous, and permission-restricted questions
-- [ ] Include English and Turkish cases if both are product requirements
-- [ ] Avoid relying only on database chunk IDs because re-chunking can change them
-- [ ] Record corpus, chunking, embedding, prompt, model, and evaluator versions
+- [x] Define a versioned JSONL evaluation schema
+- [x] Include question, expected answer facts, relevant document IDs, and relevant passage labels
+- [x] Include answerable, unanswerable, ambiguous, and permission-restricted questions
+- [x] Include English and Turkish cases if both are product requirements
+- [x] Avoid relying only on database chunk IDs because re-chunking can change them
+- [x] Record corpus, chunking, embedding, prompt, model, and evaluator versions
 
 ### Runner
 
-- [ ] Add a CLI that creates or loads the evaluation corpus
-- [ ] Run retrieval independently from generation
+- [x] Add a CLI that creates or loads the evaluation corpus
+- [x] Run retrieval independently from generation
 - [ ] Run full RAG evaluation as a separate stage
-- [ ] Emit machine-readable JSON and a human-readable summary
-- [ ] Save per-question results for regression diagnosis
-- [ ] Support deterministic fake-provider tests and opt-in real-model acceptance
+- [x] Emit machine-readable JSON and a human-readable summary
+- [x] Save per-question results for regression diagnosis
+- [x] Support deterministic fake-provider tests and opt-in real-model acceptance
 
 ### Baseline Metrics
 
-- [ ] Recall@k
-- [ ] Precision@k
-- [ ] Mean Reciprocal Rank
-- [ ] Hit rate and no-result rate
+- [x] Recall@k
+- [x] Precision@k
+- [x] Mean Reciprocal Rank
+- [x] Hit rate and no-result rate
 - [ ] Citation document and passage accuracy
-- [ ] Retrieval latency and candidate count
+- [x] Retrieval latency and candidate count
 - [ ] Context relevance and duplication rate
 - [ ] Answer faithfulness and hallucination rate
 - [ ] Time to first token, end-to-end latency, and tokens per second
