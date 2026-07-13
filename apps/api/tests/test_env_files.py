@@ -6,7 +6,8 @@ from app.env_files import load_env_file, resolve_env_file, resolve_env_files
 
 def test_resolve_env_file_uses_profile_file(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("APP_ENV_FILE", raising=False)
-    profile_file = tmp_path / ".env.test"
+    profile_file = tmp_path / "config" / "env" / "test.env"
+    profile_file.parent.mkdir(parents=True)
     profile_file.touch()
 
     assert resolve_env_file("test", root=tmp_path) == profile_file
@@ -35,10 +36,12 @@ def test_load_env_file_parses_values_without_overwriting_environment(monkeypatch
 
 def test_development_profile_layers_legacy_local_overrides(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.delenv("APP_ENV_FILE", raising=False)
-    (tmp_path / ".env.dev").write_text("LLM_BACKEND=fake\nPORT=8000\n", encoding="utf-8")
-    (tmp_path / ".env").write_text("LLM_BACKEND=openai_compatible\n", encoding="utf-8")
+    env_dir = tmp_path / "config" / "env"
+    env_dir.mkdir(parents=True)
+    (env_dir / "dev.env").write_text("LLM_BACKEND=fake\nPORT=8000\n", encoding="utf-8")
+    (env_dir / "local.env").write_text("LLM_BACKEND=openai_compatible\n", encoding="utf-8")
 
     assert resolve_env_files("development", root=tmp_path) == (
-        tmp_path / ".env.dev",
-        tmp_path / ".env",
+        env_dir / "dev.env",
+        env_dir / "local.env",
     )

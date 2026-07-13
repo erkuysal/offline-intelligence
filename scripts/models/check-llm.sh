@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llama_env.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llm-env.sh"
 configure_llama_env
 
 if [[ -f "$LLAMA_PID_FILE" ]]; then

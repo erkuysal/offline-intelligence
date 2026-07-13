@@ -1,7 +1,9 @@
+name: offline-intelligence-hub
+
 services:
   api:
     build:
-      context: .
+      context: ..
       dockerfile: apps/api/Dockerfile
     container_name: offline-ai-api
     environment:
@@ -49,7 +51,7 @@ services:
 
   api-tests:
     build:
-      context: .
+      context: ..
       dockerfile: apps/api/Dockerfile
     profiles:
       - test
@@ -93,7 +95,7 @@ services:
 
   ingestion-worker:
     build:
-      context: .
+      context: ..
       dockerfile: apps/api/Dockerfile
     profiles:
       - worker

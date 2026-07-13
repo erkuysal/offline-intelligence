@@ -20,7 +20,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'bash ../../scripts/e2e_api.sh start',
+      command: 'bash ../../scripts/e2e/api.sh start',
       url: `${apiBaseUrl}/health`,
       reuseExistingServer: false,
       timeout: 120_000,

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 ACTION=${1:-start}
 
-APP_ENV_FILE=${APP_ENV_FILE:-${ROOT}/.env.e2e}
+APP_ENV_FILE=${APP_ENV_FILE:-${ROOT}/config/env/e2e.env}
 if [[ ! -f "$APP_ENV_FILE" ]]; then
   echo "E2E environment file not found: ${APP_ENV_FILE}" >&2
   exit 2
@@ -49,12 +49,12 @@ run_python() {
 
 case "${ACTION}" in
   start)
-    run_python "${ROOT}/app.py" e2e-setup
-    run_python "${ROOT}/app.py" e2e-cleanup
-    run_python "${ROOT}/app.py" runserver
+    run_python "${ROOT}/manage.py" e2e-setup
+    run_python "${ROOT}/manage.py" e2e-cleanup
+    run_python "${ROOT}/manage.py" runserver
     ;;
   cleanup)
-    run_python "${ROOT}/app.py" e2e-cleanup
+    run_python "${ROOT}/manage.py" e2e-cleanup
     ;;
   *)
     echo "Usage: $0 {start|cleanup}" >&2

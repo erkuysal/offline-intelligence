@@ -121,7 +121,7 @@ Bu aşamada henüz LLM veya RAG bulunmaz.
 
 İkinci iterasyonda açık kaynaklı bir instruction model yerel olarak çalıştırılır.
 
-> **Durum:** Tamamlandı (`v0.2.0`, 10 Temmuz 2026). Runtime kararı, kabul kanıtları ve bilinen sınırlar `docs/adr/0002-phase-2-llm-runtime.md` ile `docs/phase-2-acceptance.md` dosyalarında kayıtlıdır.
+> **Durum:** Tamamlandı (`v0.2.0`, 10 Temmuz 2026). Runtime kararı, kabul kanıtları ve bilinen sınırlar `docs/adr/0002-phase-2-llm-runtime.md` ile `docs/acceptance/phase-2.md` dosyalarında kayıtlıdır.
 
 ### İlk Hedef
 
@@ -161,7 +161,7 @@ OpenAI API benzeri sözleşme:
 - [x] Model configuration
 - [x] Hardware safety rails
 - [x] LLM request metrics
-- [x] LLM probe command (`./app.py llm-probe`)
+- [x] LLM probe command (`./manage.py llm-probe`)
 - [x] llama.cpp server integration
 - [x] Model warm-up
 - [x] Streaming response
@@ -191,7 +191,7 @@ OpenAI API benzeri sözleşme:
 
 Bu aşamada platform kurumsal bilgi sistemine dönüşür.
 
-> **Durum:** Tamamlandı (`v0.3.0`, 10 Temmuz 2026). Kabul kanıtları `docs/phase-3-acceptance.md` dosyasında kayıtlıdır.
+> **Durum:** Tamamlandı (`v0.3.0`, 10 Temmuz 2026). Kabul kanıtları `docs/acceptance/phase-3.md` dosyasında kayıtlıdır.
 
 ### Doküman Pipeline'ı
 
@@ -264,7 +264,7 @@ audit_logs
 
 Basit vector search sonrasında RAG sisteminin gerçekten çalışıp çalışmadığı ölçülür.
 
-> **Durum:** `v0.4.0` MVP kabulünün 13 Temmuz 2026 tarihinde tamamlanmasıyla başlamaya hazırdır. Giriş kriterleri ve paket sırası `docs/phase-4-plan.md` dosyasında izlenir; hybrid retrieval `v0.4.0` kapsamına dahil değildir.
+> **Durum:** `v0.4.0` MVP kabulünün 13 Temmuz 2026 tarihinde tamamlanmasıyla başlamaya hazırdır. Giriş kriterleri ve paket sırası `docs/plans/phase-4.md` dosyasında izlenir; hybrid retrieval `v0.4.0` kapsamına dahil değildir.
 
 ### Retrieval Geliştirmeleri
 
@@ -549,7 +549,7 @@ offline-intelligence-hub/
 │
 ├── benchmarks/
 ├── scripts/
-├── docker-compose.yml
+├── deploy/compose.yaml
 ├── pyproject.toml
 └── README.md
 ```
@@ -594,7 +594,7 @@ Kullanıcının sisteme kaydolabildiği, oturum açabildiği ve bir doküman yü
 - [x] Docker Compose
 - [x] Persistent volumes
 - [x] `.env.example`
-- [x] Django benzeri task runner (`./app.py`)
+- [x] Django benzeri task runner (`./manage.py`)
 - [x] Smoke test script
 
 ### Testing
@@ -756,7 +756,7 @@ offline-intelligence-hub/
 ├── apps/api/app/config.py
 ├── apps/api/tests/test_health.py
 ├── apps/api/Dockerfile
-├── docker-compose.yml
+├── deploy/compose.yaml
 ├── pyproject.toml
 ├── .env.example
 └── README.md

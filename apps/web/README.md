@@ -22,7 +22,7 @@ providers with enough concurrency for parallel workers. The suite clears its dat
 Override the ports with `E2E_API_PORT` and `E2E_WEB_PORT`.
 
 To test the built application through the production reverse proxy, start the production Compose
-stack with `.env.test`, then run:
+stack with `config/env/test.env`, then run:
 
 ```bash
 npm run test:e2e:production

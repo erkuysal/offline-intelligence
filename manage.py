@@ -165,7 +165,7 @@ def e2e_setup(_args: argparse.Namespace) -> int:
         return 2
 
     prepare_status = run_subprocess(
-        [sys.executable, str(ROOT / "scripts" / "manage_e2e_environment.py"), "setup"],
+        [sys.executable, str(ROOT / "scripts" / "e2e" / "environment.py"), "setup"],
         environment=environment,
     )
     if prepare_status != 0:
@@ -193,7 +193,7 @@ def e2e_cleanup(_args: argparse.Namespace) -> int:
         print(f"E2E cleanup failed: {exc}", file=sys.stderr)
         return 2
     return run_subprocess(
-        [sys.executable, str(ROOT / "scripts" / "manage_e2e_environment.py"), "cleanup"],
+        [sys.executable, str(ROOT / "scripts" / "e2e" / "environment.py"), "cleanup"],
         environment=environment,
     )
 
@@ -207,7 +207,7 @@ def test(args: argparse.Namespace) -> int:
         return 2
 
     prepare_status = run_subprocess(
-        [sys.executable, str(ROOT / "scripts" / "prepare_test_database.py")],
+        [sys.executable, str(ROOT / "scripts" / "db" / "prepare-test.py")],
         environment=environment,
     )
     if prepare_status != 0:
@@ -242,7 +242,9 @@ def test(args: argparse.Namespace) -> int:
 
 
 def test_container(_args: argparse.Namespace) -> int:
-    return run_subprocess(["docker", "compose", "run", "--build", "--rm", "api-tests"])
+    return run_subprocess(
+        ["docker", "compose", "-f", "deploy/compose.yaml", "run", "--build", "--rm", "api-tests"]
+    )
 
 
 def lint(_args: argparse.Namespace) -> int:
@@ -256,7 +258,7 @@ def typecheck(_args: argparse.Namespace) -> int:
 
 
 def smoke(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "smoke_test.sh")])
+    return run_subprocess(["bash", str(ROOT / "scripts" / "smoke.sh")])
 
 
 def llm_probe(args: argparse.Namespace) -> int:
@@ -289,30 +291,30 @@ def llm_start(args: argparse.Namespace) -> int:
     if args.profile:
         environment["LLAMA_PROFILE"] = args.profile
     return subprocess.call(
-        ["bash", str(ROOT / "scripts" / "start_llama_server.sh")],
+        ["bash", str(ROOT / "scripts" / "models" / "start-llm.sh")],
         cwd=ROOT,
         env=environment,
     )
 
 
 def llm_check(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "check_llama_server.sh")])
+    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "check-llm.sh")])
 
 
 def llm_stop(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "stop_llama_server.sh")])
+    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "stop-llm.sh")])
 
 
 def embedding_start(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "start_embedding_server.sh")])
+    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "start-embedding.sh")])
 
 
 def embedding_check(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "check_embedding_server.sh")])
+    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "check-embedding.sh")])
 
 
 def embedding_stop(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "stop_embedding_server.sh")])
+    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "stop-embedding.sh")])
 
 
 def embedding_reindex(args: argparse.Namespace) -> int:
@@ -381,7 +383,7 @@ def ingestion_worker(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="./app.py",
+        prog="./manage.py",
         description="Offline Intelligence Hub development commands",
     )
     parser.add_argument(
@@ -446,7 +448,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     llm_start_parser.add_argument(
         "--profile",
-        help="load scripts/llama_profiles/<profile>.env or a profile file path",
+        help="load config/models/<profile>.env or a profile file path",
     )
     llm_start_parser.set_defaults(func=llm_start)
 

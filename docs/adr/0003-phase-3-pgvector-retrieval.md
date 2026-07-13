@@ -21,7 +21,7 @@ Store document chunk embeddings in PostgreSQL with the pgvector extension:
 - Rank retrieval in SQL with cosine distance and return `1 - distance` as the search score.
 - Validate all generated vectors against the fixed 768-dimensional schema before writing or searching.
 
-The migration backfills existing JSON embeddings only when they already match 768 dimensions. Incompatible old embeddings are treated as stale by clearing `embedding_model`; operators should run `./app.py embedding-reindex` after selecting the intended embedding backend.
+The migration backfills existing JSON embeddings only when they already match 768 dimensions. Incompatible old embeddings are treated as stale by clearing `embedding_model`; operators should run `./manage.py embedding-reindex` after selecting the intended embedding backend.
 
 ## Consequences
 

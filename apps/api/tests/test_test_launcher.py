@@ -6,7 +6,7 @@ from sqlalchemy.engine import make_url
 
 
 ROOT = Path(__file__).resolve().parents[3]
-LAUNCHER_PATH = ROOT / "app.py"
+LAUNCHER_PATH = ROOT / "manage.py"
 if not LAUNCHER_PATH.exists():
     LAUNCHER_PATH = ROOT / "launcher.py"
 

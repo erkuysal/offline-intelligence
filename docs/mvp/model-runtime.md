@@ -53,18 +53,18 @@ count, context size, or model quantization if startup exhausts VRAM.
 
 ## Startup
 
-Create `.env.production` from the example, replace its secrets and model filenames, then start the
+Create `config/env/prod.env` from the example, replace its secrets and model filenames, then start the
 selected profile with the normal production command:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.production.yml up --build -d --wait
+docker compose --env-file config/env/prod.env -f deploy/compose.prod.yaml up --build -d --wait
 ```
 
 Inspect model startup and application readiness through:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.production.yml ps
-docker compose --env-file .env.production -f docker-compose.production.yml logs llm-cpu embedding-cpu
+docker compose --env-file config/env/prod.env -f deploy/compose.prod.yaml ps
+docker compose --env-file config/env/prod.env -f deploy/compose.prod.yaml logs llm-cpu embedding-cpu
 curl -fsS http://127.0.0.1:${WEB_PORT:-3000}/health/llm
 curl -fsS http://127.0.0.1:${WEB_PORT:-3000}/health/embedding
 ```

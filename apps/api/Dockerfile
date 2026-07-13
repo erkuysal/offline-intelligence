@@ -10,14 +10,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY alembic.ini .
-COPY app.py ./launcher.py
+COPY manage.py ./launcher.py
 COPY migrations ./migrations
 COPY apps/api ./apps/api
-COPY scripts/docker_api_entrypoint.sh ./scripts/docker_api_entrypoint.sh
-COPY scripts/prepare_test_database.py ./scripts/prepare_test_database.py
+COPY scripts ./scripts
 
-RUN chmod +x ./scripts/docker_api_entrypoint.sh
+RUN chmod +x ./scripts/docker/entrypoint.sh
 
 EXPOSE 8000
 
-ENTRYPOINT ["./scripts/docker_api_entrypoint.sh"]
+ENTRYPOINT ["./scripts/docker/entrypoint.sh"]

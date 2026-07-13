@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llama_env.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llm-env.sh"
 
 configure_embedding_env() {
   ROOT_DIR="$(llama_root_dir)"
@@ -10,8 +10,8 @@ configure_embedding_env() {
   elif [[ -n "${ENV_FILE:-}" ]]; then
     load_llama_env_file "$ENV_FILE"
   else
-    ENV_FILE="${ROOT_DIR}/.env.dev"
-    load_llama_env_file "${ROOT_DIR}/.env"
+    ENV_FILE="${ROOT_DIR}/config/env/dev.env"
+    load_llama_env_file "${ROOT_DIR}/config/env/local.env"
     load_llama_env_file "$ENV_FILE"
   fi
 
@@ -29,7 +29,7 @@ configure_embedding_env() {
   EMBEDDING_SERVER_GPU_LAYERS="${EMBEDDING_SERVER_GPU_LAYERS:-auto}"
   EMBEDDING_SERVER_FLASH_ATTN="${EMBEDDING_SERVER_FLASH_ATTN:-true}"
   EMBEDDING_SERVER_EXTRA_ARGS="${EMBEDDING_SERVER_EXTRA_ARGS:-}"
-  EMBEDDING_SERVER_PID_FILE="$(expand_llama_path "${EMBEDDING_SERVER_PID_FILE:-/tmp/offline-hub-embedding-server.pid}")"
+  EMBEDDING_SERVER_PID_FILE="$(expand_llama_path "${EMBEDDING_SERVER_PID_FILE:-${ROOT_DIR}/var/run/embedding.pid}")"
   EMBEDDING_SERVER_SHUTDOWN_TIMEOUT_SECONDS="${EMBEDDING_SERVER_SHUTDOWN_TIMEOUT_SECONDS:-15}"
   EMBEDDING_BASE_URL="${EMBEDDING_BASE_URL:-http://${EMBEDDING_SERVER_HOST}:${EMBEDDING_SERVER_PORT}/v1}"
   EMBEDDING_MODEL="${EMBEDDING_MODEL:-${EMBEDDING_SERVER_ALIAS}}"

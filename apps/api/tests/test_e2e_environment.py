@@ -6,7 +6,7 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[3]
-SCRIPT_PATH = ROOT / "scripts" / "manage_e2e_environment.py"
+SCRIPT_PATH = ROOT / "scripts" / "e2e" / "environment.py"
 
 
 def load_script() -> ModuleType:

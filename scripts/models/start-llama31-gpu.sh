@@ -14,4 +14,4 @@ export LLAMA_THREADS="${LLAMA_THREADS:-16}"
 export LLAMA_BATCH_SIZE="${LLAMA_BATCH_SIZE:-2048}"
 export LLAMA_FLASH_ATTN="${LLAMA_FLASH_ATTN:-true}"
 
-exec "${SCRIPT_DIR}/start_llama_server.sh"
+exec "${SCRIPT_DIR}/start-llm.sh"

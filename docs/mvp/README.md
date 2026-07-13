@@ -3,7 +3,7 @@
 ## Status
 
 The integrated browser MVP was accepted as `v0.4.0` on 2026-07-13. Verification evidence is in
-the [v0.4.0 acceptance record](../v0.4.0-acceptance.md), and implementation is tracked in the
+the [v0.4.0 acceptance record](../acceptance/v0.4.0.md), and implementation is tracked in the
 [v0.4.0 MVP task list](v0.4.0-task-list.md).
 
 ## Product Definition

@@ -1,5 +1,5 @@
-.env
-.env.production
+config/env/local.env
+config/env/prod.env
 .venv/
 __pycache__/
 *.py[cod]
@@ -18,6 +18,6 @@ __pycache__/
 .ruff_cache/
 
 .DS_Store
-storage/
-models/
+var/
+/models/
 *.gguf

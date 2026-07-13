@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llama_env.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llm-env.sh"
 configure_llama_env
 
 if [[ ! -f "$LLAMA_PID_FILE" ]]; then
   if llama_api_available; then
     echo "llama-server responds at ${LLM_BASE_URL}, but no PID file exists."
-    echo "Stop the external process manually or restart it with ./app.py llm-start."
+    echo "Stop the external process manually or restart it with ./manage.py llm-start."
     exit 1
   fi
 

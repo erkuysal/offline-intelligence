@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 llama_root_dir() {
-  cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd
+  cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd
 }
 
 load_llama_env_file() {
@@ -50,13 +50,13 @@ configure_llama_env() {
   elif [[ -n "${ENV_FILE:-}" ]]; then
     load_llama_env_file "$ENV_FILE"
   else
-    ENV_FILE="${ROOT_DIR}/.env.dev"
-    load_llama_env_file "${ROOT_DIR}/.env"
+    ENV_FILE="${ROOT_DIR}/config/env/dev.env"
+    load_llama_env_file "${ROOT_DIR}/config/env/local.env"
     load_llama_env_file "$ENV_FILE"
   fi
 
   LLAMA_PROFILE="${LLAMA_PROFILE:-}"
-  LLAMA_PROFILE_DIR="${LLAMA_PROFILE_DIR:-${ROOT_DIR}/scripts/llama_profiles}"
+  LLAMA_PROFILE_DIR="${LLAMA_PROFILE_DIR:-${ROOT_DIR}/config/models}"
   if [[ -n "$LLAMA_PROFILE" ]]; then
     if [[ "$LLAMA_PROFILE" == */* ]]; then
       LLAMA_PROFILE_FILE="$(expand_llama_path "$LLAMA_PROFILE")"
@@ -85,7 +85,7 @@ configure_llama_env() {
   LLAMA_GPU_LAYERS="${LLAMA_GPU_LAYERS:-}"
   LLAMA_FLASH_ATTN="${LLAMA_FLASH_ATTN:-}"
   LLAMA_EXTRA_ARGS="${LLAMA_EXTRA_ARGS:-}"
-  LLAMA_PID_FILE="$(expand_llama_path "${LLAMA_PID_FILE:-/tmp/offline-hub-llama-server.pid}")"
+  LLAMA_PID_FILE="$(expand_llama_path "${LLAMA_PID_FILE:-${ROOT_DIR}/var/run/llm.pid}")"
   LLAMA_SHUTDOWN_TIMEOUT_SECONDS="${LLAMA_SHUTDOWN_TIMEOUT_SECONDS:-15}"
   LLM_BASE_URL="${LLM_BASE_URL:-http://${LLAMA_HOST}:${LLAMA_PORT}/v1}"
   LLM_MODEL="${LLM_MODEL:-${LLAMA_MODEL_REPO}}"

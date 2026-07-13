@@ -232,7 +232,7 @@ The first version uses `pgvector`. PostgreSQL manages both relational data and t
 After basic vector search, the RAG system is measured to verify whether it actually works.
 
 > **Status:** Ready to begin after the `v0.4.0` MVP acceptance on 13 July 2026. Entry criteria and
-> package order are tracked in `docs/phase-4-plan.md`; hybrid retrieval is not part of `v0.4.0`.
+> package order are tracked in `docs/plans/phase-4.md`; hybrid retrieval is not part of `v0.4.0`.
 
 ### Retrieval Improvements
 
@@ -517,7 +517,7 @@ offline-intelligence-hub/
 │
 ├── benchmarks/
 ├── scripts/
-├── docker-compose.yml
+├── deploy/compose.yaml
 ├── pyproject.toml
 └── README.md
 ```
@@ -708,7 +708,7 @@ offline-intelligence-hub/
 ├── apps/api/app/config.py
 ├── apps/api/tests/test_health.py
 ├── apps/api/Dockerfile
-├── docker-compose.yml
+├── deploy/compose.yaml
 ├── pyproject.toml
 ├── .env.example
 └── README.md

@@ -34,9 +34,9 @@ Result: passed.
 Focused checks run during implementation:
 
 ```bash
-conda run -n offline-ai python ./app.py test -- apps/api/tests/test_documents.py -q
-conda run -n offline-ai python ./app.py test -- apps/api/tests/test_chat.py -q
-conda run -n offline-ai python ./app.py test -- apps/api/tests/test_documents.py apps/api/tests/test_chat.py -q
+conda run -n offline-ai python ./manage.py test -- apps/api/tests/test_documents.py -q
+conda run -n offline-ai python ./manage.py test -- apps/api/tests/test_chat.py -q
+conda run -n offline-ai python ./manage.py test -- apps/api/tests/test_documents.py apps/api/tests/test_chat.py -q
 ```
 
 Result: passed after applying migrations through `20260710_0008`.
@@ -44,8 +44,8 @@ Result: passed after applying migrations through `20260710_0008`.
 Container verification:
 
 ```bash
-docker compose build api-tests
-docker compose run --rm api-tests
+docker compose -f deploy/compose.yaml build api-tests
+docker compose -f deploy/compose.yaml run --rm api-tests
 ```
 
 Result: `91 passed`.
@@ -53,7 +53,7 @@ Result: `91 passed`.
 Worker smoke:
 
 ```bash
-conda run -n offline-ai python ./app.py ingestion-worker --once
+conda run -n offline-ai python ./manage.py ingestion-worker --once
 ```
 
 Result: worker connected to Redis and exited cleanly with no queued job.

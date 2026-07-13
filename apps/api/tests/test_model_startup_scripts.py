@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 def run_startup_script(script: str, environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(ROOT / "scripts" / script)],
+        ["bash", str(ROOT / "scripts" / "models" / script)],
         cwd=ROOT,
         env={**os.environ, "APP_ENV_FILE": "/dev/null", **environment},
         capture_output=True,
@@ -21,7 +21,7 @@ def test_llm_startup_reports_missing_local_model(tmp_path: Path) -> None:
     missing_model = tmp_path / "missing-chat.gguf"
 
     result = run_startup_script(
-        "start_llama_server.sh",
+        "start-llm.sh",
         {
             "LLM_BASE_URL": "http://127.0.0.1:1/v1",
             "LLAMA_CPP_BIN": "/bin/true",
@@ -39,7 +39,7 @@ def test_embedding_startup_reports_missing_local_model(tmp_path: Path) -> None:
     missing_model = tmp_path / "missing-embedding.gguf"
 
     result = run_startup_script(
-        "start_embedding_server.sh",
+        "start-embedding.sh",
         {
             "EMBEDDING_BASE_URL": "http://127.0.0.1:1/v1",
             "EMBEDDING_LLAMA_CPP_BIN": "/bin/true",

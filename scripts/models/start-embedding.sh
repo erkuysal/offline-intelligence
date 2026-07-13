@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/embedding_env.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/embedding-env.sh"
 configure_embedding_env
 
 if [[ -f "$EMBEDDING_SERVER_PID_FILE" ]]; then

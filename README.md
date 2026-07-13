@@ -27,23 +27,37 @@
 
 ## Product Plans
 
+- [Installation and contributor setup](docs/installation.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)
-- [v0.4.0 acceptance record](docs/v0.4.0-acceptance.md)
-- [Development roadmap](offline-intelligence-hub-roadmap.en.md)
+- [v0.4.0 acceptance record](docs/acceptance/v0.4.0.md)
+- [Development roadmap](docs/roadmap.en.md)
 
 ## Local Setup
 
+For a new checkout, install all backend and frontend dependencies with:
+
+```bash
+./scripts/setup.sh
+```
+
+Use `./scripts/setup.sh --with-browser` when the checkout will run Playwright tests. See the
+[installation guide](docs/installation.md) for prerequisites, setup variants, and troubleshooting.
+The installer begins with an Interactive/Automatic mode choice, with Interactive selected by
+default. Both modes show the complete installation plan; use `--dry-run` to inspect the same
+commands without making changes.
+
 Runtime configuration is split by purpose:
 
-- `.env.dev` is loaded by normal backend and local model commands.
-- `.env.test` is loaded by `./app.py test` and can drive deterministic production Compose checks.
-- `.env.e2e` is loaded by browser-test setup and cleanup commands.
-- `.env.production` is operator-managed, ignored by Git, and used explicitly by production Compose.
+- `config/env/dev.env` is loaded by normal backend and local model commands.
+- `config/env/test.env` is loaded by `./manage.py test` and can drive deterministic production Compose checks.
+- `config/env/e2e.env` is loaded by browser-test setup and cleanup commands.
+- `config/env/prod.env` is operator-managed, ignored by Git, and used explicitly by production Compose.
 
-For development, an existing untracked `.env` is loaded after `.env.dev` as a local override. It
-also remains the compatibility fallback when a selected profile file is absent. Override any
-command with `./app.py --env-file path/to/file <command>` or set `APP_ENV_FILE` for direct Python
+For development, an existing untracked `config/env/local.env` is loaded after
+`config/env/dev.env` as a local override. It also remains the fallback when a selected profile
+file is absent. Override any
+command with `./manage.py --env-file path/to/file <command>` or set `APP_ENV_FILE` for direct Python
 and model scripts. Environment variables already exported by the caller take precedence over file
 values.
 
@@ -56,19 +70,19 @@ conda activate offline-ai
 Start dependencies:
 
 ```bash
-docker compose up -d postgres redis
+docker compose -f deploy/compose.yaml up -d postgres redis
 ```
 
 Apply migrations:
 
 ```bash
-./app.py migrate
+./manage.py migrate
 ```
 
 Start the API:
 
 ```bash
-./app.py runserver
+./manage.py runserver
 ```
 
 The API runs at:
@@ -93,12 +107,12 @@ LLM_BACKEND=fake
 
 The Phase 2 runtime decision is recorded in
 [`docs/adr/0002-phase-2-llm-runtime.md`](docs/adr/0002-phase-2-llm-runtime.md), and current
-acceptance evidence is tracked in [`docs/phase-2-acceptance.md`](docs/phase-2-acceptance.md).
+acceptance evidence is tracked in [`docs/acceptance/phase-2.md`](docs/acceptance/phase-2.md).
 
 To use a local OpenAI-compatible server such as `llama-server`, start it on port `8080` and configure:
 
 ```bash
-./app.py llm-start
+./manage.py llm-start
 ```
 
 ```env
@@ -127,18 +141,18 @@ LLAMA_GPU_LAYERS=
 LLAMA_FLASH_ATTN=
 LLAMA_EXTRA_ARGS=
 LLAMA_PROFILE=
-LLAMA_PROFILE_DIR=scripts/llama_profiles
-LLAMA_PID_FILE=/tmp/offline-hub-llama-server.pid
+LLAMA_PROFILE_DIR=config/models
+LLAMA_PID_FILE=var/run/llm.pid
 LLAMA_SHUTDOWN_TIMEOUT_SECONDS=15
 ```
 
 The LLM limits are hardware safety rails. They are intended to prevent accidental oversized prompts, runaway generations, or concurrent CPU-heavy requests on local machines.
 The `LLAMA_*` settings control the local `llama-server` process. By default the profile is conservative for WSL CPU use: one parallel slot, a 4096-token context, automatic thread selection, and llama.cpp's default device behavior.
 To use a local `.gguf` file instead of Hugging Face download/cache, set `LLAMA_MODEL_PATH=/path/to/model.gguf`; when this is set it takes precedence over `LLAMA_MODEL_REPO`.
-`./app.py llm-start` writes `LLAMA_PID_FILE`, removes stale PID files, and exits cleanly when the configured server is already responding. Stop a server launched by this project with:
+`./manage.py llm-start` writes `LLAMA_PID_FILE`, removes stale PID files, and exits cleanly when the configured server is already responding. Stop a server launched by this project with:
 
 ```bash
-./app.py llm-stop
+./manage.py llm-stop
 ```
 
 Shutdown sends `SIGTERM` first and waits `LLAMA_SHUTDOWN_TIMEOUT_SECONDS` before using `SIGKILL`.
@@ -167,13 +181,13 @@ LLAMA_GPU_LAYERS=auto
 Check the running server:
 
 ```bash
-./app.py llm-check
+./manage.py llm-check
 ```
 
 There is also a preset for the larger Llama 3.1 8B GPU profile:
 
 ```bash
-scripts/start_llama_3_1_8b_gpu.sh
+scripts/models/start-llama31-gpu.sh
 ```
 
 It maps to:
@@ -189,10 +203,11 @@ It maps to:
 
 The preset still uses the managed start script underneath, so PID handling, stale-process checks, and already-running detection remain active.
 
-For experimentation, use named runtime profiles. Profiles are simple env files in `scripts/llama_profiles/` and override the base `.env` values:
+For experimentation, use named runtime profiles. Profiles are simple env files in `config/models/`
+and override the base development environment:
 
 ```bash
-./app.py llm-start --profile llama31-8b-9950x-5070
+./manage.py llm-start --profile llama31-8b-9950x-5070
 ```
 
 The included `llama31-8b-9950x-5070` profile sets:
@@ -255,7 +270,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/chat/completions \
 Probe the configured backend directly:
 
 ```bash
-./app.py llm-probe "Explain the project briefly."
+./manage.py llm-probe "Explain the project briefly."
 ```
 
 ## Document Ingestion
@@ -327,14 +342,14 @@ GET /api/v1/chat/conversations
 GET /api/v1/chat/conversations/{conversation_id}/messages
 ```
 
-The Phase 3 pgvector migration backfills existing JSON embeddings only when they already have 768 dimensions. Older incompatible embeddings are marked stale by clearing `embedding_model`; run `./app.py embedding-reindex` after configuring the desired embedding backend.
+The Phase 3 pgvector migration backfills existing JSON embeddings only when they already have 768 dimensions. Older incompatible embeddings are marked stale by clearing `embedding_model`; run `./manage.py embedding-reindex` after configuring the desired embedding backend.
 
 Redis ingestion is the default application mode. Uploads return as `pending` and are processed by
 a worker. Use `DOCUMENT_INGESTION_MODE=sync` only for focused development or tests. Start a local
 worker with:
 
 ```bash
-./app.py ingestion-worker
+./manage.py ingestion-worker
 ```
 
 The worker reserves jobs in a processing list, acknowledges successful or terminal jobs, recovers
@@ -344,7 +359,7 @@ interrupted reservations on startup, and retries unexpected failures up to
 For Docker Compose, start the API and worker profile together:
 
 ```bash
-docker compose --profile worker up -d api ingestion-worker
+docker compose -f deploy/compose.yaml --profile worker up -d api ingestion-worker
 ```
 
 ### Local semantic embeddings
@@ -352,13 +367,13 @@ docker compose --profile worker up -d api ingestion-worker
 Run the dedicated EmbeddingGemma server separately from the chat model:
 
 ```bash
-./app.py embedding-start
+./manage.py embedding-start
 ```
 
 It uses port `8081` by default and has independent CPU, GPU, batch, model, PID, and shutdown settings under `EMBEDDING_SERVER_*`. In another terminal, verify it:
 
 ```bash
-./app.py embedding-check
+./manage.py embedding-check
 ```
 
 Configure the API to use it:
@@ -370,22 +385,22 @@ EMBEDDING_MODEL=embeddinggemma-300m
 EMBEDDING_DIMENSIONS=768
 ```
 
-Restart the API after changing `.env`, then replace vectors generated by the fake provider:
+Restart the API after changing `config/env/local.env`, then replace vectors generated by the fake provider:
 
 ```bash
-./app.py embedding-reindex
+./manage.py embedding-reindex
 ```
 
 For an incremental pass that only processes missing vectors or chunks embedded with another model:
 
 ```bash
-./app.py embedding-reindex --stale-only
+./manage.py embedding-reindex --stale-only
 ```
 
 Search only considers vectors produced by the currently configured embedding model, preventing incompatible vector dimensions from being mixed. Stop the dedicated server gracefully with:
 
 ```bash
-./app.py embedding-stop
+./manage.py embedding-stop
 ```
 
 Search over embedded chunks:
@@ -406,7 +421,7 @@ POST /api/v1/documents/search
 With the API running, execute:
 
 ```bash
-./app.py smoke
+./manage.py smoke
 ```
 
 The smoke test performs a real HTTP flow:
@@ -430,19 +445,19 @@ The smoke test performs a real HTTP flow:
 Run lint:
 
 ```bash
-./app.py lint
+./manage.py lint
 ```
 
 Run static type checks:
 
 ```bash
-./app.py typecheck
+./manage.py typecheck
 ```
 
 Run tests:
 
 ```bash
-./app.py test
+./manage.py test
 ```
 
 The local test command requires PostgreSQL and Redis to be running. It creates the isolated
@@ -450,19 +465,19 @@ The local test command requires PostgreSQL and Redis to be running. It creates t
 backends, and then runs `pytest`. By default the test database URL is derived from `DATABASE_URL`;
 set `TEST_DATABASE_URL` and `TEST_DATABASE_ADMIN_URL` to override it. The test fixtures and
 database preparation script both refuse non-test database names.
-Pass pytest options after `--`, for example `./app.py test -- -k chat`.
+Pass pytest options after `--`, for example `./manage.py test -- -k chat`.
 
 Prepare the isolated browser-test database and document storage before starting its API:
 
 ```bash
-./app.py e2e-setup
+./manage.py e2e-setup
 ```
 
 The E2E environment uses `offline_ai_e2e`, synchronous ingestion, and deterministic fake LLM
 and embedding providers by default. Clear all browser-test rows and uploaded files with:
 
 ```bash
-./app.py e2e-cleanup
+./manage.py e2e-cleanup
 ```
 
 Both commands refuse database names without the `_e2e` suffix and storage paths outside
@@ -473,7 +488,7 @@ storage directory must remain beneath its configured E2E storage root.
 Run tests inside Docker Compose:
 
 ```bash
-./app.py test-container
+./manage.py test-container
 ```
 
 This rebuilds the API test image and runs the same isolated database preparation, migrations,
@@ -492,14 +507,14 @@ npm run test:e2e
 
 With local OpenAI-compatible chat and embedding servers listening on ports `8080` and `8081`, run
 the opt-in real-model workflow with `npm run test:e2e:real`. Exact accepted model identifiers and
-results are recorded in [`docs/v0.4.0-acceptance.md`](docs/v0.4.0-acceptance.md).
+results are recorded in [`docs/acceptance/v0.4.0.md`](docs/acceptance/v0.4.0.md).
 
 ## Docker Compose
 
 Build and start the API with PostgreSQL and Redis:
 
 ```bash
-docker compose up --build api
+docker compose -f deploy/compose.yaml up --build api
 ```
 
 The API container waits for PostgreSQL and Redis, applies Alembic migrations, and then starts FastAPI on:
@@ -511,7 +526,7 @@ http://127.0.0.1:8000
 Run the same smoke test against the containerized API:
 
 ```bash
-./app.py smoke
+./manage.py smoke
 ```
 
 ### Production web stack
@@ -519,8 +534,8 @@ Run the same smoke test against the containerized API:
 Create the production environment file and replace both placeholder secrets before startup:
 
 ```bash
-cp .env.production.example .env.production
-docker compose --env-file .env.production -f docker-compose.production.yml up --build -d --wait
+cp config/env/prod.example.env config/env/prod.env
+docker compose --env-file config/env/prod.env -f deploy/compose.prod.yaml up --build -d --wait
 ```
 
 The production stack publishes the Vue and Nginx application on `WEB_PORT` (port `3000` by
@@ -534,14 +549,14 @@ model-server ports.
 PostgreSQL data, uploaded documents, and the Redis ingestion queue use the named
 `postgres_data`, `api_storage`, and `redis_data` volumes under the
 `offline-intelligence-hub-production` Compose project. Containers restart automatically unless
-an operator explicitly stops them. A normal `docker compose down` retains these volumes; adding
-`--volumes` permanently deletes application data.
+an operator explicitly stops them. A normal production Compose `down` retains these volumes;
+adding `--volumes` permanently deletes application data.
 
 Inspect or stop this stack with the same file and environment arguments:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.production.yml ps
-docker compose --env-file .env.production -f docker-compose.production.yml down
+docker compose --env-file config/env/prod.env -f deploy/compose.prod.yaml ps
+docker compose --env-file config/env/prod.env -f deploy/compose.prod.yaml down
 ```
 
 After the stack is healthy, validate the built browser application through the reverse proxy:

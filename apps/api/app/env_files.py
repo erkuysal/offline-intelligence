@@ -6,13 +6,14 @@ from dotenv import dotenv_values
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 ENV_FILE_VARIABLE = "APP_ENV_FILE"
+ENV_DIR = Path("config/env")
 PROFILE_ENV_FILES = {
-    "dev": ".env.dev",
-    "development": ".env.dev",
-    "test": ".env.test",
-    "testing": ".env.test",
-    "e2e": ".env.e2e",
-    "production": ".env.production",
+    "dev": "dev.env",
+    "development": "dev.env",
+    "test": "test.env",
+    "testing": "test.env",
+    "e2e": "e2e.env",
+    "production": "prod.env",
 }
 
 
@@ -23,12 +24,12 @@ def resolve_env_file(profile: str | None = None, *, root: Path = PROJECT_ROOT) -
         return path if path.is_absolute() else root / path
 
     normalized_profile = (profile or os.environ.get("ENVIRONMENT") or "development").lower()
-    profile_file = root / PROFILE_ENV_FILES.get(normalized_profile, f".env.{normalized_profile}")
+    profile_file = root / ENV_DIR / PROFILE_ENV_FILES.get(normalized_profile, f"{normalized_profile}.env")
     if profile_file.is_file():
         return profile_file
 
-    legacy_file = root / ".env"
-    return legacy_file if legacy_file.is_file() else None
+    local_file = root / ENV_DIR / "local.env"
+    return local_file if local_file.is_file() else None
 
 
 def resolve_env_files(profile: str | None = None, *, root: Path = PROJECT_ROOT) -> tuple[Path, ...]:
@@ -38,14 +39,14 @@ def resolve_env_files(profile: str | None = None, *, root: Path = PROJECT_ROOT) 
 
     normalized_profile = (profile or os.environ.get("ENVIRONMENT") or "development").lower()
     explicit_file = os.environ.get(ENV_FILE_VARIABLE)
-    legacy_file = root / ".env"
+    local_file = root / ENV_DIR / "local.env"
     if (
         explicit_file is None
         and normalized_profile in {"dev", "development"}
-        and primary_file != legacy_file
-        and legacy_file.is_file()
+        and primary_file != local_file
+        and local_file.is_file()
     ):
-        return primary_file, legacy_file
+        return primary_file, local_file
     return (primary_file,)
 
 

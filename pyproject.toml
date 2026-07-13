@@ -1,4 +1,10 @@
 [tool.pytest.ini_options]
 pythonpath = ["apps/api"]
 testpaths = ["apps/api/tests"]
+cache_dir = "var/cache/pytest"
 
+[tool.mypy]
+cache_dir = "var/cache/mypy"
+
+[tool.ruff]
+cache-dir = "var/cache/ruff"
