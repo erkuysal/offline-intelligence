@@ -2,7 +2,7 @@ import type { APIRequestContext, Page } from '@playwright/test'
 
 import { expect, test } from './fixtures'
 
-const API_BASE_URL = process.env.PACKAGE4_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const API_BASE_URL = process.env.E2E_API_BASE_URL ?? 'http://127.0.0.1:8002'
 
 test.beforeEach(async ({ page }) => {
   await forwardApi(page)

@@ -1,12 +1,7 @@
 import { expect, test } from './fixtures'
 
-test.beforeEach(async ({ page }) => {
-  const uniqueId = `${Date.now()}-${test.info().workerIndex}`
-  await page.goto('/register')
-  await page.getByLabel('Email').fill(`playwright-documents-${uniqueId}@example.com`)
-  await page.getByLabel('Password').fill('Playwright-Test-2026!')
-  await page.getByRole('button', { name: 'Create account' }).click()
-  await expect(page).toHaveURL(/\/documents$/)
+test.beforeEach(async ({ registerUser }) => {
+  await registerUser('documents')
 })
 
 test('rejects unsupported and oversized files before upload', async ({ page }) => {
@@ -80,9 +75,9 @@ test('polls asynchronous ingestion from pending to ready', async ({ page }) => {
   expect(statusChecks).toBe(2)
 })
 
-test('shows version history after uploading changed content with the same filename', async ({ page }) => {
-  await uploadTextDocument(page, 'versioned-policy.txt', 'Backups run nightly.')
-  await uploadTextDocument(page, 'versioned-policy.txt', 'Backups run nightly and verify monthly.')
+test('shows version history after uploading changed content with the same filename', async ({ page, uploadTextDocument }) => {
+  await uploadTextDocument('versioned-policy.txt', 'Backups run nightly.')
+  await uploadTextDocument('versioned-policy.txt', 'Backups run nightly and verify monthly.')
 
   const documentRow = page.getByRole('row').filter({ hasText: 'versioned-policy.txt' })
   await expect(documentRow).toContainText('2')
@@ -93,12 +88,12 @@ test('shows version history after uploading changed content with the same filena
   await expect(versionHistory.getByRole('cell', { name: 'v2' })).toBeVisible()
 })
 
-test('requires confirmation and deletes a document', async ({ page }) => {
+test('requires confirmation and deletes a document', async ({ page, uploadTextDocument }) => {
   test.info().annotations.push({
     type: 'allow-browser-error',
     description: 'network: DELETE .*/api/v1/documents/\\d+.*ERR_ABORTED',
   })
-  await uploadTextDocument(page, 'temporary-policy.txt', 'Temporary retention policy.')
+  await uploadTextDocument('temporary-policy.txt', 'Temporary retention policy.')
   const documentRow = page.getByRole('row').filter({ hasText: 'temporary-policy.txt' })
   await documentRow.getByRole('link', { name: 'Open' }).click()
 
@@ -115,8 +110,8 @@ test('requires confirmation and deletes a document', async ({ page }) => {
   await expect(page.getByRole('row').filter({ hasText: 'temporary-policy.txt' })).toHaveCount(0)
 })
 
-test('reindexes an owned document and returns to ready', async ({ page }) => {
-  const uploaded = await uploadTextDocument(page, 'reindex-policy.txt', 'Reindex this policy.')
+test('reindexes an owned document and returns to ready', async ({ page, uploadTextDocument }) => {
+  const uploaded = await uploadTextDocument('reindex-policy.txt', 'Reindex this policy.')
   const documentRow = page.getByRole('row').filter({ hasText: 'reindex-policy.txt' })
   await documentRow.getByRole('link', { name: 'Open' }).click()
 
@@ -133,7 +128,7 @@ test('reindexes an owned document and returns to ready', async ({ page }) => {
   await expect(page.getByText('ready', { exact: true })).toBeVisible({ timeout: 3_000 })
 })
 
-test('shows failed ingestion and recovers with a corrected version', async ({ page }) => {
+test('shows failed ingestion and recovers with a corrected version', async ({ page, uploadTextDocument }) => {
   await page.locator('input[type="file"]').setInputFiles({
     name: 'recover-policy.txt',
     mimeType: 'text/plain',
@@ -143,22 +138,7 @@ test('shows failed ingestion and recovers with a corrected version', async ({ pa
   const documentRow = page.getByRole('row').filter({ hasText: 'recover-policy.txt' })
   await expect(documentRow).toContainText('failed')
 
-  await uploadTextDocument(page, 'recover-policy.txt', 'Corrected recovery policy.')
+  await uploadTextDocument('recover-policy.txt', 'Corrected recovery policy.')
   await expect(documentRow).toContainText('ready')
   await expect(documentRow).toContainText('2')
 })
-
-async function uploadTextDocument(page: import('@playwright/test').Page, name: string, content: string) {
-  const responsePromise = page.waitForResponse(
-    response => response.request().method() === 'POST' && response.url().endsWith('/api/v1/documents'),
-  )
-  await page.locator('input[type="file"]').setInputFiles({
-    name,
-    mimeType: 'text/plain',
-    buffer: Buffer.from(content),
-  })
-  const response = await responsePromise
-  expect(response.ok()).toBe(true)
-  await expect(page.getByRole('row').filter({ hasText: name })).toContainText('ready')
-  return (await response.json()) as { id: number; [key: string]: unknown }
-}

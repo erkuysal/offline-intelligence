@@ -3,6 +3,8 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:8000'
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -13,9 +15,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://127.0.0.1:8000',
-      '/health': 'http://127.0.0.1:8000',
-      '/metrics': 'http://127.0.0.1:8000',
+      '/api': apiProxyTarget,
+      '/health': apiProxyTarget,
+      '/metrics': apiProxyTarget,
     },
   },
   test: {

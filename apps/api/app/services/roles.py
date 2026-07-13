@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.models.role import Role
@@ -18,12 +19,16 @@ def get_or_create_role(db: Session, name: str) -> Role:
     if role is not None:
         return role
 
-    role = Role(
-        name=name,
-        description=ROLE_DESCRIPTIONS.get(name),
+    role = db.scalar(
+        insert(Role)
+        .values(name=name, description=ROLE_DESCRIPTIONS.get(name))
+        .on_conflict_do_nothing(index_elements=[Role.name])
+        .returning(Role),
     )
-    db.add(role)
-    db.flush()
+    if role is None:
+        role = db.scalar(select(Role).where(Role.name == name))
+    if role is None:
+        raise RuntimeError(f"Role creation did not return a role: {name}")
 
     return role
 
@@ -40,4 +45,3 @@ def assign_role(user: User, role: Role) -> None:
 
 def role_names(user: User) -> list[str]:
     return sorted(role.name for role in user.roles)
-

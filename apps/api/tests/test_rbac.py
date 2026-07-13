@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from uuid import uuid4
 
 import pytest
@@ -6,8 +8,9 @@ from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.main import app
+from app.models.role import Role
 from app.models.user import User
-from app.services.roles import ADMIN_ROLE, assign_role, get_or_create_role
+from app.services.roles import ADMIN_ROLE, assign_role, get_or_create_role, seed_default_roles
 
 client = TestClient(app)
 pytestmark = pytest.mark.usefixtures("clean_database")
@@ -49,6 +52,25 @@ def test_users_me_requires_authentication() -> None:
     response = client.get("/api/v1/users/me")
 
     assert response.status_code == 401
+
+
+def test_default_role_seeding_is_safe_for_parallel_first_requests() -> None:
+    barrier = Barrier(2)
+
+    def seed_roles() -> None:
+        with SessionLocal() as db:
+            barrier.wait()
+            seed_default_roles(db)
+            db.commit()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(seed_roles) for _ in range(2)]
+        for future in futures:
+            future.result()
+
+    with SessionLocal() as db:
+        roles = db.scalars(select(Role).order_by(Role.name)).all()
+        assert [role.name for role in roles] == ["admin", "user"]
 
 
 def test_users_me_returns_current_user_with_roles() -> None:

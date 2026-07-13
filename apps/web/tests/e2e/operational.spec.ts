@@ -2,8 +2,8 @@ import type { Page } from '@playwright/test'
 
 import { expect, test } from './fixtures'
 
-test.beforeEach(async ({ page }) => {
-  await register(page)
+test.beforeEach(async ({ registerUser }) => {
+  await registerUser('operational')
 })
 
 test('shows an isolated service outage and recovers on manual refresh', async ({ page }) => {
@@ -75,14 +75,6 @@ test('disables operational animation when reduced motion is requested', async ({
   await expect(spinner).toHaveCSS('animation-name', 'none')
   await expect(page.getByRole('status')).toContainText('Services checked')
 })
-
-async function register(page: Page) {
-  await page.goto('/register')
-  await page.getByLabel('Email').fill(`playwright-operational-${Date.now()}@example.com`)
-  await page.getByLabel('Password').fill('Playwright-Test-2026!')
-  await page.getByRole('button', { name: 'Create account' }).click()
-  await expect(page).toHaveURL(/\/documents$/)
-}
 
 async function mockHealthyServices(page: Page) {
   await page.route('**/health**', async route => {

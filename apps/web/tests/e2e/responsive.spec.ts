@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 
 import { expect, test } from './fixtures'
 
-test('keeps operational and chat surfaces within the viewport', async ({ page }) => {
+test('keeps operational and chat surfaces within the viewport', async ({ page, registerUser }) => {
   await page.route('**/health**', async route => {
     const path = new URL(route.request().url()).pathname
     const service = path === '/health' ? 'api' : path.split('/').at(-1) ?? 'api'
@@ -19,7 +19,7 @@ test('keeps operational and chat surfaces within the viewport', async ({ page })
       }),
     })
   })
-  await register(page)
+  await registerUser('responsive')
   await page.getByRole('link', { name: 'System' }).click()
   await expect(page.locator('.health-item')).toHaveCount(6)
   await expectNoHorizontalOverflow(page)
@@ -35,14 +35,6 @@ test('keeps operational and chat surfaces within the viewport', async ({ page })
   await expectNoOverlap(history, conversation)
   await expectNoOverlap(conversation, sources)
 })
-
-async function register(page: Page) {
-  await page.goto('/register')
-  await page.getByLabel('Email').fill(`playwright-responsive-${Date.now()}@example.com`)
-  await page.getByLabel('Password').fill('Playwright-Test-2026!')
-  await page.getByRole('button', { name: 'Create account' }).click()
-  await expect(page).toHaveURL(/\/documents$/)
-}
 
 async function expectNoHorizontalOverflow(page: Page) {
   await expect
