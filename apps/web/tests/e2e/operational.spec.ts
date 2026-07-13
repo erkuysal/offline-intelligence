@@ -24,8 +24,8 @@ test('shows an isolated service outage and recovers on manual refresh', async ({
 
   await page.getByRole('link', { name: 'System' }).click()
 
-  const redis = page.locator('.health-item').filter({ hasText: 'Redis' })
-  const api = page.locator('.health-item').filter({ hasText: 'API' })
+  const redis = page.getByRole('article', { name: 'Redis' })
+  const api = page.getByRole('article', { name: 'API' })
   await expect(redis).toContainText('unavailable')
   await expect(redis).toContainText('redis_unavailable')
   await expect(api).toContainText('healthy')
@@ -70,7 +70,7 @@ test('disables operational animation when reduced motion is requested', async ({
   })
 
   await page.getByRole('link', { name: 'System' }).click()
-  const spinner = page.locator('.spin')
+  const spinner = page.getByRole('button', { name: 'Refresh' }).locator('svg')
   await expect(spinner).toBeVisible()
   await expect(spinner).toHaveCSS('animation-name', 'none')
   await expect(page.getByRole('status')).toContainText('Services checked')

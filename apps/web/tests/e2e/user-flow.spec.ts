@@ -24,7 +24,7 @@ test('registers, uploads a document, asks a grounded question, and logs out', as
   await expect(page).toHaveURL(/\/documents$/)
   await expect(page.getByRole('heading', { name: 'Corpus' })).toBeVisible()
 
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel('Upload document').setInputFiles({
     name: filename,
     mimeType: 'text/plain',
     buffer: Buffer.from(
@@ -44,8 +44,8 @@ test('registers, uploads a document, asks a grounded question, and logs out', as
   await page.getByPlaceholder('Ask a question').fill('When do incremental and full backups run?')
   await page.getByRole('button', { name: 'Send' }).click()
 
-  await expect(page.locator('.message.assistant')).not.toBeEmpty({ timeout: 60_000 })
-  await expect(page.locator('.source-item').filter({ hasText: filename })).toBeVisible({
+  await expect(page.getByRole('article', { name: 'Assistant message' })).not.toBeEmpty({ timeout: 60_000 })
+  await expect(page.getByRole('article', { name: `Source: ${filename}` })).toBeVisible({
     timeout: 60_000,
   })
   if (demoPauseMs > 0) await page.waitForTimeout(demoPauseMs)

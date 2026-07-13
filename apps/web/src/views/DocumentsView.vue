@@ -47,6 +47,7 @@ async function uploadSelected() {
           ref="fileInput"
           class="visually-hidden"
           type="file"
+          aria-label="Upload document"
           accept=".txt,.pdf,.md,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           :disabled="documents.uploading"
           @change="uploadSelected"

@@ -39,9 +39,14 @@ function formatUpdated(value: string | null): string {
       <span>Updated {{ formatUpdated(system.lastUpdated) }}</span>
     </p>
     <div class="health-grid">
-      <article v-for="(value, key) in system.health" :key="key" class="health-item">
+      <article
+        v-for="(value, key) in system.health"
+        :key="key"
+        class="health-item"
+        :aria-labelledby="`health-${key}`"
+      >
         <header>
-          <h2>{{ labels[key] }}</h2>
+          <h2 :id="`health-${key}`">{{ labels[key] }}</h2>
           <StatusBadge :status="value?.status ?? 'unknown'" />
         </header>
         <p>{{ value?.detail ?? 'Waiting for health check' }}</p>

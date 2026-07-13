@@ -12,7 +12,7 @@ test('rejects unsupported and oversized files before upload', async ({ page }) =
     }
   })
 
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel('Upload document').setInputFiles({
     name: 'records.csv',
     mimeType: 'text/csv',
     buffer: Buffer.from('id,value\n1,test'),
@@ -20,7 +20,7 @@ test('rejects unsupported and oversized files before upload', async ({ page }) =
 
   await expect(page.getByRole('alert')).toContainText('TXT, Markdown, PDF, or DOCX')
 
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel('Upload document').setInputFiles({
     name: 'large.txt',
     mimeType: 'text/plain',
     buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
@@ -62,7 +62,7 @@ test('polls asynchronous ingestion from pending to ready', async ({ page }) => {
     })
   })
 
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel('Upload document').setInputFiles({
     name: 'async-policy.txt',
     mimeType: 'text/plain',
     buffer: Buffer.from('backup policy'),
@@ -129,7 +129,7 @@ test('reindexes an owned document and returns to ready', async ({ page, uploadTe
 })
 
 test('shows failed ingestion and recovers with a corrected version', async ({ page, uploadTextDocument }) => {
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel('Upload document').setInputFiles({
     name: 'recover-policy.txt',
     mimeType: 'text/plain',
     buffer: Buffer.from([0xff, 0xfe]),

@@ -274,7 +274,7 @@ function sourceAccessible(source: DisplaySource): boolean {
       </nav>
     </aside>
 
-    <div class="conversation-panel">
+    <section class="conversation-panel" aria-label="Conversation">
       <p v-if="loadingConversation" class="muted-status">Loading conversation...</p>
       <div class="message-list" aria-live="polite">
         <div
@@ -282,6 +282,8 @@ function sourceAccessible(source: DisplaySource): boolean {
           :key="message.key"
           class="message"
           :class="message.role"
+          role="article"
+          :aria-label="`${message.role === 'assistant' ? 'Assistant' : 'User'} message`"
           :aria-busy="loading && index === messages.length - 1"
         >
           {{ message.content }}<span v-if="loading && index === messages.length - 1" class="stream-cursor" aria-hidden="true" />
@@ -304,9 +306,9 @@ function sourceAccessible(source: DisplaySource): boolean {
           </button>
         </div>
       </form>
-    </div>
+    </section>
 
-    <aside class="sources-panel">
+    <aside class="sources-panel" aria-labelledby="sources-heading">
       <div class="grounding-controls">
         <label class="toggle-control">
           <input v-model="grounded" type="checkbox" :disabled="loading" />
@@ -329,8 +331,13 @@ function sourceAccessible(source: DisplaySource): boolean {
           <p v-if="needsDocumentSelection" class="selection-error">Select at least one document</p>
         </fieldset>
       </div>
-      <h2>Sources</h2>
-      <article v-for="source in activeSources" :key="`${source.document_id}-${source.chunk_index}`" class="source-item">
+      <h2 id="sources-heading">Sources</h2>
+      <article
+        v-for="source in activeSources"
+        :key="`${source.document_id}-${source.chunk_index}`"
+        class="source-item"
+        :aria-label="`Source: ${source.document_filename}`"
+      >
         <strong>{{ source.document_filename }}</strong>
         <span>{{ source.source_label ?? `Chunk ${source.chunk_index}` }}</span>
         <span v-if="source.source_page !== null">Page {{ source.source_page }}</span>

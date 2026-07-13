@@ -86,7 +86,7 @@ async function uploadTextDocument(page: Page, name: string, content: string) {
   const responsePromise = page.waitForResponse(
     response => response.request().method() === 'POST' && response.url().endsWith('/api/v1/documents'),
   )
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel('Upload document').setInputFiles({
     name,
     mimeType: 'text/plain',
     buffer: Buffer.from(content),

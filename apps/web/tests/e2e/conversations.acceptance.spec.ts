@@ -23,8 +23,8 @@ test('restores the active conversation after reload', async ({ page }) => {
 
   await page.reload()
 
-  await expect(page.locator('.message.user')).toContainText('Remember this persisted answer')
-  await expect(page.locator('.message.assistant')).toContainText(
+  await expect(page.getByRole('article', { name: 'User message' })).toContainText('Remember this persisted answer')
+  await expect(page.getByRole('article', { name: 'Assistant message' })).toContainText(
     'Fake LLM response: Remember this persisted answer',
   )
 })
@@ -32,7 +32,7 @@ test('restores the active conversation after reload', async ({ page }) => {
 test('inspects a persisted citation and opens its exact document chunk', async ({ page }) => {
   await registerInBrowser(page, 'source')
   const filename = `retention-${Date.now()}.txt`
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel('Upload document').setInputFiles({
     name: filename,
     mimeType: 'text/plain',
     buffer: Buffer.from('Retention policy: encrypted backups are retained for ninety days.'),
@@ -42,15 +42,16 @@ test('inspects a persisted citation and opens its exact document chunk', async (
   await page.getByPlaceholder('Ask a question').fill('How long are encrypted backups retained?')
   await page.getByRole('button', { name: 'Send' }).click()
 
-  const source = page.locator('.source-item').filter({ hasText: filename })
+  const source = page.getByRole('article', { name: `Source: ${filename}` })
   await expect(source).toContainText('Retention policy: encrypted backups are retained for ninety days.')
   await expect(source).toContainText('Score')
   await source.getByRole('link', { name: 'Open passage' }).click()
 
   await expect(page).toHaveURL(/\/documents\/\d+#chunk-\d+$/)
-  const chunkId = new URL(page.url()).hash
-  await expect(page.locator(chunkId)).toBeVisible()
-  await expect(page.locator(chunkId)).toContainText('encrypted backups are retained for ninety days')
+  await expect(page.getByRole('article', { name: 'Chunk 0' })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Chunk 0' })).toContainText(
+    'encrypted backups are retained for ninety days',
+  )
 })
 
 test('deletes the active conversation with confirmation', async ({ page }) => {
@@ -73,7 +74,7 @@ test('deletes the active conversation with confirmation', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Delete permanently' }).click()
 
   await expect(history).not.toContainText('Disposable conversation')
-  await expect(page.locator('.message')).toHaveCount(0)
+  await expect(page.getByRole('article', { name: /message$/ })).toHaveCount(0)
   await expect(page).not.toHaveURL(/conversation=/)
 })
 

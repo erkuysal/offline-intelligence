@@ -28,7 +28,7 @@ test('renders streamed text incrementally', async ({ page }) => {
   await page.getByPlaceholder('Ask a question').fill('Stream an answer')
   await page.getByRole('button', { name: 'Send' }).click()
 
-  const answer = page.locator('.message.assistant')
+  const answer = page.getByRole('article', { name: 'Assistant message' })
   await expect(answer).toContainText('First chunk')
   await expect(answer).not.toContainText('final chunk')
   await expect(answer).toContainText('First chunk and final chunk', { timeout: 4_000 })
@@ -46,7 +46,7 @@ test('filters grounding to selected document ids', async ({ page }) => {
   await page.getByRole('button', { name: 'Send' }).click()
 
   await expect(page.getByText('completed', { exact: true })).toBeVisible()
-  await expect(page.locator('.source-item').filter({ hasText: 'policy.txt' })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'Source: policy.txt' })).toBeVisible()
   const requests = await chatRequests(page)
   expect(requests).toHaveLength(1)
   expect(requests[0]).toMatchObject({ use_documents: true, document_ids: [101] })
@@ -58,15 +58,15 @@ test('stops a stream and permits a subsequent request', async ({ page }) => {
 
   await page.getByPlaceholder('Ask a question').fill('Long answer')
   await page.getByRole('button', { name: 'Send' }).click()
-  await expect(page.locator('.message.assistant')).toContainText('Partial answer')
+  await expect(page.getByRole('article', { name: 'Assistant message' })).toContainText('Partial answer')
   await page.getByRole('button', { name: 'Stop' }).click()
 
   await expect(page.getByText('cancelled', { exact: true })).toBeVisible()
-  await expect(page.locator('.message.assistant')).toContainText('Partial answer')
+  await expect(page.getByRole('article', { name: 'Assistant message' })).toContainText('Partial answer')
 
   await page.getByPlaceholder('Ask a question').fill('Second answer')
   await page.getByRole('button', { name: 'Send' }).click()
-  await expect(page.locator('.message.assistant').last()).toContainText('Recovered answer')
+  await expect(page.getByRole('article', { name: 'Assistant message' }).last()).toContainText('Recovered answer')
   await expect(page.getByText('completed', { exact: true })).toBeVisible()
   await expect.poll(async () => (await chatRequests(page)).length).toBe(2)
 })

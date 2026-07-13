@@ -160,15 +160,21 @@ onUnmounted(() => {
     <section class="detail-section" aria-labelledby="chunks-heading">
       <h2 id="chunks-heading">Indexed chunks</h2>
       <div class="chunk-list">
-      <article v-for="chunk in chunks" :id="`chunk-${chunk.id}`" :key="chunk.id" class="chunk-item">
-        <header>
-          <span>Chunk {{ chunk.chunk_index }}</span>
-          <span>{{ chunk.source_label ?? `Page ${chunk.source_page ?? '-'}` }}</span>
-        </header>
-        <small>Characters {{ chunk.char_start }}-{{ chunk.char_end }} | Tokens {{ chunk.token_start }}-{{ chunk.token_end }} | {{ chunk.embedding_model ?? 'Not embedded' }}</small>
-        <p>{{ chunk.content }}</p>
-      </article>
-      <p v-if="document?.status === 'ready' && chunks.length === 0" class="muted-status">No indexed chunks</p>
+        <article
+          v-for="chunk in chunks"
+          :id="`chunk-${chunk.id}`"
+          :key="chunk.id"
+          class="chunk-item"
+          :aria-label="`Chunk ${chunk.chunk_index}`"
+        >
+          <header>
+            <span>Chunk {{ chunk.chunk_index }}</span>
+            <span>{{ chunk.source_label ?? `Page ${chunk.source_page ?? '-'}` }}</span>
+          </header>
+          <small>Characters {{ chunk.char_start }}-{{ chunk.char_end }} | Tokens {{ chunk.token_start }}-{{ chunk.token_end }} | {{ chunk.embedding_model ?? 'Not embedded' }}</small>
+          <p>{{ chunk.content }}</p>
+        </article>
+        <p v-if="document?.status === 'ready' && chunks.length === 0" class="muted-status">No indexed chunks</p>
       </div>
     </section>
 
