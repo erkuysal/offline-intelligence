@@ -1,9 +1,11 @@
+from collections import Counter
 import json
 from pathlib import Path
 
 import pytest
 
 from app.evaluation.retrieval import (
+    EvaluationReport,
     EvaluationThresholds,
     RetrievalCandidate,
     aggregate_metrics,
@@ -14,6 +16,8 @@ from app.evaluation.retrieval import (
 
 ROOT = Path(__file__).resolve().parents[3]
 DATASET_PATH = ROOT / "evaluation" / "datasets" / "dense-baseline-smoke-v1.jsonl"
+FORMAL_DATASET_PATH = ROOT / "evaluation" / "datasets" / "dense-baseline-v1.jsonl"
+BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "dense-baseline-v1.json"
 
 
 def test_load_dataset_validates_versioned_references() -> None:
@@ -27,6 +31,37 @@ def test_load_dataset_validates_versioned_references() -> None:
         "ambiguous",
         "permission_restricted",
     }
+
+
+def test_formal_dataset_has_balanced_20_document_40_case_contract() -> None:
+    dataset = load_dataset(FORMAL_DATASET_PATH)
+
+    assert len(dataset.documents) == 20
+    assert len(dataset.cases) == 40
+    assert Counter(document.language for document in dataset.documents) == {"en": 10, "tr": 10}
+    assert Counter(case.language for case in dataset.cases) == {"en": 20, "tr": 20}
+    assert Counter(case.category for case in dataset.cases) == {
+        "answerable": 28,
+        "ambiguous": 4,
+        "unanswerable": 4,
+        "permission_restricted": 4,
+    }
+    assert dataset.manifest.embedding_model_revision == (
+        "8dd0ca2a66a8f14470acb0e2a71f801afbc5fb73"
+    )
+    assert dataset.manifest.embedding_dimensions == 768
+
+
+def test_accepted_dense_baseline_report_meets_regression_thresholds() -> None:
+    report = EvaluationReport.model_validate_json(BASELINE_REPORT_PATH.read_text(encoding="utf-8"))
+
+    assert report.dataset_id == "dense-baseline"
+    assert report.dataset_version == "1.0.0"
+    assert report.embedding_model_revision == "8dd0ca2a66a8f14470acb0e2a71f801afbc5fb73"
+    assert report.metrics.case_count == 40
+    assert report.metrics.authorization_leak_count == 0
+    assert report.threshold_failures == []
+    assert report.passed is True
 
 
 def test_load_dataset_rejects_unknown_passage(tmp_path: Path) -> None:

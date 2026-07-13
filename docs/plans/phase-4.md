@@ -37,8 +37,7 @@ Missing for Phase 4:
 - [ ] Query rewriting and multi-query retrieval
 - [ ] Context deduplication
 - [ ] Retrieval-run persistence and stage-level observability
-- [ ] A versioned evaluation dataset and repeatable evaluation runner
-- [ ] Retrieval, citation, faithfulness, hallucination, and streaming performance metrics
+- [ ] Full RAG generation evaluation with citation, faithfulness, hallucination, and streaming metrics
 
 ## Work Package 4.0: Evaluation Contract and Dense Baseline
 
@@ -76,9 +75,9 @@ This package must precede retrieval changes.
 
 ### Exit Criteria
 
-- [ ] Store an accepted dense-only baseline report
-- [ ] Define minimum quality thresholds and maximum regression tolerances
-- [ ] Make failed thresholds produce a non-zero CLI exit code
+- [x] Store an accepted dense-only baseline report
+- [x] Define minimum quality thresholds and maximum regression tolerances
+- [x] Make failed thresholds produce a non-zero CLI exit code
 
 ## Work Package 4.1: Retrieval Architecture and Observability
 

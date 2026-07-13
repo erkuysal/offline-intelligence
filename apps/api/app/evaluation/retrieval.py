@@ -35,6 +35,9 @@ class EvaluationManifest(BaseModel):
     corpus_version: str = Field(min_length=1)
     chunking_version: str = Field(min_length=1)
     embedding_model: str = Field(min_length=1)
+    embedding_model_revision: str = Field(min_length=1)
+    embedding_dimensions: int = Field(gt=0)
+    embedding_preprocessing: str = Field(min_length=1)
     prompt_version: str = Field(min_length=1)
     generator_model: str = Field(min_length=1)
     evaluator_version: str = Field(min_length=1)
@@ -134,6 +137,9 @@ class EvaluationReport(BaseModel):
     corpus_version: str
     chunking_version: str
     embedding_model: str
+    embedding_model_revision: str
+    embedding_dimensions: int
+    embedding_preprocessing: str
     evaluator_version: str
     retrieval_limit: int
     metrics: AggregateMetrics
@@ -350,6 +356,9 @@ def evaluate_dataset(
         corpus_version=dataset.manifest.corpus_version,
         chunking_version=dataset.manifest.chunking_version,
         embedding_model=embedding_model,
+        embedding_model_revision=dataset.manifest.embedding_model_revision,
+        embedding_dimensions=dataset.manifest.embedding_dimensions,
+        embedding_preprocessing=dataset.manifest.embedding_preprocessing,
         evaluator_version=dataset.manifest.evaluator_version,
         retrieval_limit=retrieval_limit,
         metrics=metrics,

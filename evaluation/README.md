@@ -25,5 +25,24 @@ match the configured provider unless `--allow-model-mismatch` is explicitly sele
 experiment.
 
 The included smoke corpus proves the runner, pgvector query, filtering, and metric contracts. It is
-not the accepted real-model dense baseline. That baseline requires the planned 20-document,
-40-question English/Turkish corpus and a manifest pinned to the accepted embedding model snapshot.
+not the accepted real-model dense baseline.
+
+Run the accepted 20-document, 40-question real-model baseline with:
+
+```bash
+./manage.py evaluate-retrieval \
+  --dataset evaluation/datasets/dense-baseline-v1.jsonl \
+  --limit 5 \
+  --min-recall 0.95 \
+  --min-precision 0.25 \
+  --min-mrr 0.95 \
+  --min-hit-rate 0.95 \
+  --min-no-result-accuracy 0.5 \
+  --max-mean-latency-ms 50 \
+  --max-authorization-leaks 0 \
+  --output evaluation/baselines/dense-baseline-v1.json
+```
+
+The checked-in [baseline report](baselines/dense-baseline-v1.json) records the accepted metrics and
+per-question rankings. See the [acceptance record](../docs/acceptance/phase-4-dense-baseline.md) for
+interpretation and known limitations.
