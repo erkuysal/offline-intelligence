@@ -2,8 +2,9 @@
 
 ## Status
 
-The Phase 3 backend was released as `v0.3.0`. The integrated browser MVP is now planned for
-`v0.4.0`. Implementation is tracked in the [v0.4.0 MVP task list](v0.4.0-task-list.md).
+The integrated browser MVP was accepted as `v0.4.0` on 2026-07-13. Verification evidence is in
+the [v0.4.0 acceptance record](../v0.4.0-acceptance.md), and implementation is tracked in the
+[v0.4.0 MVP task list](v0.4.0-task-list.md).
 
 ## Product Definition
 

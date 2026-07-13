@@ -8,7 +8,7 @@ from app.env_files import resolve_env_files
 
 class Settings(BaseSettings):
     app_name: str = "Offline Intelligence Hub API"
-    app_version: str = "0.3.0"
+    app_version: str = "0.4.0"
     environment: str = "development"
     debug: bool = False
     host: str = "127.0.0.1"

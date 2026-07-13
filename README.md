@@ -1,6 +1,6 @@
 # Offline Intelligence Hub
 
-Phase 3 backend for an offline/on-premise document intelligence platform.
+`v0.4.0` browser MVP for an offline/on-premise document intelligence platform.
 
 ## Current Capabilities
 
@@ -21,11 +21,15 @@ Phase 3 backend for an offline/on-premise document intelligence platform.
 - OpenAI-style chat completions endpoint with a fake local LLM backend
 - Opt-in document retrieval for grounded chat responses with source metadata
 - Streaming chat completions via server-sent events
+- Vue 3 browser client with protected authentication, document, chat, conversation, and health routes
+- Inspectable persisted citations and conversation history
+- Nginx single-origin production routing and deterministic Playwright coverage
 
 ## Product Plans
 
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)
+- [v0.4.0 acceptance record](docs/v0.4.0-acceptance.md)
 - [Development roadmap](offline-intelligence-hub-roadmap.en.md)
 
 ## Local Setup
@@ -475,6 +479,21 @@ Run tests inside Docker Compose:
 This rebuilds the API test image and runs the same isolated database preparation, migrations,
 and test suite inside the container.
 
+Run the frontend and deterministic browser release gates:
+
+```bash
+cd apps/web
+npm ci
+npm run typecheck
+npm run test:unit
+npm run build
+npm run test:e2e
+```
+
+With local OpenAI-compatible chat and embedding servers listening on ports `8080` and `8081`, run
+the opt-in real-model workflow with `npm run test:e2e:real`. Exact accepted model identifiers and
+results are recorded in [`docs/v0.4.0-acceptance.md`](docs/v0.4.0-acceptance.md).
+
 ## Docker Compose
 
 Build and start the API with PostgreSQL and Redis:
@@ -501,7 +520,7 @@ Create the production environment file and replace both placeholder secrets befo
 
 ```bash
 cp .env.production.example .env.production
-docker compose --env-file .env.production -f docker-compose.production.yml up --build -d
+docker compose --env-file .env.production -f docker-compose.production.yml up --build -d --wait
 ```
 
 The production stack publishes the Vue and Nginx application on `WEB_PORT` (port `3000` by
@@ -523,4 +542,11 @@ Inspect or stop this stack with the same file and environment arguments:
 ```bash
 docker compose --env-file .env.production -f docker-compose.production.yml ps
 docker compose --env-file .env.production -f docker-compose.production.yml down
+```
+
+After the stack is healthy, validate the built browser application through the reverse proxy:
+
+```bash
+cd apps/web
+E2E_PRODUCTION_BASE_URL=http://127.0.0.1:${WEB_PORT:-3000} npm run test:e2e:production
 ```

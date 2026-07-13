@@ -61,6 +61,11 @@ This project aims to develop the main skills listed in the target job posting wi
 
 The first goal is not an advanced AI system, but a basic end-to-end working product.
 
+> **Current position:** Phases 1, 2, and 3 and the integrated `v0.4.0` browser MVP are complete.
+> The accepted release adds the Vue application, streaming grounded chat, source inspection,
+> deterministic browser coverage, and the production single-origin Compose deployment. Phase 4
+> hybrid retrieval and evaluation is the next implementation phase.
+
 ### Features
 
 - FastAPI REST API
@@ -225,6 +230,9 @@ The first version uses `pgvector`. PostgreSQL manages both relational data and t
 ## Phase 4 — Hybrid Retrieval and Evaluation
 
 After basic vector search, the RAG system is measured to verify whether it actually works.
+
+> **Status:** Ready to begin after the `v0.4.0` MVP acceptance on 13 July 2026. Entry criteria and
+> package order are tracked in `docs/phase-4-plan.md`; hybrid retrieval is not part of `v0.4.0`.
 
 ### Retrieval Improvements
 

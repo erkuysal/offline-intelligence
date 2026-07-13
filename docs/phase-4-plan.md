@@ -4,12 +4,19 @@
 
 Phase 4 begins after the `v0.4.0` browser MVP is accepted. Before retrieval behavior changes:
 
-- [ ] The upload, ingestion, grounded chat, and source-inspection loop works end to end
-- [ ] Streaming chat and source persistence have stable contracts
-- [ ] The E2E environment can create and clean up deterministic corpora
-- [ ] Retrieval authorization and document filters have regression coverage
-- [ ] Real embedding model name, dimensions, and preprocessing are pinned
-- [ ] The supported evaluation languages and initial corpus size are documented
+- [x] The upload, ingestion, grounded chat, and source-inspection loop works end to end
+- [x] Streaming chat and source persistence have stable contracts
+- [x] The E2E environment can create and clean up deterministic corpora
+- [x] Retrieval authorization and document filters have regression coverage
+- [x] Real embedding model name, dimensions, and preprocessing are pinned
+- [x] The supported evaluation languages and initial corpus size are documented
+
+Entry was accepted with `v0.4.0` on 2026-07-13. The pinned dense baseline uses
+`ggml-org/embeddinggemma-300M-qat-q4_0-GGUF` snapshot
+`8dd0ca2a66a8f14470acb0e2a71f801afbc5fb73`, 768 output dimensions, and the model server's
+native tokenization without additional application-side text normalization. The initial
+evaluation target is English and Turkish, with 20 representative documents and at least 40
+questions spanning answerable, unanswerable, ambiguous, and permission-restricted cases.
 
 ## Current Baseline
 

@@ -61,7 +61,7 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1, Faz 2 ve Faz 3 tamamlandı. `v0.3.0` sürümü; yerel LLM runtime üzerine pgvector tabanlı RAG, async ingestion worker, format genişletme, document versioning, read permissions ve conversation persistence ekler.
+> **Şu anki konum:** Faz 1, Faz 2, Faz 3 ve entegre `v0.4.0` tarayıcı MVP'si tamamlandı. Kabul edilen sürüm; Vue uygulamasını, streaming grounded chat akışını, kaynak incelemeyi, deterministik tarayıcı testlerini ve production single-origin Compose dağıtımını ekler. Sıradaki uygulama fazı, hybrid retrieval ve evaluation odaklı Faz 4'tür.
 
 ### Özellikler
 
@@ -263,6 +263,8 @@ audit_logs
 ## Faz 4 — Hybrid Retrieval ve Evaluation
 
 Basit vector search sonrasında RAG sisteminin gerçekten çalışıp çalışmadığı ölçülür.
+
+> **Durum:** `v0.4.0` MVP kabulünün 13 Temmuz 2026 tarihinde tamamlanmasıyla başlamaya hazırdır. Giriş kriterleri ve paket sırası `docs/phase-4-plan.md` dosyasında izlenir; hybrid retrieval `v0.4.0` kapsamına dahil değildir.
 
 ### Retrieval Geliştirmeleri
 

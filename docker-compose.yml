@@ -6,7 +6,7 @@ services:
     container_name: offline-ai-api
     environment:
       APP_NAME: Offline Intelligence Hub API
-      APP_VERSION: 0.3.0
+      APP_VERSION: 0.4.0
       ENVIRONMENT: development
       DEBUG: "false"
       HOST: 0.0.0.0
@@ -55,7 +55,7 @@ services:
       - test
     environment:
       APP_NAME: Offline Intelligence Hub API
-      APP_VERSION: 0.3.0
+      APP_VERSION: 0.4.0
       ENVIRONMENT: testing
       DEBUG: "false"
       HOST: 0.0.0.0
@@ -99,7 +99,7 @@ services:
       - worker
     environment:
       APP_NAME: Offline Intelligence Hub API
-      APP_VERSION: 0.3.0
+      APP_VERSION: 0.4.0
       ENVIRONMENT: development
       DEBUG: "false"
       DATABASE_URL: postgresql+psycopg://offline_ai:offline_ai@postgres:5432/offline_ai

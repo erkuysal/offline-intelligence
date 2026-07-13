@@ -57,7 +57,7 @@ Create `.env.production` from the example, replace its secrets and model filenam
 selected profile with the normal production command:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.production.yml up --build -d
+docker compose --env-file .env.production -f docker-compose.production.yml up --build -d --wait
 ```
 
 Inspect model startup and application readiness through:
