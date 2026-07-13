@@ -30,6 +30,19 @@ Phase 3 backend for an offline/on-premise document intelligence platform.
 
 ## Local Setup
 
+Runtime configuration is split by purpose:
+
+- `.env.dev` is loaded by normal backend and local model commands.
+- `.env.test` is loaded by `./app.py test` and can drive deterministic production Compose checks.
+- `.env.e2e` is loaded by browser-test setup and cleanup commands.
+- `.env.production` is operator-managed, ignored by Git, and used explicitly by production Compose.
+
+For development, an existing untracked `.env` is loaded after `.env.dev` as a local override. It
+also remains the compatibility fallback when a selected profile file is absent. Override any
+command with `./app.py --env-file path/to/file <command>` or set `APP_ENV_FILE` for direct Python
+and model scripts. Environment variables already exported by the caller take precedence over file
+values.
+
 Activate the project environment:
 
 ```bash

@@ -6,6 +6,7 @@ llama_root_dir() {
 
 load_llama_env_file() {
   local file="$1"
+  local override="${2:-false}"
   [[ -f "$file" ]] || return 0
 
   local line key value
@@ -18,6 +19,9 @@ load_llama_env_file() {
     value="${line#*=}"
     key="${key//[[:space:]]/}"
     [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    if [[ "$override" != "true" && -v "$key" ]]; then
+      continue
+    fi
 
     if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
       value="${value:1:${#value}-2}"
@@ -40,8 +44,16 @@ expand_llama_path() {
 
 configure_llama_env() {
   ROOT_DIR="$(llama_root_dir)"
-  ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
-  load_llama_env_file "$ENV_FILE"
+  if [[ -n "${APP_ENV_FILE:-}" ]]; then
+    ENV_FILE="$APP_ENV_FILE"
+    load_llama_env_file "$ENV_FILE"
+  elif [[ -n "${ENV_FILE:-}" ]]; then
+    load_llama_env_file "$ENV_FILE"
+  else
+    ENV_FILE="${ROOT_DIR}/.env.dev"
+    load_llama_env_file "${ROOT_DIR}/.env"
+    load_llama_env_file "$ENV_FILE"
+  fi
 
   LLAMA_PROFILE="${LLAMA_PROFILE:-}"
   LLAMA_PROFILE_DIR="${LLAMA_PROFILE_DIR:-${ROOT_DIR}/scripts/llama_profiles}"
@@ -57,7 +69,7 @@ configure_llama_env() {
       exit 1
     fi
 
-    load_llama_env_file "$LLAMA_PROFILE_FILE"
+    load_llama_env_file "$LLAMA_PROFILE_FILE" true
   fi
 
   LLAMA_CPP_BIN="$(expand_llama_path "${LLAMA_CPP_BIN:-~/tools/llama.cpp/build/bin/llama-server}")"

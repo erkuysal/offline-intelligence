@@ -3,6 +3,7 @@ from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.constants import EMBEDDING_DIMENSIONS
+from app.env_files import resolve_env_files
 
 
 class Settings(BaseSettings):
@@ -46,7 +47,6 @@ class Settings(BaseSettings):
     llm_max_concurrent_requests: int = 1
 
     model_config = SettingsConfigDict(
-        env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -55,4 +55,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()  # type: ignore[call-arg]
+    return Settings(_env_file=resolve_env_files() or None)  # type: ignore[call-arg]

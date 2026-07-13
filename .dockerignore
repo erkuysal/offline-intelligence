@@ -1,6 +1,9 @@
 .git
 .gitignore
 .env
+.env.dev
+.env.test
+.env.e2e
 .env.production
 .venv
 __pycache__/

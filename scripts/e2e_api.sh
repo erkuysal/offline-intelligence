@@ -4,16 +4,15 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 ACTION=${1:-start}
 
-export E2E_DATABASE_URL=${E2E_DATABASE_URL:-postgresql+psycopg://offline_ai:offline_ai@127.0.0.1:5432/offline_ai_e2e}
-export E2E_DATABASE_ADMIN_URL=${E2E_DATABASE_ADMIN_URL:-postgresql://offline_ai:offline_ai@127.0.0.1:5432/postgres}
-export E2E_DOCUMENT_STORAGE_ROOT=${E2E_DOCUMENT_STORAGE_ROOT:-/tmp/offline-intelligence-hub-e2e}
-export E2E_DOCUMENT_STORAGE_DIR=${E2E_DOCUMENT_STORAGE_DIR:-${E2E_DOCUMENT_STORAGE_ROOT}/documents}
-export DATABASE_URL=${E2E_DATABASE_URL}
-export DOCUMENT_STORAGE_DIR=${E2E_DOCUMENT_STORAGE_DIR}
-export DOCUMENT_INGESTION_MODE=sync
-export ENVIRONMENT=testing
-export HOST=127.0.0.1
-export PORT=${E2E_API_PORT:-8002}
+APP_ENV_FILE=${APP_ENV_FILE:-${ROOT}/.env.e2e}
+if [[ ! -f "$APP_ENV_FILE" ]]; then
+  echo "E2E environment file not found: ${APP_ENV_FILE}" >&2
+  exit 2
+fi
+export APP_ENV_FILE
+set -a
+source "$APP_ENV_FILE"
+set +a
 
 case "${E2E_MODEL_MODE:-fake}" in
   fake)

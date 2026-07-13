@@ -23,7 +23,7 @@ fi
 
 if [[ ! -x "$LLAMA_CPP_BIN" ]]; then
   echo "llama-server binary not found or not executable: ${LLAMA_CPP_BIN}" >&2
-  echo "Set LLAMA_CPP_BIN in .env or rebuild llama.cpp." >&2
+  echo "Set LLAMA_CPP_BIN in ${ENV_FILE} or rebuild llama.cpp." >&2
   exit 1
 fi
 

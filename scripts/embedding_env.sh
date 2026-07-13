@@ -4,8 +4,16 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llama_env.sh"
 
 configure_embedding_env() {
   ROOT_DIR="$(llama_root_dir)"
-  ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
-  load_llama_env_file "$ENV_FILE"
+  if [[ -n "${APP_ENV_FILE:-}" ]]; then
+    ENV_FILE="$APP_ENV_FILE"
+    load_llama_env_file "$ENV_FILE"
+  elif [[ -n "${ENV_FILE:-}" ]]; then
+    load_llama_env_file "$ENV_FILE"
+  else
+    ENV_FILE="${ROOT_DIR}/.env.dev"
+    load_llama_env_file "${ROOT_DIR}/.env"
+    load_llama_env_file "$ENV_FILE"
+  fi
 
   EMBEDDING_LLAMA_CPP_BIN="$(expand_llama_path "${EMBEDDING_LLAMA_CPP_BIN:-${LLAMA_CPP_BIN:-~/tools/llama.cpp/build/bin/llama-server}}")"
   EMBEDDING_SERVER_HOST="${EMBEDDING_SERVER_HOST:-127.0.0.1}"

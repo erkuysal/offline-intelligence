@@ -38,18 +38,12 @@ def run_subprocess(
     return subprocess.call(args, cwd=cwd, env=environment)
 
 
-def load_root_env() -> None:
-    env_file = ROOT / ".env"
-    if not env_file.exists():
-        return
+def load_root_env(profile: str = "development") -> Path | None:
+    configure_import_path()
 
-    for line in env_file.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or "=" not in stripped:
-            continue
+    from app.env_files import load_env_file
 
-        key, value = stripped.split("=", 1)
-        os.environ.setdefault(key, value)
+    return load_env_file(profile)
 
 
 def runserver(_args: argparse.Namespace) -> int:
@@ -81,7 +75,7 @@ def migrate(_args: argparse.Namespace) -> int:
 def build_test_environment() -> dict[str, str]:
     from sqlalchemy.engine import make_url
 
-    load_root_env()
+    load_root_env("test")
     configured_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if not configured_url:
         raise RuntimeError("DATABASE_URL or TEST_DATABASE_URL must be configured")
@@ -123,7 +117,7 @@ def build_test_environment() -> dict[str, str]:
 def build_e2e_environment() -> dict[str, str]:
     from sqlalchemy.engine import make_url
 
-    load_root_env()
+    load_root_env("e2e")
     configured_url = os.environ.get("E2E_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if not configured_url:
         raise RuntimeError("DATABASE_URL or E2E_DATABASE_URL must be configured")
@@ -390,6 +384,10 @@ def build_parser() -> argparse.ArgumentParser:
         prog="./app.py",
         description="Offline Intelligence Hub development commands",
     )
+    parser.add_argument(
+        "--env-file",
+        help="override the command's profile environment file",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     runserver_parser = subparsers.add_parser("runserver", help="start the API server")
@@ -507,6 +505,8 @@ def main() -> int:
     configure_import_path()
     parser = build_parser()
     args = parser.parse_args()
+    if args.env_file:
+        os.environ["APP_ENV_FILE"] = args.env_file
     return args.func(args)
 
 
