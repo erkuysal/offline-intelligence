@@ -481,3 +481,25 @@ Run the same smoke test against the containerized API:
 ```bash
 ./app.py smoke
 ```
+
+### Production web stack
+
+Create the production environment file and replace both placeholder secrets before startup:
+
+```bash
+cp .env.production.example .env.production
+docker compose --env-file .env.production -f docker-compose.production.yml up --build -d
+```
+
+The production stack publishes the Vue and Nginx application on `WEB_PORT` (port `3000` by
+default). FastAPI, the ingestion worker, PostgreSQL, and Redis are reachable only through the
+Compose network. The API and worker use the `LLM_BASE_URL` and `EMBEDDING_BASE_URL` endpoints from
+`.env.production`; the example targets model servers running on the Docker host. The Compose file
+does not publish model-server ports.
+
+Inspect or stop this stack with the same file and environment arguments:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.production.yml ps
+docker compose --env-file .env.production -f docker-compose.production.yml down
+```

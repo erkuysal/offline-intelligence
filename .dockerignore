@@ -1,6 +1,7 @@
 .git
 .gitignore
 .env
+.env.production
 .venv
 __pycache__/
 *.py[cod]
