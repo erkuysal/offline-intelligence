@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/llm-env.sh"
+
+configure_reranker_env() {
+  ROOT_DIR="$(llama_root_dir)"
+  ENV_FILE="${APP_ENV_FILE:-${ENV_FILE:-${ROOT_DIR}/config/env/dev.env}}"
+  [[ -z "${APP_ENV_FILE:-}" ]] && load_llama_env_file "${ROOT_DIR}/config/env/local.env"
+  load_llama_env_file "$ENV_FILE"
+
+  RERANKER_LLAMA_CPP_BIN="$(expand_llama_path "${RERANKER_LLAMA_CPP_BIN:-${LLAMA_CPP_BIN:-~/tools/llama.cpp/build/bin/llama-server}}")"
+  RERANKER_SERVER_HOST="${RERANKER_SERVER_HOST:-127.0.0.1}"
+  RERANKER_SERVER_PORT="${RERANKER_SERVER_PORT:-8082}"
+  RERANKER_SERVER_MODEL_REPO="${RERANKER_SERVER_MODEL_REPO:-gpustack/bge-reranker-v2-m3-GGUF:Q4_K_M}"
+  RERANKER_SERVER_MODEL_PATH="${RERANKER_SERVER_MODEL_PATH:-}"
+  RERANKER_SERVER_ALIAS="${RERANKER_SERVER_ALIAS:-bge-reranker-v2-m3}"
+  RERANKER_SERVER_CTX_SIZE="${RERANKER_SERVER_CTX_SIZE:-2048}"
+  RERANKER_SERVER_THREADS="${RERANKER_SERVER_THREADS:-8}"
+  RERANKER_SERVER_PARALLEL="${RERANKER_SERVER_PARALLEL:-1}"
+  RERANKER_SERVER_GPU_LAYERS="${RERANKER_SERVER_GPU_LAYERS:-auto}"
+  RERANKER_SERVER_EXTRA_ARGS="${RERANKER_SERVER_EXTRA_ARGS:-}"
+  RERANKER_SERVER_PID_FILE="$(expand_llama_path "${RERANKER_SERVER_PID_FILE:-${ROOT_DIR}/var/run/reranker.pid}")"
+  RERANKER_SERVER_SHUTDOWN_TIMEOUT_SECONDS="${RERANKER_SERVER_SHUTDOWN_TIMEOUT_SECONDS:-15}"
+  RERANKER_BASE_URL="${RERANKER_BASE_URL:-http://${RERANKER_SERVER_HOST}:${RERANKER_SERVER_PORT}/v1}"
+  RERANKER_MODEL="${RERANKER_MODEL:-${RERANKER_SERVER_ALIAS}}"
+}
+
+reranker_api_available() {
+  curl -fsS --max-time 2 "${RERANKER_BASE_URL}/models" >/dev/null 2>&1
+}

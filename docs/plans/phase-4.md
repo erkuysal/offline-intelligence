@@ -83,79 +83,89 @@ This package must precede retrieval changes.
 
 ### Backend
 
-- [ ] Extract dense search behind a retrieval strategy interface
-- [ ] Define a candidate containing chunk identity, source, raw score, normalized score, rank, and strategy
-- [ ] Keep authorization and metadata filters inside every retrieval query
-- [ ] Separate candidate retrieval, fusion, reranking, deduplication, and context construction stages
-- [ ] Make strategy and stage limits configurable
-- [ ] Preserve stable source ordering and citation numbering
+- [x] Extract dense search behind a retrieval strategy interface
+- [x] Define a candidate containing chunk identity, source, raw score, normalized score, rank, and strategy
+- [x] Keep authorization and metadata filters inside every implemented retrieval query
+- [ ] Separate fusion, reranking, deduplication, and context construction into explicit stages
+- [x] Make implemented strategy and stage limits configurable
+- [x] Preserve stable source ordering and citation numbering
 
 ### Persistence and Metrics
 
-- [ ] Add the planned `retrieval_runs` model and migration
-- [ ] Record query, strategy, filters, model versions, candidates, selected context, and timings
-- [ ] Avoid persisting sensitive query or passage text unless explicitly configured
-- [ ] Add Prometheus metrics for each retrieval stage, outcome, latency, and candidate count
-- [ ] Add retention or cleanup behavior for retrieval-run records
+- [x] Add the planned `retrieval_runs` model and migration
+- [x] Record query identity, strategy, filters, model versions, candidates, selected context, and timings
+- [x] Avoid persisting sensitive query or passage text unless explicitly configured
+- [x] Add Prometheus metrics for candidate retrieval, context selection, persistence outcomes, latency, and counts
+- [x] Add retention and cleanup behavior for retrieval-run records
 
 ### Verification
 
-- [ ] Prove owner and permission isolation for every strategy
-- [ ] Prove document filters are applied before ranking
-- [ ] Add query-count and performance regression tests on a representative corpus
+- [x] Prove owner and permission isolation for every implemented strategy
+- [x] Prove document filters are applied before ranking
+- [x] Add query-count and performance regression tests on a representative corpus
+
+The dense-strategy integration gate covers owner, shared-reader, outsider, pre-ranking document
+filters, and a single-SQL-query limit. Its SQL contract, source ordering, and accepted 20-document
+mean/P95 latency gates pass. The dense and lexical live PostgreSQL integration gates were accepted
+on 14 July 2026.
 
 ## Work Package 4.2: PostgreSQL Full-Text Search
 
 ### Schema and Query
 
-- [ ] Choose language configuration behavior for English, Turkish, and mixed documents
-- [ ] Add a generated or maintained `tsvector` representation for chunk content
-- [ ] Add an appropriate GIN index
-- [ ] Implement safe `websearch_to_tsquery` or equivalent query construction
-- [ ] Return lexical rank through the common candidate contract
-- [ ] Preserve the same authorization, readiness, model, and document filters as dense search
+- [x] Choose language configuration behavior for English, Turkish, and mixed documents
+- [x] Add generated `tsvector` representations for chunk content and document filenames
+- [x] Add appropriate GIN indexes
+- [x] Implement safe `websearch_to_tsquery` query construction
+- [x] Return lexical rank through the common candidate contract
+- [x] Preserve the same authorization, readiness, and document filters as dense search
 
 ### Verification
 
-- [ ] Cover exact terms, identifiers, acronyms, filenames, and phrases that dense retrieval may miss
-- [ ] Cover punctuation, empty queries, stop words, and malformed input
-- [ ] Measure lexical-only quality and latency against the dense baseline
+- [x] Cover exact terms, identifiers, acronyms, filenames, and phrases that dense retrieval may miss
+- [x] Cover punctuation, empty queries, stop words, and malformed input
+- [x] Measure lexical-only quality and latency against the dense baseline
+
+The initial lexical baseline uses PostgreSQL's language-neutral `simple` configuration; see ADR
+0005. Its live authorization, edge-case, query-count, and bilingual corpus evaluation gates passed
+on PostgreSQL on 14 July 2026. Results and thresholds are recorded in the lexical baseline acceptance
+record.
 
 ## Work Package 4.3: Hybrid Fusion
 
 ### Backend
 
-- [ ] Over-fetch dense and lexical candidates independently
-- [ ] Choose Reciprocal Rank Fusion as the initial score-independent baseline
-- [ ] Deduplicate candidates by chunk identity before final selection
-- [ ] Expose dense rank, lexical rank, fused rank, and strategy metadata for diagnosis
-- [ ] Make dense, lexical, and hybrid modes explicitly selectable
+- [x] Over-fetch dense and lexical candidates independently
+- [x] Choose Reciprocal Rank Fusion as the initial score-independent baseline
+- [x] Deduplicate candidates by chunk identity before final selection
+- [x] Expose dense rank, lexical rank, fused rank, and strategy metadata for diagnosis
+- [x] Make dense, lexical, and hybrid modes explicitly selectable
 
 ### Evaluation
 
-- [ ] Compare dense-only, lexical-only, and hybrid results on the same dataset
-- [ ] Accept hybrid as the default only when it improves agreed quality metrics without unacceptable latency
-- [ ] Record queries where hybrid regresses so the failure mode remains visible
+- [x] Compare dense-only, lexical-only, and hybrid results on the same dataset
+- [x] Keep dense as the default because hybrid did not improve an agreed quality metric
+- [x] Record hybrid regressions and lexical recoveries; no dense regressions were observed
 
 ## Work Package 4.4: Context Selection and Deduplication
 
-- [ ] Detect exact duplicate chunks
-- [ ] Reduce overlapping adjacent chunks from the same document
-- [ ] Enforce per-document and total context budgets
-- [ ] Preserve enough neighboring context for comprehension
-- [ ] Measure unique-context ratio and relevant-context retention
-- [ ] Keep citation numbering consistent after deduplication
+- [x] Detect exact duplicate chunks
+- [x] Reduce overlapping adjacent chunks from the same document
+- [x] Enforce per-document and total context budgets
+- [x] Preserve enough neighboring context for comprehension
+- [x] Measure unique-context ratio and relevant-context retention
+- [x] Keep citation numbering consistent after deduplication
 
 ## Work Package 4.5: Reranking
 
 Reranking is optional until hybrid retrieval has a measured baseline.
 
-- [ ] Define a local reranker adapter and failure contract
-- [ ] Select and pin an offline-capable multilingual reranker if required
-- [ ] Rerank only a bounded candidate set
-- [ ] Record reranker model, scores, latency, and fallback outcome
-- [ ] Fall back to fused ranking when the reranker is unavailable
-- [ ] Accept reranking only when quality gain justifies CPU/GPU and latency cost
+- [x] Define a local reranker adapter and failure contract
+- [x] Select and pin an offline-capable multilingual reranker if required
+- [x] Rerank only a bounded candidate set
+- [x] Record reranker model, scores, latency, and fallback outcome
+- [x] Fall back to fused ranking when the reranker is unavailable
+- [x] Accept reranking only when quality gain justifies CPU/GPU and latency cost; the measured mode was not promoted
 
 ## Work Package 4.6: Query Rewriting and Multi-Query Retrieval
 

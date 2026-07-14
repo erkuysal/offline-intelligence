@@ -231,8 +231,9 @@ The first version uses `pgvector`. PostgreSQL manages both relational data and t
 
 After basic vector search, the RAG system is measured to verify whether it actually works.
 
-> **Status:** Ready to begin after the `v0.4.0` MVP acceptance on 13 July 2026. Entry criteria and
-> package order are tracked in `docs/plans/phase-4.md`; hybrid retrieval is not part of `v0.4.0`.
+> **Status:** In progress. Work Package 4.0 established and accepted the bilingual dense-retrieval
+> baseline on 14 July 2026. Work Package 4.1 retrieval architecture and observability is next;
+> package order and acceptance criteria are tracked in `docs/plans/phase-4.md`.
 
 ### Retrieval Improvements
 

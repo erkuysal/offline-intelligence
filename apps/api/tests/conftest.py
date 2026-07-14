@@ -20,7 +20,8 @@ def clean_database() -> None:
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE TABLE user_roles, conversation_sources, conversation_messages, conversations, "
+                "TRUNCATE TABLE user_roles, retrieval_runs, conversation_sources, "
+                "conversation_messages, conversations, "
                 "document_chunks, document_permissions, document_versions, documents, users, roles "
                 "RESTART IDENTITY CASCADE"
             )
@@ -31,7 +32,8 @@ def clean_database() -> None:
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE TABLE user_roles, conversation_sources, conversation_messages, conversations, "
+                "TRUNCATE TABLE user_roles, retrieval_runs, conversation_sources, "
+                "conversation_messages, conversations, "
                 "document_chunks, document_permissions, document_versions, documents, users, roles "
                 "RESTART IDENTITY CASCADE"
             )

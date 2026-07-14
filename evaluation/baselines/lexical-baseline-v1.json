@@ -1,0 +1,1590 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-14T12:30:40.761986Z",
+  "dataset_id": "dense-baseline",
+  "dataset_version": "1.0.0",
+  "corpus_version": "1.0.0",
+  "chunking_version": "production-char-v1-2000-overlap-200",
+  "embedding_model": "embeddinggemma-300m",
+  "embedding_model_revision": "8dd0ca2a66a8f14470acb0e2a71f801afbc5fb73",
+  "embedding_dimensions": 768,
+  "embedding_preprocessing": "model-server native tokenization; no application-side normalization",
+  "evaluator_version": "1.0.0",
+  "retrieval_strategy": "lexical",
+  "retrieval_limit": 5,
+  "metrics": {
+    "case_count": 40,
+    "relevant_case_count": 32,
+    "no_result_case_count": 8,
+    "recall_at_k": 0.96875,
+    "precision_at_k": 0.440625,
+    "mean_reciprocal_rank": 0.96875,
+    "hit_rate": 0.96875,
+    "no_result_accuracy": 0.5,
+    "authorization_leak_count": 0,
+    "mean_latency_ms": 1.3586923749699054,
+    "p95_latency_ms": 3.065435999815236
+  },
+  "thresholds": {
+    "min_recall_at_k": 0.95,
+    "min_precision_at_k": 0.4,
+    "min_mean_reciprocal_rank": 0.95,
+    "min_hit_rate": 0.95,
+    "min_no_result_accuracy": 0.5,
+    "max_mean_latency_ms": 50.0,
+    "max_p95_latency_ms": 50.0,
+    "max_authorization_leaks": 0
+  },
+  "threshold_failures": [],
+  "cases": [
+    {
+      "case_id": "en-backup-time",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 5.562661999647389,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-backup-policy",
+          "filename": "backup-policy-en.txt",
+          "chunk_id": 21,
+          "chunk_index": 0,
+          "passage_label": "backup-schedule",
+          "score": 0.3333333333333333
+        },
+        {
+          "rank": 2,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-backup-ambiguous",
+      "language": "en",
+      "category": "ambiguous",
+      "expected_result": "relevant_passages",
+      "latency_ms": 3.065435999815236,
+      "candidates": [],
+      "recall_at_k": 0.0,
+      "precision_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "hit": false,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-leave-days",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.9113909993393463,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.4444444481237435
+        },
+        {
+          "rank": 2,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 4,
+          "document_key": "en-energy-policy",
+          "filename": "energy-policy-en.txt",
+          "chunk_id": 28,
+          "chunk_index": 0,
+          "passage_label": "workstation-energy",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 5,
+          "document_key": "en-backup-policy",
+          "filename": "backup-policy-en.txt",
+          "chunk_id": 21,
+          "chunk_index": 0,
+          "passage_label": "backup-schedule",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.2,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-leave-notice",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.3638540003739763,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 2,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 4,
+          "document_key": "en-accessibility-standard",
+          "filename": "accessibility-standard-en.txt",
+          "chunk_id": 27,
+          "chunk_index": 0,
+          "passage_label": "web-requirements",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 5,
+          "document_key": "en-energy-policy",
+          "filename": "energy-policy-en.txt",
+          "chunk_id": 28,
+          "chunk_index": 0,
+          "passage_label": "workstation-energy",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.2,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-incident-acknowledgement",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.3781049992758199,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.411764701757464
+        },
+        {
+          "rank": 2,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.3333333333333333
+        },
+        {
+          "rank": 3,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 4,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 5,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.1666666687362724
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.2,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-incident-updates",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.3083900003039162,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.411764701757464
+        },
+        {
+          "rank": 2,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.285714288755339
+        },
+        {
+          "rank": 3,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 4,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 5,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.2,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-invoice-retention",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.4892050003254553,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.411764701757464
+        },
+        {
+          "rank": 2,
+          "document_key": "en-backup-policy",
+          "filename": "backup-policy-en.txt",
+          "chunk_id": 21,
+          "chunk_index": 0,
+          "passage_label": "backup-schedule",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 3,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.1666666687362724
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-log-retention-ambiguous",
+      "language": "en",
+      "category": "ambiguous",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.1929499996767845,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.1666666687362724
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-vendor-prerequisites",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.2888680003015907,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.5
+        },
+        {
+          "rank": 2,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 4,
+          "document_key": "en-backup-policy",
+          "filename": "backup-policy-en.txt",
+          "chunk_id": 21,
+          "chunk_index": 0,
+          "passage_label": "backup-schedule",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 5,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.2,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-vendor-approval",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.3482430003932677,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.47368422043290476
+        },
+        {
+          "rank": 2,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 4,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 5,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.2,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-travel-mode",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.1810289997811196,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.4444444481237435
+        },
+        {
+          "rank": 2,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 3,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 4,
+          "document_key": "en-energy-policy",
+          "filename": "energy-policy-en.txt",
+          "chunk_id": 28,
+          "chunk_index": 0,
+          "passage_label": "workstation-energy",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.25,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-receipt-threshold",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.1231739999857382,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.285714288755339
+        },
+        {
+          "rank": 2,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.5,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-accessibility-level",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.2281230001462973,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-accessibility-standard",
+          "filename": "accessibility-standard-en.txt",
+          "chunk_id": 27,
+          "chunk_index": 0,
+          "passage_label": "web-requirements",
+          "score": 0.3333333333333333
+        },
+        {
+          "rank": 2,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 3,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 4,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 5,
+          "document_key": "tr-erisilebilirlik-standardi",
+          "filename": "erisilebilirlik-standardi-tr.txt",
+          "chunk_id": 37,
+          "chunk_index": 0,
+          "passage_label": "web-gereksinimleri",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.2,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-keyboard-review",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.0256949999529752,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-accessibility-standard",
+          "filename": "accessibility-standard-en.txt",
+          "chunk_id": 27,
+          "chunk_index": 0,
+          "passage_label": "web-requirements",
+          "score": 0.285714288755339
+        },
+        {
+          "rank": 2,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "en-backup-policy",
+          "filename": "backup-policy-en.txt",
+          "chunk_id": 21,
+          "chunk_index": 0,
+          "passage_label": "backup-schedule",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 4,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.25,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-sleep-timeout",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 0.998133999928541,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-energy-policy",
+          "filename": "energy-policy-en.txt",
+          "chunk_id": 28,
+          "chunk_index": 0,
+          "passage_label": "workstation-energy",
+          "score": 0.3333333333333333
+        },
+        {
+          "rank": 2,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.1666666687362724
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.5,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-electricity-target",
+      "language": "en",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.103562000025704,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-energy-policy",
+          "filename": "energy-policy-en.txt",
+          "chunk_id": 28,
+          "chunk_index": 0,
+          "passage_label": "workstation-energy",
+          "score": 0.37500000931322564
+        },
+        {
+          "rank": 2,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 3,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 4,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 5,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.2,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-unanswerable-cafeteria",
+      "language": "en",
+      "category": "unanswerable",
+      "expected_result": "no_result",
+      "latency_ms": 1.169947000562388,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.285714288755339
+        },
+        {
+          "rank": 2,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 4,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 5,
+          "document_key": "en-energy-policy",
+          "filename": "energy-policy-en.txt",
+          "chunk_id": 28,
+          "chunk_index": 0,
+          "passage_label": "workstation-energy",
+          "score": 0.1666666687362724
+        }
+      ],
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "reciprocal_rank": null,
+      "hit": null,
+      "no_result_correct": false,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-unanswerable-parking",
+      "language": "en",
+      "category": "unanswerable",
+      "expected_result": "no_result",
+      "latency_ms": 1.0074030005853274,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "en-vendor-onboarding",
+          "filename": "vendor-onboarding-en.txt",
+          "chunk_id": 25,
+          "chunk_index": 0,
+          "passage_label": "production-access",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 2,
+          "document_key": "en-leave-policy",
+          "filename": "leave-policy-en.txt",
+          "chunk_id": 22,
+          "chunk_index": 0,
+          "passage_label": "annual-leave",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "en-incident-response",
+          "filename": "incident-response-en.txt",
+          "chunk_id": 23,
+          "chunk_index": 0,
+          "passage_label": "priority-one",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 4,
+          "document_key": "en-travel-expenses",
+          "filename": "travel-expenses-en.txt",
+          "chunk_id": 26,
+          "chunk_index": 0,
+          "passage_label": "transport-and-receipts",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 5,
+          "document_key": "en-record-retention",
+          "filename": "record-retention-en.txt",
+          "chunk_id": 24,
+          "chunk_index": 0,
+          "passage_label": "retention-periods",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "reciprocal_rank": null,
+      "hit": null,
+      "no_result_correct": false,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-restricted-key",
+      "language": "en",
+      "category": "permission_restricted",
+      "expected_result": "no_result",
+      "latency_ms": 1.1669550003716722,
+      "candidates": [],
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "reciprocal_rank": null,
+      "hit": null,
+      "no_result_correct": true,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "en-restricted-lab",
+      "language": "en",
+      "category": "permission_restricted",
+      "expected_result": "no_result",
+      "latency_ms": 1.3994479995744769,
+      "candidates": [],
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "reciprocal_rank": null,
+      "hit": null,
+      "no_result_correct": true,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-yedekleme-saati",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 2.354606999688258,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-yedekleme-politikasi",
+          "filename": "yedekleme-politikasi-tr.txt",
+          "chunk_id": 31,
+          "chunk_index": 0,
+          "passage_label": "yedekleme-zamani",
+          "score": 0.3333333333333333
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-tedarikci-kabul",
+          "filename": "tedarikci-kabul-tr.txt",
+          "chunk_id": 35,
+          "chunk_index": 0,
+          "passage_label": "uretim-erisimi",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.5,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-yedekleme-belirsiz",
+      "language": "tr",
+      "category": "ambiguous",
+      "expected_result": "relevant_passages",
+      "latency_ms": 2.175011999497656,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-yedekleme-politikasi",
+          "filename": "yedekleme-politikasi-tr.txt",
+          "chunk_id": 31,
+          "chunk_index": 0,
+          "passage_label": "yedekleme-zamani",
+          "score": 0.1666666687362724
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-izin-gunleri",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.0879410001507495,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-izin-politikasi",
+          "filename": "izin-politikasi-tr.txt",
+          "chunk_id": 32,
+          "chunk_index": 0,
+          "passage_label": "yillik-izin",
+          "score": 0.37500000931322564
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-yedekleme-politikasi",
+          "filename": "yedekleme-politikasi-tr.txt",
+          "chunk_id": 31,
+          "chunk_index": 0,
+          "passage_label": "yedekleme-zamani",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 3,
+          "document_key": "tr-kayit-saklama",
+          "filename": "kayit-saklama-tr.txt",
+          "chunk_id": 34,
+          "chunk_index": 0,
+          "passage_label": "saklama-sureleri",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 4,
+          "document_key": "tr-enerji-politikasi",
+          "filename": "enerji-politikasi-tr.txt",
+          "chunk_id": 38,
+          "chunk_index": 0,
+          "passage_label": "bilgisayar-enerjisi",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.25,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-izin-bildirim",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 0.9781220005606883,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-izin-politikasi",
+          "filename": "izin-politikasi-tr.txt",
+          "chunk_id": 32,
+          "chunk_index": 0,
+          "passage_label": "yillik-izin",
+          "score": 0.411764701757464
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-tedarikci-kabul",
+          "filename": "tedarikci-kabul-tr.txt",
+          "chunk_id": 35,
+          "chunk_index": 0,
+          "passage_label": "uretim-erisimi",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.5,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-olay-kabul",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 0.9901029998218291,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-olay-mudahale",
+          "filename": "olay-mudahale-tr.txt",
+          "chunk_id": 33,
+          "chunk_index": 0,
+          "passage_label": "birinci-oncelik",
+          "score": 0.4444444481237435
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-tedarikci-kabul",
+          "filename": "tedarikci-kabul-tr.txt",
+          "chunk_id": 35,
+          "chunk_index": 0,
+          "passage_label": "uretim-erisimi",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 3,
+          "document_key": "tr-enerji-politikasi",
+          "filename": "enerji-politikasi-tr.txt",
+          "chunk_id": 38,
+          "chunk_index": 0,
+          "passage_label": "bilgisayar-enerjisi",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-olay-guncelleme",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.0089750003317022,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-olay-mudahale",
+          "filename": "olay-mudahale-tr.txt",
+          "chunk_id": 33,
+          "chunk_index": 0,
+          "passage_label": "birinci-oncelik",
+          "score": 0.3333333333333333
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-fatura-saklama",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 0.989631999800622,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-kayit-saklama",
+          "filename": "kayit-saklama-tr.txt",
+          "chunk_id": 34,
+          "chunk_index": 0,
+          "passage_label": "saklama-sureleri",
+          "score": 0.3333333333333333
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-tedarikci-kabul",
+          "filename": "tedarikci-kabul-tr.txt",
+          "chunk_id": 35,
+          "chunk_index": 0,
+          "passage_label": "uretim-erisimi",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "tr-yedekleme-politikasi",
+          "filename": "yedekleme-politikasi-tr.txt",
+          "chunk_id": 31,
+          "chunk_index": 0,
+          "passage_label": "yedekleme-zamani",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-gunluk-belirsiz",
+      "language": "tr",
+      "category": "ambiguous",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.3649039992742473,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-kayit-saklama",
+          "filename": "kayit-saklama-tr.txt",
+          "chunk_id": 34,
+          "chunk_index": 0,
+          "passage_label": "saklama-sureleri",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-tedarikci-kosullar",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.0511969994695392,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-tedarikci-kabul",
+          "filename": "tedarikci-kabul-tr.txt",
+          "chunk_id": 35,
+          "chunk_index": 0,
+          "passage_label": "uretim-erisimi",
+          "score": 0.3333333333333333
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-yedekleme-politikasi",
+          "filename": "yedekleme-politikasi-tr.txt",
+          "chunk_id": 31,
+          "chunk_index": 0,
+          "passage_label": "yedekleme-zamani",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 3,
+          "document_key": "tr-izin-politikasi",
+          "filename": "izin-politikasi-tr.txt",
+          "chunk_id": 32,
+          "chunk_index": 0,
+          "passage_label": "yillik-izin",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 4,
+          "document_key": "tr-kayit-saklama",
+          "filename": "kayit-saklama-tr.txt",
+          "chunk_id": 34,
+          "chunk_index": 0,
+          "passage_label": "saklama-sureleri",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.25,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-tedarikci-onay",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 0.9866020000117715,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-tedarikci-kabul",
+          "filename": "tedarikci-kabul-tr.txt",
+          "chunk_id": 35,
+          "chunk_index": 0,
+          "passage_label": "uretim-erisimi",
+          "score": 0.37500000931322564
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-olay-mudahale",
+          "filename": "olay-mudahale-tr.txt",
+          "chunk_id": 33,
+          "chunk_index": 0,
+          "passage_label": "birinci-oncelik",
+          "score": 0.09090909214059183
+        },
+        {
+          "rank": 3,
+          "document_key": "tr-kayit-saklama",
+          "filename": "kayit-saklama-tr.txt",
+          "chunk_id": 34,
+          "chunk_index": 0,
+          "passage_label": "saklama-sureleri",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-seyahat-turu",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 0.9264270001949626,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-seyahat-giderleri",
+          "filename": "seyahat-giderleri-tr.txt",
+          "chunk_id": 36,
+          "chunk_index": 0,
+          "passage_label": "ulasim-ve-fis",
+          "score": 0.3333333333333333
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-fis-siniri",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.0038440004791482,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-seyahat-giderleri",
+          "filename": "seyahat-giderleri-tr.txt",
+          "chunk_id": 36,
+          "chunk_index": 0,
+          "passage_label": "ulasim-ve-fis",
+          "score": 0.285714288755339
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-erisilebilirlik-seviyesi",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.0443769997436902,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-erisilebilirlik-standardi",
+          "filename": "erisilebilirlik-standardi-tr.txt",
+          "chunk_id": 37,
+          "chunk_index": 0,
+          "passage_label": "web-gereksinimleri",
+          "score": 0.3333333333333333
+        },
+        {
+          "rank": 2,
+          "document_key": "en-accessibility-standard",
+          "filename": "accessibility-standard-en.txt",
+          "chunk_id": 27,
+          "chunk_index": 0,
+          "passage_label": "web-requirements",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.5,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-klavye-incelemesi",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.0116650000782101,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-erisilebilirlik-standardi",
+          "filename": "erisilebilirlik-standardi-tr.txt",
+          "chunk_id": 37,
+          "chunk_index": 0,
+          "passage_label": "web-gereksinimleri",
+          "score": 0.285714288755339
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-yedekleme-politikasi",
+          "filename": "yedekleme-politikasi-tr.txt",
+          "chunk_id": 31,
+          "chunk_index": 0,
+          "passage_label": "yedekleme-zamani",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.5,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-uyku-suresi",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 1.0937409997495706,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-enerji-politikasi",
+          "filename": "enerji-politikasi-tr.txt",
+          "chunk_id": 38,
+          "chunk_index": 0,
+          "passage_label": "bilgisayar-enerjisi",
+          "score": 0.37500000931322564
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-kayit-saklama",
+          "filename": "kayit-saklama-tr.txt",
+          "chunk_id": 34,
+          "chunk_index": 0,
+          "passage_label": "saklama-sureleri",
+          "score": 0.1666666687362724
+        },
+        {
+          "rank": 3,
+          "document_key": "tr-olay-mudahale",
+          "filename": "olay-mudahale-tr.txt",
+          "chunk_id": 33,
+          "chunk_index": 0,
+          "passage_label": "birinci-oncelik",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.3333333333333333,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-elektrik-hedefi",
+      "language": "tr",
+      "category": "answerable",
+      "expected_result": "relevant_passages",
+      "latency_ms": 0.9828219999690191,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-enerji-politikasi",
+          "filename": "enerji-politikasi-tr.txt",
+          "chunk_id": 38,
+          "chunk_index": 0,
+          "passage_label": "bilgisayar-enerjisi",
+          "score": 0.23076923782303482
+        },
+        {
+          "rank": 2,
+          "document_key": "tr-izin-politikasi",
+          "filename": "izin-politikasi-tr.txt",
+          "chunk_id": 32,
+          "chunk_index": 0,
+          "passage_label": "yillik-izin",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": 1.0,
+      "precision_at_k": 0.5,
+      "reciprocal_rank": 1.0,
+      "hit": true,
+      "no_result_correct": null,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-cevaplanamaz-yemekhane",
+      "language": "tr",
+      "category": "unanswerable",
+      "expected_result": "no_result",
+      "latency_ms": 0.9703609994176077,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-izin-politikasi",
+          "filename": "izin-politikasi-tr.txt",
+          "chunk_id": 32,
+          "chunk_index": 0,
+          "passage_label": "yillik-izin",
+          "score": 0.1666666687362724
+        }
+      ],
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "reciprocal_rank": null,
+      "hit": null,
+      "no_result_correct": false,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-cevaplanamaz-otopark",
+      "language": "tr",
+      "category": "unanswerable",
+      "expected_result": "no_result",
+      "latency_ms": 0.9555389997331076,
+      "candidates": [
+        {
+          "rank": 1,
+          "document_key": "tr-seyahat-giderleri",
+          "filename": "seyahat-giderleri-tr.txt",
+          "chunk_id": 36,
+          "chunk_index": 0,
+          "passage_label": "ulasim-ve-fis",
+          "score": 0.09090909214059183
+        }
+      ],
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "reciprocal_rank": null,
+      "hit": null,
+      "no_result_correct": false,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-kisitli-anahtar",
+      "language": "tr",
+      "category": "permission_restricted",
+      "expected_result": "no_result",
+      "latency_ms": 1.0550180004429421,
+      "candidates": [],
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "reciprocal_rank": null,
+      "hit": null,
+      "no_result_correct": true,
+      "authorization_leak": false
+    },
+    {
+      "case_id": "tr-kisitli-laboratuvar",
+      "language": "tr",
+      "category": "permission_restricted",
+      "expected_result": "no_result",
+      "latency_ms": 1.0042320000138716,
+      "candidates": [],
+      "recall_at_k": null,
+      "precision_at_k": null,
+      "reciprocal_rank": null,
+      "hit": null,
+      "no_result_correct": true,
+      "authorization_leak": false
+    }
+  ]
+}

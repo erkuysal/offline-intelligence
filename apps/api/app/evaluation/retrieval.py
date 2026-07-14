@@ -16,10 +16,16 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models.document import Document, DocumentChunk
 from app.models.user import User
+from app.retrieval import (
+    RetrievalCandidate as RuntimeRetrievalCandidate,
+    RetrievalQuery,
+    RetrievalStrategy,
+    relevant_context_retention,
+    select_context,
+)
 from app.services.document_ingestion import ExtractedDocument, SourceSpan, chunk_text
 from app.services.embeddings import (
     EmbeddingProvider,
-    search_document_chunks,
     validate_embeddings,
 )
 
@@ -88,6 +94,13 @@ class RetrievalCandidate(BaseModel):
     chunk_index: int
     passage_label: str | None
     score: float
+    strategy: str = "dense"
+    strategy_ranks: dict[str, int] = Field(default_factory=dict)
+    strategy_scores: dict[str, float] = Field(default_factory=dict)
+    document_id: int = Field(default=0, exclude=True)
+    content: str = Field(default="", exclude=True)
+    char_start: int = Field(default=0, exclude=True)
+    char_end: int = Field(default=0, exclude=True)
 
 
 class CaseResult(BaseModel):
@@ -103,6 +116,8 @@ class CaseResult(BaseModel):
     hit: bool | None
     no_result_correct: bool | None
     authorization_leak: bool
+    unique_context_ratio: float | None = None
+    relevant_context_retention: float | None = None
 
 
 class AggregateMetrics(BaseModel):
@@ -117,6 +132,8 @@ class AggregateMetrics(BaseModel):
     authorization_leak_count: int
     mean_latency_ms: float
     p95_latency_ms: float
+    mean_unique_context_ratio: float = 1.0
+    mean_relevant_context_retention: float = 1.0
 
 
 class EvaluationThresholds(BaseModel):
@@ -126,6 +143,7 @@ class EvaluationThresholds(BaseModel):
     min_hit_rate: float | None = Field(default=None, ge=0, le=1)
     min_no_result_accuracy: float | None = Field(default=None, ge=0, le=1)
     max_mean_latency_ms: float | None = Field(default=None, gt=0)
+    max_p95_latency_ms: float | None = Field(default=None, gt=0)
     max_authorization_leaks: int = Field(default=0, ge=0)
 
 
@@ -141,6 +159,9 @@ class EvaluationReport(BaseModel):
     embedding_dimensions: int
     embedding_preprocessing: str
     evaluator_version: str
+    retrieval_strategy: str = "dense"
+    reranker_model: str | None = None
+    reranker_model_revision: str | None = None
     retrieval_limit: int
     metrics: AggregateMetrics
     thresholds: EvaluationThresholds
@@ -217,7 +238,7 @@ def prepare_corpus(
     db: Session,
     dataset: EvaluationDataset,
     *,
-    provider: EmbeddingProvider,
+    provider: EmbeddingProvider | None,
     settings: Settings,
 ) -> tuple[int, dict[int, str], dict[str, int]]:
     identity = f"{dataset.manifest.dataset_id}-{dataset.manifest.dataset_version}"
@@ -257,9 +278,14 @@ def prepare_corpus(
             chunk_size_chars=settings.document_chunk_size_chars,
             overlap_chars=settings.document_chunk_overlap_chars,
         )
-        embeddings = provider.embed_texts([chunk.content for chunk in chunks])
-        validate_embeddings(embeddings, expected_count=len(chunks), dimensions=provider.dimensions)
-        for index, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=True)):
+        embeddings = provider.embed_texts([chunk.content for chunk in chunks]) if provider else None
+        if provider is not None and embeddings is not None:
+            validate_embeddings(
+                embeddings,
+                expected_count=len(chunks),
+                dimensions=provider.dimensions,
+            )
+        for index, chunk in enumerate(chunks):
             db.add(
                 DocumentChunk(
                     document_id=document.id,
@@ -271,8 +297,8 @@ def prepare_corpus(
                     token_end=chunk.token_end,
                     source_page=chunk.source_page,
                     source_label=chunk.source_label,
-                    embedding=embedding,
-                    embedding_model=provider.model,
+                    embedding=embeddings[index] if embeddings is not None else None,
+                    embedding_model=provider.model if provider is not None else None,
                 )
             )
         document.chunk_count = len(chunks)
@@ -301,7 +327,7 @@ def build_database_retriever(
     db: Session,
     *,
     user_id: int,
-    provider: EmbeddingProvider,
+    strategy: RetrievalStrategy,
     key_by_document_id: dict[int, str],
     id_by_document_key: dict[str, int],
 ) -> Retriever:
@@ -312,28 +338,36 @@ def build_database_retriever(
             else None
         )
         started_at = perf_counter()
-        results = search_document_chunks(
+        retrieval_result = strategy.retrieve(
             db,
-            user_id=user_id,
-            query=case.question,
-            limit=limit,
-            provider=provider,
-            document_ids=document_ids,
+            RetrievalQuery(
+                user_id=user_id,
+                text=case.question,
+                limit=limit,
+                document_ids=tuple(document_ids) if document_ids is not None else None,
+            ),
         )
         latency_ms = (perf_counter() - started_at) * 1000
-        candidates = [
+        evaluation_candidates = [
             RetrievalCandidate(
-                rank=rank,
-                document_key=key_by_document_id[chunk.document_id],
-                filename=chunk.document.original_filename,
-                chunk_id=chunk.id,
-                chunk_index=chunk.chunk_index,
-                passage_label=chunk.source_label,
-                score=score,
+                rank=candidate.rank,
+                document_key=key_by_document_id[candidate.document_id],
+                filename=candidate.document_filename,
+                chunk_id=candidate.chunk_id,
+                chunk_index=candidate.chunk_index,
+                passage_label=candidate.source_label,
+                score=candidate.normalized_score,
+                strategy=candidate.strategy,
+                strategy_ranks=candidate.strategy_ranks,
+                strategy_scores=candidate.strategy_scores,
+                document_id=candidate.document_id,
+                content=candidate.content,
+                char_start=candidate.char_start,
+                char_end=candidate.char_end,
             )
-            for rank, (chunk, score) in enumerate(results, start=1)
+            for candidate in retrieval_result.candidates
         ]
-        return candidates, latency_ms
+        return evaluation_candidates, latency_ms
 
     return retrieve
 
@@ -345,8 +379,22 @@ def evaluate_dataset(
     retrieval_limit: int,
     thresholds: EvaluationThresholds,
     embedding_model: str,
+    retrieval_strategy: str = "dense",
+    max_context_chars: int = 12_000,
+    max_context_chars_per_document: int = 6_000,
+    reranker_model: str | None = None,
+    reranker_model_revision: str | None = None,
 ) -> EvaluationReport:
-    case_results = [evaluate_case(case, retrieve, retrieval_limit) for case in dataset.cases]
+    case_results = [
+        evaluate_case(
+            case,
+            retrieve,
+            retrieval_limit,
+            max_context_chars=max_context_chars,
+            max_context_chars_per_document=max_context_chars_per_document,
+        )
+        for case in dataset.cases
+    ]
     metrics = aggregate_metrics(case_results)
     failures = threshold_failures(metrics, thresholds)
     return EvaluationReport(
@@ -360,6 +408,9 @@ def evaluate_dataset(
         embedding_dimensions=dataset.manifest.embedding_dimensions,
         embedding_preprocessing=dataset.manifest.embedding_preprocessing,
         evaluator_version=dataset.manifest.evaluator_version,
+        retrieval_strategy=retrieval_strategy,
+        reranker_model=reranker_model,
+        reranker_model_revision=reranker_model_revision,
         retrieval_limit=retrieval_limit,
         metrics=metrics,
         thresholds=thresholds,
@@ -368,7 +419,14 @@ def evaluate_dataset(
     )
 
 
-def evaluate_case(case: EvaluationCase, retrieve: Retriever, limit: int) -> CaseResult:
+def evaluate_case(
+    case: EvaluationCase,
+    retrieve: Retriever,
+    limit: int,
+    *,
+    max_context_chars: int = 12_000,
+    max_context_chars_per_document: int = 6_000,
+) -> CaseResult:
     candidates, latency_ms = retrieve(case, limit)
     expected = {(item.document_key, item.passage_label) for item in case.relevant_passages}
     matching_ranks = [
@@ -377,6 +435,24 @@ def evaluate_case(case: EvaluationCase, retrieve: Retriever, limit: int) -> Case
         if (candidate.document_key, candidate.passage_label) in expected
     ]
     authorization_leak = case.category == "permission_restricted" and bool(candidates)
+    unique_context_ratio: float | None = None
+    context_retention: float | None = None
+    if candidates and all(candidate.content for candidate in candidates):
+        selection = select_context(
+            [evaluation_candidate_to_runtime(candidate) for candidate in candidates],
+            max_chars=max_context_chars,
+            max_chars_per_document=max_context_chars_per_document,
+        )
+        unique_context_ratio = selection.metrics.unique_context_ratio
+        relevant_chunk_ids = {
+            candidate.chunk_id
+            for candidate in candidates
+            if (candidate.document_key, candidate.passage_label) in expected
+        }
+        context_retention = relevant_context_retention(
+            selection.candidates,
+            relevant_chunk_ids,
+        )
     recall: float | None
     precision: float | None
     reciprocal_rank: float | None
@@ -406,6 +482,28 @@ def evaluate_case(case: EvaluationCase, retrieve: Retriever, limit: int) -> Case
         hit=hit,
         no_result_correct=no_result_correct,
         authorization_leak=authorization_leak,
+        unique_context_ratio=unique_context_ratio,
+        relevant_context_retention=context_retention,
+    )
+
+
+def evaluation_candidate_to_runtime(candidate: RetrievalCandidate) -> RuntimeRetrievalCandidate:
+    return RuntimeRetrievalCandidate(
+        document_id=candidate.document_id,
+        document_filename=candidate.filename,
+        chunk_id=candidate.chunk_id,
+        chunk_index=candidate.chunk_index,
+        content=candidate.content,
+        source_page=None,
+        source_label=candidate.passage_label,
+        char_start=candidate.char_start,
+        char_end=candidate.char_end,
+        raw_score=candidate.score,
+        normalized_score=candidate.score,
+        rank=candidate.rank,
+        strategy=candidate.strategy,
+        strategy_ranks=candidate.strategy_ranks,
+        strategy_scores=candidate.strategy_scores,
     )
 
 
@@ -422,6 +520,16 @@ def aggregate_metrics(results: list[CaseResult]) -> AggregateMetrics:
         result.no_result_correct for result in no_result if result.no_result_correct is not None
     ]
     latencies = sorted(result.latency_ms for result in results)
+    unique_context_ratios = [
+        result.unique_context_ratio
+        for result in results
+        if result.unique_context_ratio is not None
+    ]
+    context_retentions = [
+        result.relevant_context_retention
+        for result in relevant
+        if result.relevant_context_retention is not None
+    ]
     p95_index = max(0, min(len(latencies) - 1, int(len(latencies) * 0.95)))
     return AggregateMetrics(
         case_count=len(results),
@@ -437,6 +545,12 @@ def aggregate_metrics(results: list[CaseResult]) -> AggregateMetrics:
         authorization_leak_count=sum(result.authorization_leak for result in results),
         mean_latency_ms=mean(latencies) if latencies else 0.0,
         p95_latency_ms=latencies[p95_index] if latencies else 0.0,
+        mean_unique_context_ratio=(
+            mean(unique_context_ratios) if unique_context_ratios else 1.0
+        ),
+        mean_relevant_context_retention=(
+            mean(context_retentions) if context_retentions else 1.0
+        ),
     )
 
 
@@ -458,6 +572,7 @@ def threshold_failures(metrics: AggregateMetrics, thresholds: EvaluationThreshol
             "minimum",
         ),
         ("mean_latency_ms", metrics.mean_latency_ms, thresholds.max_mean_latency_ms, "maximum"),
+        ("p95_latency_ms", metrics.p95_latency_ms, thresholds.max_p95_latency_ms, "maximum"),
     )
     failures = []
     for name, actual, threshold, direction in checks:
@@ -482,10 +597,22 @@ def write_report(report: EvaluationReport, path: Path) -> None:
 def format_summary(report: EvaluationReport) -> str:
     metrics = report.metrics
     status = "PASSED" if report.passed else "FAILED"
+    model_summary = {
+        "dense": f"Embedding model: {report.embedding_model}",
+        "lexical": "Text search configuration: PostgreSQL simple",
+        "hybrid": (
+            f"Embedding model: {report.embedding_model}; "
+            "text search configuration: PostgreSQL simple"
+        ),
+        "reranked": (
+            f"Embedding model: {report.embedding_model}; reranker: "
+            f"{report.reranker_model}@{report.reranker_model_revision}"
+        ),
+    }.get(report.retrieval_strategy, f"Embedding model: {report.embedding_model}")
     lines = [
-        f"Dense retrieval evaluation: {status}",
+        f"{report.retrieval_strategy.title()} retrieval evaluation: {status}",
         f"Dataset: {report.dataset_id} {report.dataset_version}",
-        f"Embedding model: {report.embedding_model}",
+        model_summary,
         f"Cases: {metrics.case_count} ({metrics.relevant_case_count} relevant, "
         f"{metrics.no_result_case_count} no-result)",
         f"Recall@{report.retrieval_limit}: {metrics.recall_at_k:.3f}",
@@ -494,6 +621,8 @@ def format_summary(report: EvaluationReport) -> str:
         f"Hit rate: {metrics.hit_rate:.3f}",
         f"No-result accuracy: {metrics.no_result_accuracy:.3f}",
         f"Authorization leaks: {metrics.authorization_leak_count}",
+        f"Unique context ratio: {metrics.mean_unique_context_ratio:.3f}",
+        f"Relevant context retention: {metrics.mean_relevant_context_retention:.3f}",
         f"Latency mean/p95: {metrics.mean_latency_ms:.1f}/{metrics.p95_latency_ms:.1f} ms",
     ]
     lines.extend(f"Threshold failure: {failure}" for failure in report.threshold_failures)

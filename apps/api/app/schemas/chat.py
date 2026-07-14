@@ -23,6 +23,7 @@ class ChatCompletionRequest(BaseModel):
     use_documents: bool = False
     document_ids: list[int] | None = Field(default=None, min_length=1, max_length=100)
     retrieval_limit: int | None = Field(default=None, ge=1, le=20)
+    retrieval_strategy: Literal["dense", "lexical", "hybrid", "reranked"] | None = None
     conversation_id: int | None = Field(default=None, ge=1)
 
 

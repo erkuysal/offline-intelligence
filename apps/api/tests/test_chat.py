@@ -5,10 +5,13 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.api.v1.chat import llm_request_semaphore, parse_stream_event, stream_llm_response
 from app.config import get_settings
+from app.db.session import SessionLocal
 from app.main import app
+from app.models.retrieval import RetrievalRun
 from app.schemas.chat import ChatCompletionRequest
 from app.services.llm import LLMTimeoutError, LLMUnavailableError
 
@@ -258,6 +261,7 @@ def test_chat_completion_retrieves_document_sources(tmp_path: Path, monkeypatch)
             "use_documents": True,
             "document_ids": [document["id"]],
             "retrieval_limit": 1,
+            "retrieval_strategy": "hybrid",
         },
     )
 
@@ -290,6 +294,40 @@ def test_chat_completion_retrieves_document_sources(tmp_path: Path, monkeypatch)
     assert assistant_message["sources"][0]["char_start"] == chunks[0]["char_start"]
     assert assistant_message["sources"][0]["char_end"] == chunks[0]["char_end"]
     assert assistant_message["sources"][0]["document_accessible"] is True
+    with SessionLocal() as db:
+        run = db.scalar(select(RetrievalRun).order_by(RetrievalRun.id.desc()))
+    assert run is not None
+    assert run.request_kind == "chat"
+    assert run.strategy == "hybrid"
+    assert run.query_text is None
+    assert run.filters == {"document_ids": [document["id"]], "limit": 1}
+    assert run.candidate_count == 1
+    assert run.selected_context_count == 1
+    assert run.model_versions == {
+        "embedding": "fake-bow",
+        "lexical": "postgresql-simple",
+    }
+    assert run.candidates[0]["strategy"] == "hybrid"
+    assert set(run.candidates[0]["strategy_ranks"]) == {"dense", "lexical"}
+    assert set(run.timings_ms) >= {
+        "dense_embedding",
+        "dense_candidate_retrieval",
+        "lexical_candidate_retrieval",
+        "fusion",
+        "strategy_total",
+        "context_selection",
+        "pipeline_total",
+    }
+    assert run.selection_metrics == {
+        "input_candidate_count": 1,
+        "selected_candidate_count": 1,
+        "exact_duplicates_removed": 0,
+        "overlap_chars_removed": 0,
+        "considered_chars": len(chunks[0]["content"]),
+        "unique_chars": len(chunks[0]["content"]),
+        "selected_chars": len(chunks[0]["content"]),
+        "unique_context_ratio": 1.0,
+    }
 
 
 def test_streaming_chat_emits_document_sources(tmp_path: Path, monkeypatch) -> None:

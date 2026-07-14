@@ -1,4 +1,5 @@
 from typing import Annotated
+from time import perf_counter
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from redis.exceptions import RedisError
@@ -23,7 +24,13 @@ from app.schemas.documents import (
 from app.services.document_ingestion import process_document_ingestion
 from app.services.document_ingestion_queue import enqueue_document_ingestion
 from app.services.document_storage import delete_stored_file, store_upload
-from app.services.embeddings import get_embedding_provider, search_document_chunks
+from app.retrieval import (
+    RetrievalQuery,
+    build_retrieval_strategy,
+    retrieval_model_versions,
+)
+from app.services.embeddings import get_embedding_provider
+from app.services.retrieval_runs import persist_retrieval_run
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -290,26 +297,64 @@ def search_documents(
     request: DocumentSearchRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> list[DocumentSearchResult]:
-    results = search_document_chunks(
-        db,
+    provider = get_embedding_provider()
+    strategy_name = request.retrieval_strategy or settings.rag_retrieval_strategy
+    strategy = build_retrieval_strategy(
+        strategy_name,
+        provider=provider,
+        settings=settings,
+    )
+    model_versions = retrieval_model_versions(strategy_name, provider.model, settings)
+    retrieval_query = RetrievalQuery(
         user_id=current_user.id,
-        query=request.query,
+        text=request.query,
         limit=request.limit,
-        provider=get_embedding_provider(),
+    )
+    retrieval_started_at = perf_counter()
+    try:
+        retrieval_result = strategy.retrieve(db, retrieval_query)
+    except Exception:
+        persist_retrieval_run(
+            db,
+            settings=settings,
+            query=retrieval_query,
+            request_kind="document_search",
+            strategy=strategy.name,
+            model_versions=model_versions,
+            candidates=[],
+            selected_context=[],
+            timings_ms={"pipeline_total": (perf_counter() - retrieval_started_at) * 1000},
+            outcome="failure",
+        )
+        raise
+    persist_retrieval_run(
+        db,
+        settings=settings,
+        query=retrieval_query,
+        request_kind="document_search",
+        strategy=strategy.name,
+        model_versions={**model_versions, **retrieval_result.diagnostics},
+        candidates=retrieval_result.candidates,
+        selected_context=[],
+        timings_ms={
+            **retrieval_result.timings_ms,
+            "pipeline_total": (perf_counter() - retrieval_started_at) * 1000,
+        },
     )
     return [
         DocumentSearchResult(
-            document_id=chunk.document_id,
-            document_filename=chunk.document.original_filename,
-            chunk_id=chunk.id,
-            chunk_index=chunk.chunk_index,
-            content=chunk.content,
-            source_page=chunk.source_page,
-            source_label=chunk.source_label,
-            score=score,
+            document_id=candidate.document_id,
+            document_filename=candidate.document_filename,
+            chunk_id=candidate.chunk_id,
+            chunk_index=candidate.chunk_index,
+            content=candidate.content,
+            source_page=candidate.source_page,
+            source_label=candidate.source_label,
+            score=candidate.normalized_score,
         )
-        for chunk, score in results
+        for candidate in retrieval_result.candidates
     ]
 
 

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.document import Document, DocumentPermission
     from app.models.role import Role
+    from app.models.retrieval import RetrievalRun
 
 
 class User(TimestampMixin, Base):
@@ -60,6 +61,11 @@ class User(TimestampMixin, Base):
     )
 
     conversations: Mapped[list["Conversation"]] = relationship(
+        back_populates="owner",
+        cascade="all, delete-orphan",
+    )
+
+    retrieval_runs: Mapped[list["RetrievalRun"]] = relationship(
         back_populates="owner",
         cascade="all, delete-orphan",
     )

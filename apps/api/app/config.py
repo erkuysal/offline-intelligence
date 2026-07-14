@@ -1,5 +1,7 @@
 from functools import lru_cache
+from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.constants import EMBEDDING_DIMENSIONS
@@ -35,6 +37,21 @@ class Settings(BaseSettings):
     embedding_reindex_batch_size: int = 32
     rag_retrieval_limit: int = 5
     rag_max_context_chars: int = 12_000
+    rag_max_context_chars_per_document: int = Field(default=6_000, ge=1)
+    rag_retrieval_strategy: Literal["dense", "lexical", "hybrid", "reranked"] = "dense"
+    hybrid_overfetch_multiplier: int = Field(default=3, ge=1, le=20)
+    hybrid_max_candidates_per_strategy: int = Field(default=100, ge=1, le=500)
+    hybrid_rrf_k: int = Field(default=60, ge=1, le=1_000)
+    reranker_backend: str = "disabled"
+    reranker_base_url: str = "http://127.0.0.1:8082/v1"
+    reranker_model: str = "bge-reranker-v2-m3"
+    reranker_model_revision: str = "b5160aeac3c6c8fe7beaaaf04c9e0142826b58d1"
+    reranker_timeout_seconds: float = Field(default=30.0, gt=0)
+    reranker_candidate_limit: int = Field(default=20, ge=1, le=100)
+    retrieval_run_persistence_enabled: bool = True
+    retrieval_run_persist_query_text: bool = False
+    retrieval_run_persist_passage_text: bool = False
+    retrieval_run_retention_days: int = Field(default=30, ge=1)
     llm_backend: str = "fake"
     llm_base_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "local-default"

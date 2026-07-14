@@ -36,6 +36,7 @@ def test_build_test_environment_derives_isolated_database(monkeypatch) -> None:
     assert make_url(environment["TEST_DATABASE_ADMIN_URL"]).database == "postgres"
     assert environment["LLM_BACKEND"] == "fake"
     assert environment["EMBEDDING_BACKEND"] == "fake"
+    assert environment["RERANKER_BACKEND"] == "disabled"
 
 
 def test_build_test_environment_preserves_explicit_test_database(monkeypatch) -> None:
@@ -72,6 +73,7 @@ def test_build_e2e_environment_derives_isolated_database(monkeypatch) -> None:
     assert environment["DOCUMENT_INGESTION_MODE"] == "sync"
     assert environment["LLM_BACKEND"] == "fake"
     assert environment["EMBEDDING_BACKEND"] == "fake"
+    assert environment["RERANKER_BACKEND"] == "disabled"
 
 
 def test_build_e2e_environment_preserves_explicit_e2e_database(monkeypatch) -> None:
@@ -88,3 +90,36 @@ def test_build_e2e_environment_preserves_explicit_e2e_database(monkeypatch) -> N
     environment = launcher.build_e2e_environment()
 
     assert make_url(environment["DATABASE_URL"]).database == "custom_e2e"
+
+
+def test_parser_exposes_retrieval_cleanup_command() -> None:
+    launcher = load_launcher()
+
+    args = launcher.build_parser().parse_args(["retrieval-cleanup"])
+
+    assert args.func is launcher.retrieval_cleanup
+
+
+def test_parser_accepts_lexical_evaluation_strategy() -> None:
+    launcher = load_launcher()
+
+    args = launcher.build_parser().parse_args(["evaluate-retrieval", "--strategy", "lexical"])
+
+    assert args.strategy == "lexical"
+
+    hybrid_args = launcher.build_parser().parse_args(
+        ["evaluate-retrieval", "--strategy", "hybrid"]
+    )
+    assert hybrid_args.strategy == "hybrid"
+    reranked_args = launcher.build_parser().parse_args(
+        ["evaluate-retrieval", "--strategy", "reranked"]
+    )
+    assert reranked_args.strategy == "reranked"
+
+
+def test_parser_exposes_reranker_lifecycle_commands() -> None:
+    launcher = load_launcher()
+
+    assert launcher.build_parser().parse_args(["reranker-start"]).func is launcher.reranker_start
+    assert launcher.build_parser().parse_args(["reranker-check"]).func is launcher.reranker_check
+    assert launcher.build_parser().parse_args(["reranker-stop"]).func is launcher.reranker_stop

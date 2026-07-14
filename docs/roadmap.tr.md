@@ -264,7 +264,7 @@ audit_logs
 
 Basit vector search sonrasında RAG sisteminin gerçekten çalışıp çalışmadığı ölçülür.
 
-> **Durum:** `v0.4.0` MVP kabulünün 13 Temmuz 2026 tarihinde tamamlanmasıyla başlamaya hazırdır. Giriş kriterleri ve paket sırası `docs/plans/phase-4.md` dosyasında izlenir; hybrid retrieval `v0.4.0` kapsamına dahil değildir.
+> **Durum:** Devam ediyor. Çalışma Paketi 4.0, iki dilli dense retrieval baseline'ını 14 Temmuz 2026 tarihinde oluşturup kabul etti. Sırada Çalışma Paketi 4.1 retrieval mimarisi ve observability çalışmaları vardır; paket sırası ve kabul kriterleri `docs/plans/phase-4.md` dosyasında izlenir.
 
 ### Retrieval Geliştirmeleri
 

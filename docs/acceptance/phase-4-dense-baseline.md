@@ -52,6 +52,7 @@ Mean Reciprocal Rank >= 0.95
 Hit rate >= 0.95
 No-result accuracy >= 0.50
 Mean retrieval latency <= 50 ms
+P95 retrieval latency <= 50 ms
 Authorization leaks = 0
 ```
 

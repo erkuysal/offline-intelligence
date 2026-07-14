@@ -10,6 +10,7 @@
   "embedding_dimensions": 768,
   "embedding_preprocessing": "model-server native tokenization; no application-side normalization",
   "evaluator_version": "1.0.0",
+  "retrieval_strategy": "dense",
   "retrieval_limit": 5,
   "metrics": {
     "case_count": 40,
@@ -31,6 +32,7 @@
     "min_hit_rate": 0.95,
     "min_no_result_accuracy": 0.5,
     "max_mean_latency_ms": 50.0,
+    "max_p95_latency_ms": 50.0,
     "max_authorization_leaks": 0
   },
   "threshold_failures": [],

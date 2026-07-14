@@ -124,6 +124,32 @@ def test_metrics_cover_ingestion_embedding_and_retrieval_outcomes(
         outcome="success",
     )
     assert retrieval_metric["item_count"] >= 1
+    context_metric = assert_operation(
+        operations,
+        stage="retrieval",
+        operation="context_selection",
+        outcome="success",
+    )
+    assert context_metric["item_count"] >= 1
+    assert_operation(
+        operations,
+        stage="retrieval",
+        operation="context_exact_deduplication",
+        outcome="unchanged",
+    )
+    assert_operation(
+        operations,
+        stage="retrieval",
+        operation="context_overlap_deduplication",
+        outcome="unchanged",
+    )
+    persistence_metric = assert_operation(
+        operations,
+        stage="retrieval",
+        operation="persist_run",
+        outcome="success",
+    )
+    assert persistence_metric["item_count"] >= 1
 
 
 def get_access_token() -> str:

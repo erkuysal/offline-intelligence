@@ -39,6 +39,7 @@ Run the accepted 20-document, 40-question real-model baseline with:
   --min-hit-rate 0.95 \
   --min-no-result-accuracy 0.5 \
   --max-mean-latency-ms 50 \
+  --max-p95-latency-ms 50 \
   --max-authorization-leaks 0 \
   --output evaluation/baselines/dense-baseline-v1.json
 ```
@@ -46,3 +47,67 @@ Run the accepted 20-document, 40-question real-model baseline with:
 The checked-in [baseline report](baselines/dense-baseline-v1.json) records the accepted metrics and
 per-question rankings. See the [acceptance record](../docs/acceptance/phase-4-dense-baseline.md) for
 interpretation and known limitations.
+
+Evaluation reports also apply the runtime context selector to retrieved candidates and report mean
+unique-context ratio plus mean relevant-context retention. Passage text and source offsets are used
+only in memory for this calculation and are excluded from the JSON report. See the
+[context-selection acceptance record](../docs/acceptance/phase-4-context-selection.md).
+
+Run the lexical strategy against the same corpus without an embedding server:
+
+```bash
+./manage.py evaluate-retrieval \
+  --strategy lexical \
+  --dataset evaluation/datasets/dense-baseline-v1.jsonl \
+  --limit 5 \
+  --min-recall 0.95 \
+  --min-precision 0.40 \
+  --min-mrr 0.95 \
+  --min-hit-rate 0.95 \
+  --min-no-result-accuracy 0.5 \
+  --max-mean-latency-ms 50 \
+  --max-p95-latency-ms 50 \
+  --max-authorization-leaks 0 \
+  --output evaluation/baselines/lexical-baseline-v1.json
+```
+
+The checked-in [lexical baseline report](baselines/lexical-baseline-v1.json) records the accepted
+quality, latency, and authorization thresholds. PostgreSQL uses the language-neutral `simple`
+configuration documented in [`ADR 0005`](../docs/adr/0005-phase-4-lexical-search.md).
+
+Run the accepted reciprocal-rank-fused hybrid baseline with the real embedding runtime:
+
+```bash
+./manage.py evaluate-retrieval \
+  --strategy hybrid \
+  --dataset evaluation/datasets/dense-baseline-v1.jsonl \
+  --limit 5 \
+  --min-recall 0.95 \
+  --min-precision 0.25 \
+  --min-mrr 0.95 \
+  --min-hit-rate 0.95 \
+  --min-no-result-accuracy 0.5 \
+  --max-mean-latency-ms 50 \
+  --max-p95-latency-ms 50 \
+  --max-authorization-leaks 0 \
+  --output evaluation/baselines/hybrid-baseline-v1.json
+```
+
+The checked-in [hybrid baseline report](baselines/hybrid-baseline-v1.json) retains dense, lexical,
+and fused rank diagnostics. Dense remains the runtime default because hybrid matched dense quality
+with higher latency; see the
+[hybrid acceptance record](../docs/acceptance/phase-4-hybrid-baseline.md).
+
+Run the optional reranker over a bounded hybrid pool with both local model services active:
+
+```bash
+./manage.py evaluate-retrieval \
+  --strategy reranked \
+  --dataset evaluation/datasets/dense-baseline-v1.jsonl \
+  --limit 5 \
+  --output evaluation/baselines/reranked-baseline-v1.json
+```
+
+The [reranked report](baselines/reranked-baseline-v1.json) matched hybrid quality but incurred much
+higher latency, so it is selectable but not promoted. See the
+[acceptance record](../docs/acceptance/phase-4-reranked-baseline.md).

@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import VECTOR
-from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Computed, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.constants import EMBEDDING_DIMENSIONS
@@ -22,6 +23,15 @@ class Document(TimestampMixin, Base):
         nullable=False,
     )
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('simple'::regconfig, "
+            "translate(coalesce(original_filename, ''), '-_./:', '     '))",
+            persisted=True,
+        ),
+        nullable=False,
+    )
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     storage_path: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
@@ -125,6 +135,15 @@ class DocumentChunk(TimestampMixin, Base):
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('simple'::regconfig, "
+            "translate(coalesce(content, ''), '-_./:', '     '))",
+            persisted=True,
+        ),
+        nullable=False,
+    )
     char_start: Mapped[int] = mapped_column(Integer, nullable=False)
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
     token_start: Mapped[int] = mapped_column(Integer, nullable=False)

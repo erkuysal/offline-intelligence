@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.document import DocumentChunk
+from app.models.retrieval import RetrievalRun
 from app.services.document_ingestion import process_document_ingestion
 from app.services.embeddings import EmbeddingError, FakeEmbeddingProvider, reembed_all_document_chunks
 
@@ -451,6 +452,15 @@ def test_search_documents_returns_relevant_chunks(
     assert results[0]["document_filename"] == "backup-policy.txt"
     assert "Backups" in results[0]["content"]
     assert results[0]["score"] > results[1]["score"]
+    with SessionLocal() as db:
+        run = db.scalar(select(RetrievalRun).order_by(RetrievalRun.id.desc()))
+    assert run is not None
+    assert run.request_kind == "document_search"
+    assert run.query_text is None
+    assert run.candidate_count == 2
+    assert run.selected_context_count == 0
+    assert "content" not in run.candidates[0]
+    assert run.model_versions == {"embedding": "fake-bow"}
 
 
 def test_search_documents_requires_authentication() -> None:
@@ -460,6 +470,38 @@ def test_search_documents_requires_authentication() -> None:
     )
 
     assert response.status_code == 401
+
+
+def test_reranked_search_persists_unavailable_backend_fallback(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "reranker_backend", "disabled")
+    token = get_access_token()
+    upload_txt_document_with_content(token, b"Backups run every night.")
+
+    response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"query": "night backups", "limit": 1, "retrieval_strategy": "reranked"},
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    with SessionLocal() as db:
+        run = db.scalar(select(RetrievalRun).order_by(RetrievalRun.id.desc()))
+    assert run is not None
+    assert run.strategy == "reranked"
+    assert run.model_versions["reranker_outcome"] == "fallback"
+    assert run.model_versions["reranker_candidate_count"] == 1
+    assert run.model_versions["reranker_model"] == "bge-reranker-v2-m3"
+    assert run.model_versions["reranker"].endswith(
+        "@b5160aeac3c6c8fe7beaaaf04c9e0142826b58d1"
+    )
+    assert run.candidates[0]["strategy"] == "hybrid"
+    assert "reranker" in run.timings_ms
 
 
 def test_search_documents_hides_other_users_chunks(

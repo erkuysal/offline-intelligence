@@ -20,6 +20,8 @@
 - Non-streaming and streaming LLM token usage tracking
 - OpenAI-style chat completions endpoint with a fake local LLM backend
 - Opt-in document retrieval for grounded chat responses with source metadata
+- PostgreSQL lexical retrieval strategy with indexed content/filename search and evaluation mode
+- Selectable dense, lexical, and reciprocal-rank-fused hybrid retrieval modes
 - Streaming chat completions via server-sent events
 - Vue 3 browser client with protected authentication, document, chat, conversation, and health routes
 - Inspectable persisted citations and conversation history
@@ -29,6 +31,7 @@
 
 - [Installation and contributor setup](docs/installation.md)
 - [Retrieval evaluation](evaluation/README.md)
+- [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)
 - [v0.4.0 acceptance record](docs/acceptance/v0.4.0.md)
@@ -263,10 +266,13 @@ Ground a completion in the authenticated user's documents:
 curl -X POST http://127.0.0.1:8000/api/v1/chat/completions \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"When do backups run?"}],"use_documents":true,"retrieval_limit":5}'
+  -d '{"messages":[{"role":"user","content":"When do backups run?"}],"use_documents":true,"retrieval_limit":5,"retrieval_strategy":"dense"}'
 ```
 
-`document_ids` can restrict retrieval to selected documents. Non-streaming responses include a `sources` list. Streaming responses emit an `event: sources` SSE event before completion chunks when sources were found.
+`document_ids` can restrict retrieval to selected documents. `retrieval_strategy` accepts `dense`,
+`lexical`, or `hybrid`; the configured default remains `dense`. Non-streaming responses include a
+`sources` list. Streaming responses emit an `event: sources` SSE event before completion chunks when
+sources were found.
 
 Probe the configured backend directly:
 
@@ -300,6 +306,7 @@ EMBEDDING_DIMENSIONS=768
 EMBEDDING_TIMEOUT_SECONDS=30
 RAG_RETRIEVAL_LIMIT=5
 RAG_MAX_CONTEXT_CHARS=12000
+RAG_MAX_CONTEXT_CHARS_PER_DOCUMENT=6000
 ```
 
 List chunks for a document:
@@ -404,6 +411,30 @@ Search only considers vectors produced by the currently configured embedding mod
 ./manage.py embedding-stop
 ```
 
+### Optional local reranking
+
+The explicit `reranked` strategy reranks at most 20 hybrid candidates with the pinned multilingual
+`bge-reranker-v2-m3` model. Start and verify its dedicated llama.cpp server:
+
+```bash
+./manage.py reranker-start
+./manage.py reranker-check
+```
+
+Then configure the API and select `retrieval_strategy: "reranked"` per request:
+
+```env
+RERANKER_BACKEND=openai_compatible
+RERANKER_BASE_URL=http://127.0.0.1:8082/v1
+RERANKER_MODEL=bge-reranker-v2-m3
+RERANKER_MODEL_REVISION=b5160aeac3c6c8fe7beaaaf04c9e0142826b58d1
+RERANKER_CANDIDATE_LIMIT=20
+```
+
+If the server is disabled, unavailable, or returns an invalid response, retrieval keeps the fused
+hybrid order. Dense remains the default because the accepted reranker evaluation found no quality
+gain and substantially higher latency. Stop the server with `./manage.py reranker-stop`.
+
 Search over embedded chunks:
 
 ```text
@@ -415,6 +446,15 @@ POST /api/v1/documents/search
   "query": "backup policy",
   "limit": 5
 }
+```
+
+Chat retrieval and direct document search store privacy-safe diagnostics with a configurable
+retention period. Raw query and passage text are disabled by default. See the
+[retrieval observability guide](docs/api/retrieval-observability.md), and periodically remove
+expired records with:
+
+```bash
+./manage.py retrieval-cleanup
 ```
 
 ## Smoke Test

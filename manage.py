@@ -109,6 +109,7 @@ def build_test_environment() -> dict[str, str]:
             "LLM_WARMUP_ENABLED": "false",
             "EMBEDDING_BACKEND": "fake",
             "EMBEDDING_MODEL": "fake-bow",
+            "RERANKER_BACKEND": "disabled",
         }
     )
     return environment
@@ -151,6 +152,7 @@ def build_e2e_environment() -> dict[str, str]:
             "LLM_WARMUP_ENABLED": "false",
             "EMBEDDING_BACKEND": "fake",
             "EMBEDDING_MODEL": "fake-bow",
+            "RERANKER_BACKEND": "disabled",
         }
     )
     return environment
@@ -317,6 +319,18 @@ def embedding_stop(_args: argparse.Namespace) -> int:
     return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "stop-embedding.sh")])
 
 
+def reranker_start(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "start-reranker.sh")])
+
+
+def reranker_check(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "check-reranker.sh")])
+
+
+def reranker_stop(_args: argparse.Namespace) -> int:
+    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "stop-reranker.sh")])
+
+
 def embedding_reindex(args: argparse.Namespace) -> int:
     configure_import_path()
     load_root_env()
@@ -363,16 +377,35 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
         write_report,
     )
     from app.services.embeddings import EmbeddingError, get_embedding_provider
+    from app.retrieval import (
+        DenseRetrievalStrategy,
+        LexicalRetrievalStrategy,
+        build_retrieval_strategy,
+    )
 
     try:
         dataset = load_dataset(Path(args.dataset))
-        provider = get_embedding_provider()
-        if dataset.manifest.embedding_model != provider.model and not args.allow_model_mismatch:
+        provider = (
+            get_embedding_provider()
+            if args.strategy in {"dense", "hybrid", "reranked"}
+            else None
+        )
+        if (
+            provider is not None
+            and dataset.manifest.embedding_model != provider.model
+            and not args.allow_model_mismatch
+        ):
             raise ValueError(
                 f"Dataset requires embedding model {dataset.manifest.embedding_model!r}; "
                 f"configured model is {provider.model!r}. Use --allow-model-mismatch only for experiments."
             )
         settings = get_settings()
+        if args.strategy == "dense" and provider is not None:
+            strategy = DenseRetrievalStrategy(provider)
+        elif args.strategy in {"hybrid", "reranked"} and provider is not None:
+            strategy = build_retrieval_strategy(args.strategy, provider=provider, settings=settings)
+        else:
+            strategy = LexicalRetrievalStrategy()
         thresholds = EvaluationThresholds(
             min_recall_at_k=args.min_recall,
             min_precision_at_k=args.min_precision,
@@ -380,6 +413,7 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
             min_hit_rate=args.min_hit_rate,
             min_no_result_accuracy=args.min_no_result_accuracy,
             max_mean_latency_ms=args.max_mean_latency_ms,
+            max_p95_latency_ms=args.max_p95_latency_ms,
             max_authorization_leaks=args.max_authorization_leaks,
         )
         with SessionLocal() as db:
@@ -394,13 +428,22 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
                 retrieve=build_database_retriever(
                     db,
                     user_id=user_id,
-                    provider=provider,
+                    strategy=strategy,
                     key_by_document_id=key_by_document_id,
                     id_by_document_key=id_by_document_key,
                 ),
                 retrieval_limit=args.limit,
                 thresholds=thresholds,
-                embedding_model=provider.model,
+                embedding_model=(
+                    provider.model if provider is not None else dataset.manifest.embedding_model
+                ),
+                retrieval_strategy=strategy.name,
+                max_context_chars=settings.rag_max_context_chars,
+                max_context_chars_per_document=settings.rag_max_context_chars_per_document,
+                reranker_model=(settings.reranker_model if args.strategy == "reranked" else None),
+                reranker_model_revision=(
+                    settings.reranker_model_revision if args.strategy == "reranked" else None
+                ),
             )
         write_report(report, Path(args.output))
     except (EmbeddingError, OSError, ValueError) as exc:
@@ -410,6 +453,19 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
     print(format_summary(report))
     print(f"JSON report: {Path(args.output).resolve()}")
     return 0 if report.passed else 1
+
+
+def retrieval_cleanup(_args: argparse.Namespace) -> int:
+    configure_import_path()
+    load_root_env()
+
+    from app.db.session import SessionLocal
+    from app.services.retrieval_runs import cleanup_expired_retrieval_runs
+
+    with SessionLocal() as db:
+        deleted = cleanup_expired_retrieval_runs(db)
+    print(f"Deleted {deleted} expired retrieval runs")
+    return 0
 
 
 def ingestion_worker(args: argparse.Namespace) -> int:
@@ -547,6 +603,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     embedding_stop_parser.set_defaults(func=embedding_stop)
 
+    reranker_start_parser = subparsers.add_parser(
+        "reranker-start", help="start the dedicated llama.cpp reranker server"
+    )
+    reranker_start_parser.set_defaults(func=reranker_start)
+    reranker_check_parser = subparsers.add_parser(
+        "reranker-check", help="check the dedicated reranker server"
+    )
+    reranker_check_parser.set_defaults(func=reranker_check)
+    reranker_stop_parser = subparsers.add_parser(
+        "reranker-stop", help="gracefully stop the dedicated reranker server"
+    )
+    reranker_stop_parser.set_defaults(func=reranker_stop)
+
     embedding_reindex_parser = subparsers.add_parser(
         "embedding-reindex",
         help="replace stored document chunk embeddings using the configured provider",
@@ -560,7 +629,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     evaluation_parser = subparsers.add_parser(
         "evaluate-retrieval",
-        help="seed a versioned corpus and evaluate dense retrieval",
+        help="seed a versioned corpus and evaluate a retrieval strategy",
     )
     evaluation_parser.add_argument(
         "--dataset",
@@ -571,15 +640,27 @@ def build_parser() -> argparse.ArgumentParser:
         default="var/evaluation/dense-baseline-latest.json",
     )
     evaluation_parser.add_argument("--limit", type=int, default=5, choices=range(1, 21))
+    evaluation_parser.add_argument(
+        "--strategy",
+        choices=("dense", "lexical", "hybrid", "reranked"),
+        default="dense",
+    )
     evaluation_parser.add_argument("--min-recall", type=float)
     evaluation_parser.add_argument("--min-precision", type=float)
     evaluation_parser.add_argument("--min-mrr", type=float)
     evaluation_parser.add_argument("--min-hit-rate", type=float)
     evaluation_parser.add_argument("--min-no-result-accuracy", type=float)
     evaluation_parser.add_argument("--max-mean-latency-ms", type=float)
+    evaluation_parser.add_argument("--max-p95-latency-ms", type=float)
     evaluation_parser.add_argument("--max-authorization-leaks", type=int, default=0)
     evaluation_parser.add_argument("--allow-model-mismatch", action="store_true")
     evaluation_parser.set_defaults(func=evaluate_retrieval)
+
+    retrieval_cleanup_parser = subparsers.add_parser(
+        "retrieval-cleanup",
+        help="delete retrieval diagnostics past their configured expiry",
+    )
+    retrieval_cleanup_parser.set_defaults(func=retrieval_cleanup)
 
     ingestion_worker_parser = subparsers.add_parser(
         "ingestion-worker",
