@@ -22,6 +22,7 @@
 - Opt-in document retrieval for grounded chat responses with source metadata
 - PostgreSQL lexical retrieval strategy with indexed content/filename search and evaluation mode
 - Selectable dense, lexical, and reciprocal-rank-fused hybrid retrieval modes
+- Reproducible bilingual retrieval and full RAG generation evaluation commands
 - Streaming chat completions via server-sent events
 - Vue 3 browser client with protected authentication, document, chat, conversation, and health routes
 - Inspectable persisted citations and conversation history
@@ -35,6 +36,7 @@
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)
 - [v0.4.0 acceptance record](docs/acceptance/v0.4.0.md)
+- [Phase 4 acceptance record](docs/acceptance/phase-4-generation-baseline.md)
 - [Development roadmap](docs/roadmap.en.md)
 
 ## Local Setup
@@ -434,6 +436,26 @@ RERANKER_CANDIDATE_LIMIT=20
 If the server is disabled, unavailable, or returns an invalid response, retrieval keeps the fused
 hybrid order. Dense remains the default because the accepted reranker evaluation found no quality
 gain and substantially higher latency. Stop the server with `./manage.py reranker-stop`.
+
+### Optional multi-query retrieval
+
+The explicit `multi_query` strategy uses the local chat model to generate at most two alternative
+queries, runs bounded hybrid retrieval for each, and merges duplicate chunks with reciprocal rank
+fusion. The original query always runs and all authorization/document filters are preserved.
+
+```env
+QUERY_REWRITE_BACKEND=openai_compatible
+QUERY_REWRITE_BASE_URL=http://127.0.0.1:8080/v1
+QUERY_REWRITE_MODEL=ggml-org/gemma-3-1b-it-GGUF:Q4_K_M
+QUERY_REWRITE_MODEL_REVISION=61333bac858461ec0c309b7baafdc408d7d2c381
+MULTI_QUERY_MAX_GENERATED_VARIANTS=2
+MULTI_QUERY_MAX_CANDIDATE_OBSERVATIONS=30
+MULTI_QUERY_MAX_PIPELINE_MS=2000
+```
+
+Timeouts, invalid output, and disabled rewriting fall back to the original query. Raw variants are
+persisted only when `RETRIEVAL_RUN_PERSIST_QUERY_TEXT=true`; hashes are retained by default. Formal
+evaluation regressed ranking and latency, so dense remains the default.
 
 Search over embedded chunks:
 

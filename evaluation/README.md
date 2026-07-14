@@ -111,3 +111,45 @@ Run the optional reranker over a bounded hybrid pool with both local model servi
 The [reranked report](baselines/reranked-baseline-v1.json) matched hybrid quality but incurred much
 higher latency, so it is selectable but not promoted. See the
 [acceptance record](../docs/acceptance/phase-4-reranked-baseline.md).
+
+With the pinned local Gemma rewrite service active, evaluate the bounded multi-query strategy:
+
+```bash
+./manage.py evaluate-retrieval \
+  --strategy multi_query \
+  --dataset evaluation/datasets/dense-baseline-v1.jsonl \
+  --limit 5 \
+  --min-mrr 0.95 \
+  --output evaluation/baselines/multi-query-baseline-v1.json
+```
+
+The checked-in [multi-query report](baselines/multi-query-baseline-v1.json) intentionally records a
+failed MRR threshold. The feature is explicit and fallback-safe but was not promoted; see its
+[acceptance record](../docs/acceptance/phase-4-multi-query-baseline.md).
+
+Run the accepted full RAG generation baseline with both pinned local model services active:
+
+```bash
+./manage.py evaluate-generation \
+  --dataset evaluation/datasets/dense-baseline-v1.jsonl \
+  --limit 5 \
+  --min-parse-success 1 \
+  --min-fact-coverage 0.65 \
+  --min-citation-accuracy 0.65 \
+  --min-citation-coverage 0.70 \
+  --min-faithfulness 0.65 \
+  --max-hallucination 0.35 \
+  --min-refusal-accuracy 1 \
+  --max-restricted-fact-leaks 0 \
+  --max-mean-ttft-ms 600 \
+  --max-p95-ttft-ms 750 \
+  --max-mean-latency-ms 1200 \
+  --max-p95-latency-ms 1600 \
+  --min-tokens-per-second 20 \
+  --output evaluation/baselines/generation-baseline-v1.json
+```
+
+The [generation report](baselines/generation-baseline-v1.json) records natural-answer fact,
+citation, faithfulness, refusal, safety, and streaming-performance metrics. Its pinned 1B model is
+accepted as the Phase 4 regression floor, not as a claim of production-grade answer quality; see
+the [acceptance record](../docs/acceptance/phase-4-generation-baseline.md).

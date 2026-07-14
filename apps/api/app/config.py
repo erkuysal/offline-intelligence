@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     rag_retrieval_limit: int = 5
     rag_max_context_chars: int = 12_000
     rag_max_context_chars_per_document: int = Field(default=6_000, ge=1)
-    rag_retrieval_strategy: Literal["dense", "lexical", "hybrid", "reranked"] = "dense"
+    rag_retrieval_strategy: Literal[
+        "dense", "lexical", "hybrid", "reranked", "multi_query"
+    ] = "dense"
     hybrid_overfetch_multiplier: int = Field(default=3, ge=1, le=20)
     hybrid_max_candidates_per_strategy: int = Field(default=100, ge=1, le=500)
     hybrid_rrf_k: int = Field(default=60, ge=1, le=1_000)
@@ -48,6 +50,18 @@ class Settings(BaseSettings):
     reranker_model_revision: str = "b5160aeac3c6c8fe7beaaaf04c9e0142826b58d1"
     reranker_timeout_seconds: float = Field(default=30.0, gt=0)
     reranker_candidate_limit: int = Field(default=20, ge=1, le=100)
+    query_rewrite_backend: str = "disabled"
+    query_rewrite_base_url: str = "http://127.0.0.1:8080/v1"
+    query_rewrite_model: str = "ggml-org/gemma-3-1b-it-GGUF:Q4_K_M"
+    query_rewrite_model_revision: str = "61333bac858461ec0c309b7baafdc408d7d2c381"
+    query_rewrite_timeout_seconds: float = Field(default=10.0, gt=0)
+    query_rewrite_max_tokens: int = Field(default=128, ge=16, le=512)
+    multi_query_max_generated_variants: int = Field(default=2, ge=0, le=4)
+    multi_query_max_query_chars: int = Field(default=500, ge=1, le=2_000)
+    multi_query_candidates_per_variant: int = Field(default=10, ge=1, le=50)
+    multi_query_max_candidate_observations: int = Field(default=30, ge=1, le=100)
+    multi_query_max_pipeline_ms: float = Field(default=2_000.0, gt=0)
+    multi_query_rrf_k: int = Field(default=60, ge=1, le=1_000)
     retrieval_run_persistence_enabled: bool = True
     retrieval_run_persist_query_text: bool = False
     retrieval_run_persist_passage_text: bool = False
@@ -55,6 +69,7 @@ class Settings(BaseSettings):
     llm_backend: str = "fake"
     llm_base_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "local-default"
+    llm_model_revision: str = "operator-managed"
     llm_timeout_seconds: float = 60.0
     llm_warmup_enabled: bool = True
     llm_warmup_timeout_seconds: float = 5.0

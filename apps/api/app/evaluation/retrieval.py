@@ -46,6 +46,7 @@ class EvaluationManifest(BaseModel):
     embedding_preprocessing: str = Field(min_length=1)
     prompt_version: str = Field(min_length=1)
     generator_model: str = Field(min_length=1)
+    generator_model_revision: str = "not-applicable"
     evaluator_version: str = Field(min_length=1)
 
 
@@ -162,6 +163,8 @@ class EvaluationReport(BaseModel):
     retrieval_strategy: str = "dense"
     reranker_model: str | None = None
     reranker_model_revision: str | None = None
+    query_rewrite_model: str | None = None
+    query_rewrite_model_revision: str | None = None
     retrieval_limit: int
     metrics: AggregateMetrics
     thresholds: EvaluationThresholds
@@ -384,6 +387,8 @@ def evaluate_dataset(
     max_context_chars_per_document: int = 6_000,
     reranker_model: str | None = None,
     reranker_model_revision: str | None = None,
+    query_rewrite_model: str | None = None,
+    query_rewrite_model_revision: str | None = None,
 ) -> EvaluationReport:
     case_results = [
         evaluate_case(
@@ -411,6 +416,8 @@ def evaluate_dataset(
         retrieval_strategy=retrieval_strategy,
         reranker_model=reranker_model,
         reranker_model_revision=reranker_model_revision,
+        query_rewrite_model=query_rewrite_model,
+        query_rewrite_model_revision=query_rewrite_model_revision,
         retrieval_limit=retrieval_limit,
         metrics=metrics,
         thresholds=thresholds,
@@ -608,9 +615,13 @@ def format_summary(report: EvaluationReport) -> str:
             f"Embedding model: {report.embedding_model}; reranker: "
             f"{report.reranker_model}@{report.reranker_model_revision}"
         ),
+        "multi_query": (
+            f"Embedding model: {report.embedding_model}; query rewriter: "
+            f"{report.query_rewrite_model}@{report.query_rewrite_model_revision}"
+        ),
     }.get(report.retrieval_strategy, f"Embedding model: {report.embedding_model}")
     lines = [
-        f"{report.retrieval_strategy.title()} retrieval evaluation: {status}",
+        f"{report.retrieval_strategy.replace('_', ' ').title()} retrieval evaluation: {status}",
         f"Dataset: {report.dataset_id} {report.dataset_version}",
         model_summary,
         f"Cases: {metrics.case_count} ({metrics.relevant_case_count} relevant, "

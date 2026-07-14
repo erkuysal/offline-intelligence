@@ -104,6 +104,17 @@ def test_metrics_cover_ingestion_embedding_and_retrieval_outcomes(
         },
     )
     assert retrieval.status_code == 200
+    multi_query_retrieval = client.post(
+        "/api/v1/chat/completions",
+        headers=headers,
+        json={
+            "messages": [{"role": "user", "content": "What passage is operational?"}],
+            "use_documents": True,
+            "document_ids": [document_id],
+            "retrieval_strategy": "multi_query",
+        },
+    )
+    assert multi_query_retrieval.status_code == 200
     failed_upload = client.post(
         "/api/v1/documents",
         headers=headers,
@@ -131,6 +142,18 @@ def test_metrics_cover_ingestion_embedding_and_retrieval_outcomes(
         outcome="success",
     )
     assert context_metric["item_count"] >= 1
+    assert_operation(
+        operations,
+        stage="retrieval",
+        operation="query_rewrite",
+        outcome="fallback",
+    )
+    assert_operation(
+        operations,
+        stage="retrieval",
+        operation="multi_query_merge",
+        outcome="success",
+    )
     assert_operation(
         operations,
         stage="retrieval",

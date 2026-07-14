@@ -8,6 +8,7 @@ from app.services.retrieval_runs import (
     build_retrieval_run,
     cleanup_expired_retrieval_runs,
     persist_retrieval_run,
+    retrieval_diagnostics_for_persistence,
 )
 
 
@@ -85,6 +86,27 @@ def test_retrieval_run_can_explicitly_include_diagnostic_text() -> None:
     assert run.query_text == "private recovery phrase"
     assert run.candidates[0]["content"] == candidate.content
     assert run.candidates[0]["char_start"] == 10
+
+
+def test_query_variant_diagnostics_follow_query_text_privacy_policy() -> None:
+    diagnostics = {
+        "query_rewrite_outcome": "success",
+        "query_variants": ["private original", "private rewrite"],
+    }
+
+    private = retrieval_diagnostics_for_persistence(
+        make_settings(),  # type: ignore[arg-type]
+        diagnostics,
+    )
+    explicit = retrieval_diagnostics_for_persistence(
+        make_settings(retrieval_run_persist_query_text=True),  # type: ignore[arg-type]
+        diagnostics,
+    )
+
+    assert "query_variants" not in private
+    assert len(private["query_variant_sha256"]) == 2
+    assert "private" not in str(private)
+    assert explicit["query_variants"] == ["private original", "private rewrite"]
 
 
 def test_disabled_retrieval_run_persistence_does_not_touch_session() -> None:

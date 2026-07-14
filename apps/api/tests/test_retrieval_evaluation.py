@@ -23,6 +23,7 @@ BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "dense-baseline-v1.js
 LEXICAL_BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "lexical-baseline-v1.json"
 HYBRID_BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "hybrid-baseline-v1.json"
 RERANKED_BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "reranked-baseline-v1.json"
+MULTI_QUERY_BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "multi-query-baseline-v1.json"
 
 
 def test_load_dataset_validates_versioned_references() -> None:
@@ -113,6 +114,26 @@ def test_reranked_baseline_records_no_quality_gain_and_high_latency() -> None:
     assert report.metrics.mean_latency_ms > 200
     assert report.metrics.p95_latency_ms > 400
     assert report.threshold_failures == []
+
+
+def test_multi_query_baseline_records_mrr_regression_and_rejection() -> None:
+    report = EvaluationReport.model_validate_json(
+        MULTI_QUERY_BASELINE_REPORT_PATH.read_text(encoding="utf-8")
+    )
+
+    assert report.retrieval_strategy == "multi_query"
+    assert report.query_rewrite_model == "ggml-org/gemma-3-1b-it-GGUF:Q4_K_M"
+    assert report.query_rewrite_model_revision == (
+        "61333bac858461ec0c309b7baafdc408d7d2c381"
+    )
+    assert report.metrics.recall_at_k == 1.0
+    assert report.metrics.mean_reciprocal_rank < 0.95
+    assert report.metrics.mean_latency_ms > 800
+    assert report.metrics.p95_latency_ms > 1_000
+    assert report.threshold_failures == [
+        "mean_reciprocal_rank=0.8411 failed minimum 0.9500"
+    ]
+    assert report.passed is False
 
 
 def test_load_dataset_rejects_unknown_passage(tmp_path: Path) -> None:

@@ -30,7 +30,10 @@ from app.retrieval import (
     retrieval_model_versions,
 )
 from app.services.embeddings import get_embedding_provider
-from app.services.retrieval_runs import persist_retrieval_run
+from app.services.retrieval_runs import (
+    persist_retrieval_run,
+    retrieval_diagnostics_for_persistence,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -335,7 +338,10 @@ def search_documents(
         query=retrieval_query,
         request_kind="document_search",
         strategy=strategy.name,
-        model_versions={**model_versions, **retrieval_result.diagnostics},
+        model_versions={
+            **model_versions,
+            **retrieval_diagnostics_for_persistence(settings, retrieval_result.diagnostics),
+        },
         candidates=retrieval_result.candidates,
         selected_context=[],
         timings_ms={

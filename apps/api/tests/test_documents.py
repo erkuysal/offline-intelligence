@@ -504,6 +504,40 @@ def test_reranked_search_persists_unavailable_backend_fallback(
     assert "reranker" in run.timings_ms
 
 
+def test_multi_query_search_persists_private_original_query_fallback(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "document_storage_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "query_rewrite_backend", "disabled")
+    token = get_access_token()
+    upload_txt_document_with_content(token, b"Backups run every night.")
+
+    response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "query": "private night backups",
+            "limit": 1,
+            "retrieval_strategy": "multi_query",
+        },
+    )
+
+    assert response.status_code == 200
+    with SessionLocal() as db:
+        run = db.scalar(select(RetrievalRun).order_by(RetrievalRun.id.desc()))
+    assert run is not None
+    assert run.strategy == "multi_query"
+    assert run.query_text is None
+    assert run.model_versions["query_rewrite_outcome"] == "fallback"
+    assert run.model_versions["query_variant_count"] == 1
+    assert len(run.model_versions["query_variant_sha256"]) == 1
+    assert "private night backups" not in str(run.model_versions)
+    assert run.candidates[0]["strategy"] == "multi_query"
+    assert run.candidates[0]["strategy_ranks"]["query_0"] == 1
+
+
 def test_search_documents_hides_other_users_chunks(
     tmp_path: Path,
     monkeypatch,
@@ -522,6 +556,17 @@ def test_search_documents_hides_other_users_chunks(
 
     assert response.status_code == 200
     assert response.json() == []
+    multi_query_response = client.post(
+        "/api/v1/documents/search",
+        headers={"Authorization": f"Bearer {other_token}"},
+        json={
+            "query": "secret backup",
+            "limit": 5,
+            "retrieval_strategy": "multi_query",
+        },
+    )
+    assert multi_query_response.status_code == 200
+    assert multi_query_response.json() == []
 
 
 def test_owner_can_grant_document_read_permission(tmp_path: Path, monkeypatch) -> None:

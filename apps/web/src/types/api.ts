@@ -88,7 +88,7 @@ export interface ChatCompletionRequest {
   use_documents?: boolean
   document_ids?: number[] | null
   retrieval_limit?: number | null
-  retrieval_strategy?: 'dense' | 'lexical' | 'hybrid' | 'reranked' | null
+  retrieval_strategy?: 'dense' | 'lexical' | 'hybrid' | 'reranked' | 'multi_query' | null
   conversation_id?: number | null
 }
 

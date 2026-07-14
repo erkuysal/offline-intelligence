@@ -68,7 +68,9 @@ class DocumentChunkRead(BaseModel):
 class DocumentSearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=10_000)
     limit: int = Field(default=5, ge=1, le=20)
-    retrieval_strategy: Literal["dense", "lexical", "hybrid", "reranked"] | None = None
+    retrieval_strategy: Literal[
+        "dense", "lexical", "hybrid", "reranked", "multi_query"
+    ] | None = None
 
 
 class DocumentSearchResult(BaseModel):

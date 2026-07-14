@@ -231,9 +231,9 @@ The first version uses `pgvector`. PostgreSQL manages both relational data and t
 
 After basic vector search, the RAG system is measured to verify whether it actually works.
 
-> **Status:** In progress. Work Package 4.0 established and accepted the bilingual dense-retrieval
-> baseline on 14 July 2026. Work Package 4.1 retrieval architecture and observability is next;
-> package order and acceptance criteria are tracked in `docs/plans/phase-4.md`.
+> **Status:** Completed and accepted on 14 July 2026. Dense remains the evidence-backed default;
+> lexical and hybrid are selectable, while reranking and multi-query were measured but not promoted.
+> The pinned bilingual full RAG baseline passed answer-quality, refusal, safety, and streaming gates.
 
 ### Retrieval Improvements
 

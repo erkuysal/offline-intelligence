@@ -129,6 +129,24 @@ def serialize_candidate(
     return diagnostic
 
 
+def retrieval_diagnostics_for_persistence(
+    settings: Settings,
+    diagnostics: Mapping[str, object],
+) -> dict[str, object]:
+    persisted = dict(diagnostics)
+    raw_variants = persisted.pop("query_variants", None)
+    if not isinstance(raw_variants, list) or not all(
+        isinstance(variant, str) for variant in raw_variants
+    ):
+        return persisted
+    persisted["query_variant_sha256"] = [
+        hashlib.sha256(variant.encode("utf-8")).hexdigest() for variant in raw_variants
+    ]
+    if settings.retrieval_run_persist_query_text:
+        persisted["query_variants"] = raw_variants
+    return persisted
+
+
 def cleanup_expired_retrieval_runs(
     db: Session,
     *,

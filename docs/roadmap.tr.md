@@ -264,7 +264,10 @@ audit_logs
 
 Basit vector search sonrasında RAG sisteminin gerçekten çalışıp çalışmadığı ölçülür.
 
-> **Durum:** Devam ediyor. Çalışma Paketi 4.0, iki dilli dense retrieval baseline'ını 14 Temmuz 2026 tarihinde oluşturup kabul etti. Sırada Çalışma Paketi 4.1 retrieval mimarisi ve observability çalışmaları vardır; paket sırası ve kabul kriterleri `docs/plans/phase-4.md` dosyasında izlenir.
+> **Durum:** 14 Temmuz 2026 tarihinde tamamlandı ve kabul edildi. Ölçüm sonuçlarına göre dense
+> varsayılan olarak kaldı; lexical ve hybrid seçilebilir durumdadır. Reranking ve multi-query ölçüldü
+> ancak varsayılan akışa alınmadı. Sabitlenmiş iki dilli tam RAG baseline'ı cevap kalitesi, ret,
+> güvenlik ve streaming eşiklerini geçti.
 
 ### Retrieval Geliştirmeleri
 

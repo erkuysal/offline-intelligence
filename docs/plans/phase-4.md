@@ -30,14 +30,14 @@ Already available from Phase 3:
 
 Missing for Phase 4:
 
-- [ ] PostgreSQL full-text indexing and lexical search
-- [ ] A common retrieval-candidate contract across dense, lexical, and hybrid strategies
-- [ ] Score fusion and calibration
-- [ ] Reranking
-- [ ] Query rewriting and multi-query retrieval
-- [ ] Context deduplication
-- [ ] Retrieval-run persistence and stage-level observability
-- [ ] Full RAG generation evaluation with citation, faithfulness, hallucination, and streaming metrics
+- [x] PostgreSQL full-text indexing and lexical search
+- [x] A common retrieval-candidate contract across dense, lexical, and hybrid strategies
+- [x] Score fusion and calibration
+- [x] Reranking
+- [x] Query rewriting and multi-query retrieval
+- [x] Context deduplication
+- [x] Retrieval-run persistence and stage-level observability
+- [x] Full RAG generation evaluation with citation, faithfulness, hallucination, and streaming metrics
 
 ## Work Package 4.0: Evaluation Contract and Dense Baseline
 
@@ -56,7 +56,7 @@ This package must precede retrieval changes.
 
 - [x] Add a CLI that creates or loads the evaluation corpus
 - [x] Run retrieval independently from generation
-- [ ] Run full RAG evaluation as a separate stage
+- [x] Run full RAG evaluation as a separate stage
 - [x] Emit machine-readable JSON and a human-readable summary
 - [x] Save per-question results for regression diagnosis
 - [x] Support deterministic fake-provider tests and opt-in real-model acceptance
@@ -67,11 +67,11 @@ This package must precede retrieval changes.
 - [x] Precision@k
 - [x] Mean Reciprocal Rank
 - [x] Hit rate and no-result rate
-- [ ] Citation document and passage accuracy
+- [x] Citation document and passage accuracy
 - [x] Retrieval latency and candidate count
-- [ ] Context relevance and duplication rate
-- [ ] Answer faithfulness and hallucination rate
-- [ ] Time to first token, end-to-end latency, and tokens per second
+- [x] Context relevance and duplication rate
+- [x] Answer faithfulness and hallucination rate
+- [x] Time to first token, end-to-end latency, and tokens per second
 
 ### Exit Criteria
 
@@ -86,7 +86,7 @@ This package must precede retrieval changes.
 - [x] Extract dense search behind a retrieval strategy interface
 - [x] Define a candidate containing chunk identity, source, raw score, normalized score, rank, and strategy
 - [x] Keep authorization and metadata filters inside every implemented retrieval query
-- [ ] Separate fusion, reranking, deduplication, and context construction into explicit stages
+- [x] Separate fusion, reranking, deduplication, and context construction into explicit stages
 - [x] Make implemented strategy and stage limits configurable
 - [x] Preserve stable source ordering and citation numbering
 
@@ -171,24 +171,28 @@ Reranking is optional until hybrid retrieval has a measured baseline.
 
 These are the final Phase 4 retrieval features because they add inference cost and variability.
 
-- [ ] Define when rewriting is allowed and when the original query must be preserved
-- [ ] Prevent rewritten queries from weakening authorization or document filters
-- [ ] Limit query variants, total candidates, time, and token usage
-- [ ] Merge and deduplicate candidates across variants
-- [ ] Persist original and rewritten queries only under the retrieval-run privacy policy
-- [ ] Fall back to the original query on timeout or model failure
-- [ ] Accept the feature only when evaluation shows a material improvement
+- [x] Define when rewriting is allowed and when the original query must be preserved
+- [x] Prevent rewritten queries from weakening authorization or document filters
+- [x] Limit query variants, total candidates, time, and token usage
+- [x] Merge and deduplicate candidates across variants
+- [x] Persist original and rewritten queries only under the retrieval-run privacy policy
+- [x] Fall back to the original query on timeout or model failure
+- [x] Accept the feature only when evaluation shows a material improvement; the measured mode was rejected
 
 ## Phase 4 Definition of Done
 
-- [ ] Dense, lexical, and hybrid modes are implemented behind one retrieval contract
-- [ ] The default strategy is selected from recorded evaluation evidence
-- [ ] Reranking and query expansion are enabled only if they pass quality and latency thresholds
-- [ ] Authorization and metadata filtering pass for every strategy and stage
-- [ ] Evaluation reports are reproducible from pinned corpus and runtime configuration
-- [ ] Retrieval-run diagnostics and Prometheus metrics cover the full pipeline
-- [ ] Citation, faithfulness, hallucination, and performance metrics meet accepted thresholds
-- [ ] English and Turkish roadmaps and a Phase 4 acceptance record are updated
+- [x] Dense, lexical, and hybrid modes are implemented behind one retrieval contract
+- [x] The default strategy is selected from recorded evaluation evidence
+- [x] Reranking and query expansion are promoted only if they pass quality and latency thresholds; neither was promoted
+- [x] Authorization and metadata filtering pass for every strategy and stage
+- [x] Evaluation reports are reproducible from pinned corpus and runtime configuration
+- [x] Retrieval-run diagnostics and Prometheus metrics cover the full pipeline
+- [x] Citation, faithfulness, hallucination, and performance metrics meet accepted thresholds
+- [x] English and Turkish roadmaps and a Phase 4 acceptance record are updated
+
+Phase 4 was accepted on 14 July 2026. The pinned full RAG run covered all 40 English/Turkish cases,
+passed the citation, faithfulness, hallucination, refusal, authorization, and streaming-performance
+gates, and is recorded in `evaluation/baselines/generation-baseline-v1.json`.
 
 ## Explicit Non-Requirements
 

@@ -37,6 +37,7 @@ def test_build_test_environment_derives_isolated_database(monkeypatch) -> None:
     assert environment["LLM_BACKEND"] == "fake"
     assert environment["EMBEDDING_BACKEND"] == "fake"
     assert environment["RERANKER_BACKEND"] == "disabled"
+    assert environment["QUERY_REWRITE_BACKEND"] == "disabled"
 
 
 def test_build_test_environment_preserves_explicit_test_database(monkeypatch) -> None:
@@ -74,6 +75,7 @@ def test_build_e2e_environment_derives_isolated_database(monkeypatch) -> None:
     assert environment["LLM_BACKEND"] == "fake"
     assert environment["EMBEDDING_BACKEND"] == "fake"
     assert environment["RERANKER_BACKEND"] == "disabled"
+    assert environment["QUERY_REWRITE_BACKEND"] == "disabled"
 
 
 def test_build_e2e_environment_preserves_explicit_e2e_database(monkeypatch) -> None:
@@ -115,6 +117,10 @@ def test_parser_accepts_lexical_evaluation_strategy() -> None:
         ["evaluate-retrieval", "--strategy", "reranked"]
     )
     assert reranked_args.strategy == "reranked"
+    multi_query_args = launcher.build_parser().parse_args(
+        ["evaluate-retrieval", "--strategy", "multi_query"]
+    )
+    assert multi_query_args.strategy == "multi_query"
 
 
 def test_parser_exposes_reranker_lifecycle_commands() -> None:
@@ -123,3 +129,21 @@ def test_parser_exposes_reranker_lifecycle_commands() -> None:
     assert launcher.build_parser().parse_args(["reranker-start"]).func is launcher.reranker_start
     assert launcher.build_parser().parse_args(["reranker-check"]).func is launcher.reranker_check
     assert launcher.build_parser().parse_args(["reranker-stop"]).func is launcher.reranker_stop
+
+
+def test_parser_exposes_generation_evaluation_thresholds() -> None:
+    launcher = load_launcher()
+
+    args = launcher.build_parser().parse_args(
+        [
+            "evaluate-generation",
+            "--min-faithfulness",
+            "0.9",
+            "--max-hallucination",
+            "0.1",
+        ]
+    )
+
+    assert args.func is launcher.evaluate_generation
+    assert args.min_faithfulness == 0.9
+    assert args.max_hallucination == 0.1

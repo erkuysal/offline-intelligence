@@ -12,6 +12,11 @@ success/fallback outcome, reranker latency, and per-candidate hybrid/reranker ra
 fallback run retains hybrid candidate strategy metadata so it is distinguishable from a successful
 reorder without persisting raw text.
 
+Multi-query runs record rewrite model/revision, success/fallback outcome, variant count, bounded
+candidate observations, time-budget exhaustion, per-variant ranks/scores, rewrite latency, and merge
+latency. Variant SHA-256 hashes are retained by default. Plaintext variants are included only when
+the same explicit query-text persistence switch that controls the original query is enabled.
+
 ## Privacy Defaults
 
 Raw query and passage text are disabled by default. The query is represented by a SHA-256 digest;

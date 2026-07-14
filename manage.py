@@ -110,6 +110,7 @@ def build_test_environment() -> dict[str, str]:
             "EMBEDDING_BACKEND": "fake",
             "EMBEDDING_MODEL": "fake-bow",
             "RERANKER_BACKEND": "disabled",
+            "QUERY_REWRITE_BACKEND": "disabled",
         }
     )
     return environment
@@ -153,6 +154,7 @@ def build_e2e_environment() -> dict[str, str]:
             "EMBEDDING_BACKEND": "fake",
             "EMBEDDING_MODEL": "fake-bow",
             "RERANKER_BACKEND": "disabled",
+            "QUERY_REWRITE_BACKEND": "disabled",
         }
     )
     return environment
@@ -387,7 +389,7 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
         dataset = load_dataset(Path(args.dataset))
         provider = (
             get_embedding_provider()
-            if args.strategy in {"dense", "hybrid", "reranked"}
+            if args.strategy in {"dense", "hybrid", "reranked", "multi_query"}
             else None
         )
         if (
@@ -402,7 +404,7 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
         settings = get_settings()
         if args.strategy == "dense" and provider is not None:
             strategy = DenseRetrievalStrategy(provider)
-        elif args.strategy in {"hybrid", "reranked"} and provider is not None:
+        elif args.strategy in {"hybrid", "reranked", "multi_query"} and provider is not None:
             strategy = build_retrieval_strategy(args.strategy, provider=provider, settings=settings)
         else:
             strategy = LexicalRetrievalStrategy()
@@ -444,6 +446,14 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
                 reranker_model_revision=(
                     settings.reranker_model_revision if args.strategy == "reranked" else None
                 ),
+                query_rewrite_model=(
+                    settings.query_rewrite_model if args.strategy == "multi_query" else None
+                ),
+                query_rewrite_model_revision=(
+                    settings.query_rewrite_model_revision
+                    if args.strategy == "multi_query"
+                    else None
+                ),
             )
         write_report(report, Path(args.output))
     except (EmbeddingError, OSError, ValueError) as exc:
@@ -451,6 +461,75 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
         return 2
 
     print(format_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report.passed else 1
+
+
+def evaluate_generation(args: argparse.Namespace) -> int:
+    configure_import_path()
+    load_root_env()
+
+    from app.config import get_settings
+    from app.db.session import SessionLocal
+    from app.evaluation.generation import (
+        GenerationThresholds,
+        evaluate_generation_dataset,
+        format_generation_summary,
+        write_generation_report,
+    )
+    from app.evaluation.retrieval import load_dataset, prepare_corpus
+    from app.retrieval import DenseRetrievalStrategy
+    from app.services.embeddings import EmbeddingError, get_embedding_provider
+    from app.services.llm import LLMError, get_llm_backend
+
+    try:
+        dataset = load_dataset(Path(args.dataset))
+        settings = get_settings()
+        provider = get_embedding_provider()
+        if dataset.manifest.embedding_model != provider.model and not args.allow_model_mismatch:
+            raise ValueError(
+                f"Dataset requires embedding model {dataset.manifest.embedding_model!r}; "
+                f"configured model is {provider.model!r}."
+            )
+        thresholds = GenerationThresholds(
+            min_parse_success_rate=args.min_parse_success,
+            min_expected_fact_coverage=args.min_fact_coverage,
+            min_citation_accuracy=args.min_citation_accuracy,
+            min_citation_coverage=args.min_citation_coverage,
+            min_answer_faithfulness=args.min_faithfulness,
+            max_hallucination_rate=args.max_hallucination,
+            min_refusal_accuracy=args.min_refusal_accuracy,
+            max_restricted_fact_leaks=args.max_restricted_fact_leaks,
+            max_mean_time_to_first_token_ms=args.max_mean_ttft_ms,
+            max_p95_time_to_first_token_ms=args.max_p95_ttft_ms,
+            max_mean_end_to_end_latency_ms=args.max_mean_latency_ms,
+            max_p95_end_to_end_latency_ms=args.max_p95_latency_ms,
+            min_mean_tokens_per_second=args.min_tokens_per_second,
+        )
+        with SessionLocal() as db:
+            user_id, _, id_by_document_key = prepare_corpus(
+                db,
+                dataset,
+                provider=provider,
+                settings=settings,
+            )
+            report = evaluate_generation_dataset(
+                dataset,
+                db=db,
+                user_id=user_id,
+                strategy=DenseRetrievalStrategy(provider),
+                backend=get_llm_backend(),
+                settings=settings,
+                thresholds=thresholds,
+                retrieval_limit=args.limit,
+                id_by_document_key=id_by_document_key,
+            )
+        write_generation_report(report, Path(args.output))
+    except (EmbeddingError, LLMError, OSError, ValueError) as exc:
+        print(f"Generation evaluation failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_generation_summary(report))
     print(f"JSON report: {Path(args.output).resolve()}")
     return 0 if report.passed else 1
 
@@ -642,7 +721,7 @@ def build_parser() -> argparse.ArgumentParser:
     evaluation_parser.add_argument("--limit", type=int, default=5, choices=range(1, 21))
     evaluation_parser.add_argument(
         "--strategy",
-        choices=("dense", "lexical", "hybrid", "reranked"),
+        choices=("dense", "lexical", "hybrid", "reranked", "multi_query"),
         default="dense",
     )
     evaluation_parser.add_argument("--min-recall", type=float)
@@ -655,6 +734,35 @@ def build_parser() -> argparse.ArgumentParser:
     evaluation_parser.add_argument("--max-authorization-leaks", type=int, default=0)
     evaluation_parser.add_argument("--allow-model-mismatch", action="store_true")
     evaluation_parser.set_defaults(func=evaluate_retrieval)
+
+    generation_parser = subparsers.add_parser(
+        "evaluate-generation",
+        help="evaluate grounded RAG answer quality and streaming performance",
+    )
+    generation_parser.add_argument(
+        "--dataset",
+        default="evaluation/datasets/dense-baseline-v1.jsonl",
+    )
+    generation_parser.add_argument(
+        "--output",
+        default="var/evaluation/generation-baseline-latest.json",
+    )
+    generation_parser.add_argument("--limit", type=int, default=5, choices=range(1, 21))
+    generation_parser.add_argument("--min-parse-success", type=float)
+    generation_parser.add_argument("--min-fact-coverage", type=float)
+    generation_parser.add_argument("--min-citation-accuracy", type=float)
+    generation_parser.add_argument("--min-citation-coverage", type=float)
+    generation_parser.add_argument("--min-faithfulness", type=float)
+    generation_parser.add_argument("--max-hallucination", type=float)
+    generation_parser.add_argument("--min-refusal-accuracy", type=float)
+    generation_parser.add_argument("--max-restricted-fact-leaks", type=int, default=0)
+    generation_parser.add_argument("--max-mean-ttft-ms", type=float)
+    generation_parser.add_argument("--max-p95-ttft-ms", type=float)
+    generation_parser.add_argument("--max-mean-latency-ms", type=float)
+    generation_parser.add_argument("--max-p95-latency-ms", type=float)
+    generation_parser.add_argument("--min-tokens-per-second", type=float)
+    generation_parser.add_argument("--allow-model-mismatch", action="store_true")
+    generation_parser.set_defaults(func=evaluate_generation)
 
     retrieval_cleanup_parser = subparsers.add_parser(
         "retrieval-cleanup",
