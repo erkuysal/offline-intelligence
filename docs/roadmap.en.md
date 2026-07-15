@@ -57,6 +57,10 @@ This project aims to develop the main skills listed in the target job posting wi
 
 # Development Phases
 
+The roadmap explains product direction and sequencing. The
+[technical vision index](technical/README.md) records the intended architecture, boundaries,
+deliverables, and evidence model for every completed and future phase.
+
 ## Phase 1 — Working Product Skeleton
 
 The first goal is not an advanced AI system, but a basic end-to-end working product.
@@ -275,6 +279,9 @@ After basic vector search, the RAG system is measured to verify whether it actua
 ## Phase 5 — LoRA and PEFT
 
 After the RAG system is working, the open-source model is customized for specific tasks.
+
+> **Status:** Next. The technical boundary is defined; implementation begins with the versioned
+> [Phase 5 plan](plans/phase-5.md), training-data contract, and hardware calibration gate.
 
 ### Fine-Tuning Goals
 

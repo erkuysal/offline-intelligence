@@ -30,6 +30,7 @@
 
 ## Product Plans
 
+- [Technical vision and phase architecture](docs/technical/README.md)
 - [Installation and contributor setup](docs/installation.md)
 - [Retrieval evaluation](evaluation/README.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)

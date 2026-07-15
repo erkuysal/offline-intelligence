@@ -57,6 +57,10 @@ Bu proje; Python, PyTorch, FastAPI, RAG, LoRA, PEFT, quantization, Docker, Postg
 
 # Geliştirme Fazları
 
+Bu yol haritası ürün yönünü ve sıralamasını açıklar. Tamamlanan ve gelecekteki her fazın hedef
+mimarisi, sınırları, teslimatları ve kanıt modeli [teknik vizyon dizininde](technical/README.md)
+tanımlanır.
+
 ## Faz 1 — Çalışan Ürün İskeleti
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
@@ -309,6 +313,9 @@ Basit vector search sonrasında RAG sisteminin gerçekten çalışıp çalışma
 ## Faz 5 — LoRA ve PEFT
 
 RAG sistemi çalıştıktan sonra açık kaynaklı model belirli görevler için özelleştirilir.
+
+> **Durum:** Sıradaki faz. Teknik sınırlar tanımlandı; uygulama, sürümlenmiş
+> [Faz 5 planı](plans/phase-5.md), eğitim verisi sözleşmesi ve donanım kalibrasyon kapısıyla başlar.
 
 ### Fine-Tuning Amaçları
 
