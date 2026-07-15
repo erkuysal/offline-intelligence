@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://offline-intelligence-hub.local/schemas/training-example-v1.schema.json",
+  "title": "TrainingExample v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "example_id",
+    "task",
+    "language",
+    "messages",
+    "expected_citations",
+    "provenance",
+    "sensitivity",
+    "template_family",
+    "group_key",
+    "intended_split"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "example_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "task": {
+      "enum": [
+        "grounded_answer",
+        "grounded_refusal",
+        "citation_formatting",
+        "json_output",
+        "incident_report",
+        "terminology"
+      ]
+    },
+    "language": {"enum": ["en", "tr"]},
+    "messages": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"$ref": "#/$defs/message"}
+    },
+    "expected_citations": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/citation"}
+    },
+    "target_json_schema": {"type": "object"},
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/provenance"}
+    },
+    "sensitivity": {"enum": ["public", "internal-approved"]},
+    "approval": {"$ref": "#/$defs/approval"},
+    "template_family": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "group_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "intended_split": {"enum": ["auto", "train", "validation", "held_out"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"task": {"const": "json_output"}}, "required": ["task"]},
+      "then": {"required": ["target_json_schema"]}
+    },
+    {
+      "if": {
+        "anyOf": [
+          {"properties": {"sensitivity": {"const": "internal-approved"}}, "required": ["sensitivity"]},
+          {
+            "properties": {
+              "provenance": {
+                "contains": {
+                  "properties": {"synthetic": {"const": true}},
+                  "required": ["synthetic"]
+                }
+              }
+            },
+            "required": ["provenance"]
+          }
+        ]
+      },
+      "then": {"required": ["approval"]}
+    }
+  ],
+  "$defs": {
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "content"],
+      "properties": {
+        "role": {"enum": ["system", "user", "assistant"]},
+        "content": {"type": "string", "minLength": 1, "maxLength": 65536}
+      }
+    },
+    "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "passage_id": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "source_uri", "license", "redistribution", "synthetic"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "source_uri": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "license": {"type": "string", "minLength": 1, "maxLength": 256},
+        "redistribution": {"enum": ["allowed", "restricted", "prohibited"]},
+        "synthetic": {"type": "boolean"},
+        "generator": {"type": "string", "minLength": 1, "maxLength": 256}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"synthetic": {"const": true}}, "required": ["synthetic"]},
+          "then": {"required": ["generator"]}
+        }
+      ]
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reviewer", "reviewed_at", "scope"],
+      "properties": {
+        "status": {"const": "approved"},
+        "reviewer": {"type": "string", "minLength": 1, "maxLength": 256},
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "scope": {"enum": ["training", "training-and-redistribution"]}
+      }
+    }
+  }
+}

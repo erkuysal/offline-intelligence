@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "experiment_id": "gemma3-1b-lora-v1",
+  "base_model": {
+    "repo_id": "google/gemma-3-1b-it",
+    "revision": "dcc83ea841ab6100d6b47a070329e1ba4cf78752",
+    "license": "gemma",
+    "license_terms_url": "https://ai.google.dev/gemma/terms",
+    "license_terms_last_modified": "2026-04-01",
+    "access_confirmed_date": "2026-07-15",
+    "gated": true,
+    "accepted_runtime_model": "ggml-org/gemma-3-1b-it-GGUF:Q4_K_M",
+    "accepted_runtime_revision": "61333bac858461ec0c309b7baafdc408d7d2c381",
+    "accepted_runtime_file_sha256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135"
+  },
+  "environment": {
+    "python": "3.12.11",
+    "packages": {
+      "torch": "2.13.0",
+      "transformers": "5.13.1",
+      "trl": "1.8.0",
+      "peft": "0.19.1",
+      "datasets": "5.0.0",
+      "accelerate": "1.14.0",
+      "safetensors": "0.8.0",
+      "huggingface-hub": "1.23.0"
+    }
+  },
+  "hardware": {
+    "device_name_contains": "RTX 5070",
+    "minimum_vram_mib": 12000,
+    "minimum_compute_capability": "12.0",
+    "minimum_free_disk_gib": 8
+  },
+  "prompt_contract": {
+    "version": "gemma3-production-folded-system-v1",
+    "chat_template_path": "config/training/gemma3-chat-template.jinja",
+    "chat_template_sha256": "d2f96210400e38149e26e01918a408c3f2ad3d4bd87c44e8dcf8e1a611a98535",
+    "system_role_strategy": "prepend_to_first_user_turn",
+    "production_prompt_version": "grounded-natural-citations-v1",
+    "tokenizer_vocab_size": 262144,
+    "control_token_ids": {
+      "<start_of_turn>": 105,
+      "<end_of_turn>": 106
+    }
+  },
+  "training": {
+    "precision": "bf16",
+    "fallback_precision": "fp16",
+    "sequence_lengths": [1024, 2048],
+    "approved_max_sequence_length": 1024,
+    "micro_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "gradient_checkpointing": false,
+    "seed": 20260715,
+    "lora": {
+      "rank": 8,
+      "alpha": 16,
+      "dropout": 0.05,
+      "bias": "none",
+      "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj"]
+    }
+  }
+}

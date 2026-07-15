@@ -147,3 +147,32 @@ def test_parser_exposes_generation_evaluation_thresholds() -> None:
     assert args.func is launcher.evaluate_generation
     assert args.min_faithfulness == 0.9
     assert args.max_hallucination == 0.1
+
+
+def test_parser_exposes_training_foundation_commands() -> None:
+    launcher = load_launcher()
+
+    preflight = launcher.build_parser().parse_args(["training-preflight"])
+    calibration = launcher.build_parser().parse_args(
+        ["training-calibrate", "--local-files-only"]
+    )
+    template = launcher.build_parser().parse_args(
+        ["training-template-check", "--local-files-only"]
+    )
+    continuity = launcher.build_parser().parse_args(
+        ["training-continuity", "--runtime-url", "http://localhost:9999/v1"]
+    )
+    data_validation = launcher.build_parser().parse_args(
+        ["training-data-validate", "--manifest", "training/datasets/example/manifest.json"]
+    )
+
+    assert preflight.func is launcher.training_preflight
+    assert preflight.config.endswith("gemma3-1b-lora-v1.json")
+    assert calibration.func is launcher.training_calibrate
+    assert calibration.local_files_only is True
+    assert template.func is launcher.training_template_check
+    assert template.local_files_only is True
+    assert continuity.func is launcher.training_continuity
+    assert continuity.runtime_url == "http://localhost:9999/v1"
+    assert data_validation.func is launcher.training_data_validate
+    assert data_validation.manifest.endswith("manifest.json")

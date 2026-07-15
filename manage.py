@@ -547,6 +547,141 @@ def retrieval_cleanup(_args: argparse.Namespace) -> int:
     return 0
 
 
+def training_preflight(args: argparse.Namespace) -> int:
+    from training.foundation import (
+        TrainingFoundationError,
+        collect_preflight_report,
+        format_preflight_summary,
+        load_training_config,
+        write_json_report,
+    )
+
+    try:
+        config = load_training_config(Path(args.config))
+        report = collect_preflight_report(config, cache_dir=Path(args.cache_dir).expanduser())
+        write_json_report(report, Path(args.output))
+    except (OSError, TrainingFoundationError) as exc:
+        print(f"Training preflight failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_preflight_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report["passed"] else 1
+
+
+def training_calibrate(args: argparse.Namespace) -> int:
+    from training.calibration import format_calibration_summary, run_calibration
+    from training.foundation import TrainingFoundationError, load_training_config
+
+    try:
+        config = load_training_config(Path(args.config))
+        report = run_calibration(
+            config,
+            output=Path(args.output),
+            local_files_only=args.local_files_only,
+        )
+    except (OSError, TrainingFoundationError) as exc:
+        print(f"Training calibration failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_calibration_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report["passed"] else 1
+
+
+def training_template_check(args: argparse.Namespace) -> int:
+    from training.continuity import verify_chat_template
+    from training.foundation import TrainingFoundationError, load_training_config
+
+    try:
+        config = load_training_config(Path(args.config))
+        report = verify_chat_template(
+            config,
+            template_path=Path(args.template),
+            output=Path(args.output),
+            local_files_only=args.local_files_only,
+        )
+    except (OSError, TrainingFoundationError, ValueError) as exc:
+        print(f"Training template check failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(f"Training template check: {'PASS' if report['passed'] else 'FAIL'}")
+    print(f"System role strategy: {report['system_role_strategy']}")
+    print(f"Template SHA-256: {report['template_sha256']}")
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report["passed"] else 1
+
+
+def training_continuity(args: argparse.Namespace) -> int:
+    from training.continuity import (
+        build_continuity_report,
+        format_continuity_summary,
+        generate_runtime_answers,
+        generate_source_answers,
+        load_diagnostics,
+    )
+    from training.foundation import (
+        TrainingFoundationError,
+        load_training_config,
+        write_json_report,
+    )
+
+    try:
+        config = load_training_config(Path(args.config))
+        diagnostics = load_diagnostics(Path(args.diagnostics))
+        source_answers = generate_source_answers(
+            config,
+            diagnostics,
+            template_path=Path(args.template),
+            local_files_only=args.local_files_only,
+        )
+        runtime_answers = generate_runtime_answers(
+            diagnostics,
+            runtime_url=args.runtime_url,
+        )
+        report = build_continuity_report(
+            config,
+            diagnostics,
+            source_answers=source_answers,
+            runtime_answers=runtime_answers,
+            runtime_url=args.runtime_url,
+        )
+        write_json_report(report, Path(args.output))
+    except (OSError, TrainingFoundationError, ValueError) as exc:
+        print(f"Training continuity failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_continuity_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report["passed"] else 1
+
+
+def training_data_validate(args: argparse.Namespace) -> int:
+    from training.data_contract import build_validation_report
+    from training.foundation import TrainingFoundationError, write_json_report
+
+    try:
+        report = build_validation_report(
+            Path(args.manifest),
+            config_path=Path(args.config),
+        )
+        write_json_report(report, Path(args.output))
+    except (OSError, TrainingFoundationError, ValueError) as exc:
+        print(f"Training data validation failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(f"Training data validation: {'PASS' if report['passed'] else 'FAIL'}")
+    if report["passed"]:
+        print(f"Dataset: {report['dataset_id']} {report['dataset_version']}")
+        print(f"Examples: {report['example_count']}")
+    else:
+        print(f"Issues: {report['issue_count']}")
+        for issue in report["issues"][:10]:
+            print(f"- {issue['location']}: {issue['code']}: {issue['message']}")
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report["passed"] else 1
+
+
 def ingestion_worker(args: argparse.Namespace) -> int:
     configure_import_path()
     load_root_env()
@@ -763,6 +898,104 @@ def build_parser() -> argparse.ArgumentParser:
     generation_parser.add_argument("--min-tokens-per-second", type=float)
     generation_parser.add_argument("--allow-model-mismatch", action="store_true")
     generation_parser.set_defaults(func=evaluate_generation)
+
+    training_preflight_parser = subparsers.add_parser(
+        "training-preflight",
+        help="verify the pinned Phase 5 environment, hardware, disk, and model access",
+    )
+    training_preflight_parser.add_argument(
+        "--config",
+        default="config/training/gemma3-1b-lora-v1.json",
+    )
+    training_preflight_parser.add_argument(
+        "--cache-dir",
+        default="var/training/cache",
+    )
+    training_preflight_parser.add_argument(
+        "--output",
+        default="var/training/preflight-latest.json",
+    )
+    training_preflight_parser.set_defaults(func=training_preflight)
+
+    training_calibrate_parser = subparsers.add_parser(
+        "training-calibrate",
+        help="run one BF16/FP16 LoRA forward-backward step at each planned sequence length",
+    )
+    training_calibrate_parser.add_argument(
+        "--config",
+        default="config/training/gemma3-1b-lora-v1.json",
+    )
+    training_calibrate_parser.add_argument(
+        "--output",
+        default="var/training/calibration-latest.json",
+    )
+    training_calibrate_parser.add_argument(
+        "--local-files-only",
+        action="store_true",
+        help="refuse network access and load the pinned model only from the local Hugging Face cache",
+    )
+    training_calibrate_parser.set_defaults(func=training_calibrate)
+
+    training_template_parser = subparsers.add_parser(
+        "training-template-check",
+        help="verify the pinned Gemma template and production system-role mapping",
+    )
+    training_template_parser.add_argument(
+        "--config",
+        default="config/training/gemma3-1b-lora-v1.json",
+    )
+    training_template_parser.add_argument(
+        "--template",
+        default="config/training/gemma3-chat-template.jinja",
+    )
+    training_template_parser.add_argument(
+        "--output",
+        default="var/training/template-check-latest.json",
+    )
+    training_template_parser.add_argument("--local-files-only", action="store_true")
+    training_template_parser.set_defaults(func=training_template_check)
+
+    training_continuity_parser = subparsers.add_parser(
+        "training-continuity",
+        help="compare pinned source-model and GGUF-runtime behavior on deterministic cases",
+    )
+    training_continuity_parser.add_argument(
+        "--config",
+        default="config/training/gemma3-1b-lora-v1.json",
+    )
+    training_continuity_parser.add_argument(
+        "--template",
+        default="config/training/gemma3-chat-template.jinja",
+    )
+    training_continuity_parser.add_argument(
+        "--diagnostics",
+        default="config/training/continuity-diagnostics-v1.json",
+    )
+    training_continuity_parser.add_argument(
+        "--runtime-url",
+        default="http://127.0.0.1:18080/v1",
+    )
+    training_continuity_parser.add_argument(
+        "--output",
+        default="var/training/continuity-latest.json",
+    )
+    training_continuity_parser.add_argument("--local-files-only", action="store_true")
+    training_continuity_parser.set_defaults(func=training_continuity)
+
+    training_data_parser = subparsers.add_parser(
+        "training-data-validate",
+        help="validate a Phase 5 training manifest and its JSONL examples",
+    )
+    training_data_parser.add_argument("--manifest", required=True)
+    training_data_parser.add_argument(
+        "--config",
+        default="config/training/gemma3-1b-lora-v1.json",
+    )
+    training_data_parser.add_argument(
+        "--output",
+        default="var/training/data-validation-latest.json",
+    )
+    training_data_parser.set_defaults(func=training_data_validate)
 
     retrieval_cleanup_parser = subparsers.add_parser(
         "retrieval-cleanup",

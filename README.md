@@ -33,6 +33,7 @@
 - [Technical vision and phase architecture](docs/technical/README.md)
 - [Installation and contributor setup](docs/installation.md)
 - [Retrieval evaluation](evaluation/README.md)
+- [Phase 5 training foundation](docs/training/phase-5-foundation.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)
@@ -170,13 +171,20 @@ GPU offload is opt-in from this project config. If your llama.cpp build supports
 ~/tools/llama.cpp/build/bin/llama-server --list-devices
 ```
 
-For an NVIDIA WSL setup, the practical flow is:
+For the pinned RTX 5070/WSL setup, create the dedicated build environment and run the canonical
+build script from the repository root:
 
 ```bash
-cd ~/tools/llama.cpp
-cmake -B build-cuda -DGGML_CUDA=ON
-cmake --build build-cuda --config Release -j "$(nproc)"
+conda env create -f environment.llama-build.yml
+conda run --no-capture-output -n offline-ai-llama-build \
+  bash scripts/models/build-llama-cuda.sh --clean
+~/tools/llama.cpp/build-cuda/bin/llama-server --list-devices
 ```
+
+This pins llama.cpp `c198af4dc`, CUDA 13.0, GCC 13.4, and the RTX 5070 `120a` architecture. The
+binary embeds runtime paths to the dedicated build environment so it cannot silently select the
+incompatible system CUDA 13.3 libraries. Keep `offline-ai-llama-build` installed while using this
+local binary; it is separate from both `offline-ai` and `offline-ai-training`.
 
 Then update:
 

@@ -34,6 +34,12 @@ implementation take precedence, and the vision should be updated.
 See [Target Architecture](target-architecture.md) for the intended end state and the constraints
 that must remain true across every phase.
 
+Cross-phase technical notes:
+
+- [Dynamic Local Model Selection on the RTX 5070](dynamic-model-selection.md) — proposed fast,
+  balanced, and deep inference tiers with projected storage, VRAM, CPU, GPU, routing behavior, and
+  a sequential local speech-to-text/LLM voice pipeline
+
 ## Status Rules
 
 - **Completed** means acceptance evidence exists for the delivered scope.

@@ -1,6 +1,6 @@
 # Phase 5 Model Adaptation Plan
 
-Status: Ready to begin
+Status: In progress (Work Package 5.1)
 
 ## Entry Criteria
 
@@ -29,7 +29,7 @@ must not be worked around silently.
 | Training method | Supervised fine-tuning with LoRA; keep base weights frozen |
 | Stack | Pinned PyTorch, Transformers, TRL, PEFT, Datasets, Accelerate, and Safetensors in a separate project training environment |
 | Precision | BF16 where the calibration test proves support; FP16 is the recorded fallback |
-| Initial sequence limit | 2,048 tokens; examples exceeding the limit fail validation instead of being silently truncated |
+| Initial sequence limit | Calibrate at 1,024/2,048; approve 1,024 tokens for training until 2,048 has physical-VRAM headroom |
 | Loss | Assistant/completion tokens only; system, user, retrieved context, and padding tokens are masked |
 | Initial adapter search | One bounded comparison around rank `8` and `16`; record alpha, dropout, target modules, learning rate, and seed |
 | Deployment | Export adapter-only Safetensors, convert it to a GGUF LoRA adapter, and load it alongside the immutable base model in `llama-server` |
@@ -65,43 +65,48 @@ acceptance evidence.
 
 ### Environment and hardware calibration
 
-- [ ] Add a separate, pinned training environment without changing production API dependencies
-- [ ] Record Python, CUDA, driver, GPU, PyTorch, Transformers, TRL, PEFT, and llama.cpp revisions
-- [ ] Resolve and pin the exact trainable Gemma source checkpoint and license terms
-- [ ] Verify its tokenizer and chat template against the production prompt contract
-- [ ] Run a one-batch BF16 forward/backward calibration at 1,024 and 2,048 tokens
-- [ ] Record peak VRAM, system RAM, step time, and whether gradient checkpointing is required
-- [ ] Fail with an actionable error when CUDA, BF16, the checkpoint, or free disk space is unavailable
+- [x] Add a separate, pinned training environment without changing production API dependencies
+- [x] Record Python, CUDA, driver, GPU, PyTorch, Transformers, TRL, and PEFT versions; the
+  deployment llama.cpp revision remains part of the base-equivalence gate
+- [x] Resolve and pin the exact trainable Gemma source checkpoint and license terms
+- [x] Verify its tokenizer and chat template against the production prompt contract
+- [x] Run a one-batch BF16 forward/backward calibration at 1,024 and 2,048 tokens
+- [x] Record peak VRAM, system RAM, step time, and whether gradient checkpointing is required;
+  2,048 tokens executes but exceeds the physical-VRAM headroom gate and is not yet training-safe
+- [x] Fail with an actionable error when CUDA, BF16, the checkpoint access token, packages, or free
+  disk space is unavailable
 
 ### Base equivalence gate
 
-- [ ] Evaluate the unadapted source checkpoint on a deterministic diagnostic slice
-- [ ] Evaluate the corresponding unadapted GGUF artifact through `llama-server`
-- [ ] Compare formatting, refusal, citations, and expected facts under the same prompt
-- [ ] Record acceptable conversion/runtime drift before any adapter training result is considered
-- [ ] Write an ADR for the checkpoint, stack, precision, chat template, and deployment path
+- [x] Evaluate the unadapted source checkpoint on a deterministic diagnostic slice
+- [x] Evaluate the corresponding unadapted GGUF artifact through `llama-server`
+- [x] Compare formatting, refusal, citations, and expected facts under the same prompt
+- [x] Record acceptable conversion/runtime drift before any adapter training result is considered
+- [x] Write an ADR for the checkpoint, stack, precision, chat template, and deployment path
 
 ### Exit criteria
 
-- [ ] A clean checkout can recreate the environment from pinned inputs
-- [ ] A calibration report proves the selected micro-batch and sequence length fit in 12,227 MiB
-- [ ] The source-to-GGUF comparison passes its recorded tolerance
+- [x] A clean checkout can recreate the environment from pinned inputs
+- [x] A calibration report proves the selected micro-batch and 1,024-token training length fit in
+  12,227 MiB; 2,048 remains an unapproved calibration probe
+- [x] The source-to-GGUF comparison passes its recorded tolerance
 
 ## Work Package 5.1: Training Data Contract
 
 ### Schema and provenance
 
-- [ ] Define `TrainingExample` and `TrainingManifest` schemas with stable IDs and versions
-- [ ] Record task, language, messages, expected citations, source provenance, license, sensitivity,
+- [x] Define `TrainingExample` and `TrainingManifest` schemas with stable IDs and versions
+- [x] Record task, language, messages, expected citations, source provenance, license, sensitivity,
   template family, grouping key, and intended split
-- [ ] Support grounded answers, grounded refusals, citation formatting, JSON output, incident reports,
+- [x] Support grounded answers, grounded refusals, citation formatting, JSON output, incident reports,
   and terminology tasks in English and Turkish
-- [ ] Require explicit approval metadata for any non-public or synthetically generated example
+- [x] Require explicit approval metadata for any non-public or synthetically generated example
 - [ ] Forbid secrets, credentials, personal data, restricted document text, and unverifiable targets
 
 ### Validation and splits
 
-- [ ] Validate roles, required fields, citation syntax, JSON schemas, language labels, and answer support
+- [ ] Validate roles, required fields, citation syntax, JSON schemas, language labels, and answer
+  support (structural and target-schema validation implemented; factual support review remains)
 - [ ] Render with the pinned production chat template and reject sequences above the token limit
 - [ ] Detect exact duplicates and report near duplicates for review
 - [ ] Assign deterministic group-aware train, validation, and held-out splits
@@ -111,7 +116,7 @@ acceptance evidence.
 
 ### Exit criteria
 
-- [ ] Invalid or sensitive examples make validation fail with a non-zero exit code
+- [x] Invalid or sensitive examples make validation fail with a non-zero exit code
 - [ ] Re-running the same manifest and seed produces identical splits and checksums
 - [ ] Every accepted example has reviewable provenance and redistribution status
 

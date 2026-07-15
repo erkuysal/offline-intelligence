@@ -1,0 +1,18 @@
+name: offline-ai-llama-build
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12.11
+  - pip=26.1.2
+  - cmake=4.2.3
+  - gcc_linux-64=13.4.0
+  - gxx_linux-64=13.4.0
+  - pip:
+      - nvidia-cuda-cccl==13.0.85
+      - nvidia-cuda-crt==13.0.88
+      - nvidia-cuda-nvcc==13.0.88
+      - nvidia-cuda-nvrtc==13.0.88
+      - nvidia-nvvm==13.0.88
+      - nvidia-cuda-runtime==13.0.96
+      - nvidia-cublas==13.1.1.3

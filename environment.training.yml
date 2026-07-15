@@ -1,0 +1,15 @@
+name: offline-ai-training
+channels:
+  - defaults
+dependencies:
+  - python=3.12.11
+  - pip=26.1.2
+  - pip:
+      - torch==2.13.0
+      - transformers==5.13.1
+      - trl==1.8.0
+      - peft==0.19.1
+      - datasets==5.0.0
+      - accelerate==1.14.0
+      - safetensors==0.8.0
+      - huggingface-hub==1.23.0

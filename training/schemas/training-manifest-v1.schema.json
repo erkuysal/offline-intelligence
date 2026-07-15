@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://offline-intelligence-hub.local/schemas/training-manifest-v1.schema.json",
+  "title": "TrainingManifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "dataset_version",
+    "description",
+    "examples_file",
+    "examples_sha256",
+    "example_schema",
+    "template_contract",
+    "split_policy",
+    "reserved_evaluation_datasets"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "dataset_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$"},
+    "dataset_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "description": {"type": "string", "minLength": 1, "maxLength": 2048},
+    "examples_file": {"type": "string", "pattern": "^[^/].*\\.jsonl$"},
+    "examples_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "example_schema": {"const": "../schemas/training-example-v1.schema.json"},
+    "template_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base_model_revision", "chat_template_sha256", "max_sequence_length"],
+      "properties": {
+        "base_model_revision": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "chat_template_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "max_sequence_length": {"type": "integer", "minimum": 1, "maximum": 1024}
+      }
+    },
+    "split_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed", "train_percent", "validation_percent", "held_out_percent", "group_field"],
+      "properties": {
+        "seed": {"type": "integer", "minimum": 0},
+        "train_percent": {"type": "integer", "minimum": 1, "maximum": 98},
+        "validation_percent": {"type": "integer", "minimum": 1, "maximum": 98},
+        "held_out_percent": {"type": "integer", "minimum": 1, "maximum": 98},
+        "group_field": {"const": "group_key"}
+      }
+    },
+    "reserved_evaluation_datasets": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 512}
+    }
+  }
+}
