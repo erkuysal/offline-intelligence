@@ -2,6 +2,14 @@ import type { Locator, Page } from '@playwright/test'
 
 import { expect, test } from './fixtures'
 
+test('keeps authentication entry surfaces within the viewport', async ({ page }) => {
+  for (const route of ['/login', '/register']) {
+    await page.goto(route)
+    await expect(page.getByRole('button', { name: 'Use demo account' })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+  }
+})
+
 test('keeps operational and chat surfaces within the viewport', async ({ page, registerUser }) => {
   await page.route('**/health**', async route => {
     const path = new URL(route.request().url()).pathname
@@ -20,10 +28,12 @@ test('keeps operational and chat surfaces within the viewport', async ({ page, r
     })
   })
   await registerUser('responsive')
+  await openMobileNavigation(page)
   await page.getByRole('link', { name: 'System' }).click()
   await expect(page.getByRole('article')).toHaveCount(6)
   await expectNoHorizontalOverflow(page)
 
+  await openMobileNavigation(page)
   await page.getByRole('link', { name: 'Chat' }).click()
   const history = page.getByRole('complementary', { name: 'Conversations' })
   const conversation = page.getByRole('region', { name: 'Conversation' })
@@ -35,6 +45,14 @@ test('keeps operational and chat surfaces within the viewport', async ({ page, r
   await expectNoOverlap(history, conversation)
   await expectNoOverlap(conversation, sources)
 })
+
+async function openMobileNavigation(page: Page) {
+  const trigger = page.getByRole('button', { name: 'Open navigation' })
+  if (await trigger.isVisible()) {
+    await trigger.click()
+    await expect(page.getByRole('complementary', { name: 'Primary' })).toBeVisible()
+  }
+}
 
 async function expectNoHorizontalOverflow(page: Page) {
   await expect

@@ -26,7 +26,7 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: `VITE_API_PROXY_TARGET=${apiBaseUrl} npm run dev -- --port ${webPort}`,
+      command: `VITE_API_PROXY_TARGET=${apiBaseUrl} VITE_DEMO_EMAIL=demo.visual@offline-hub.local VITE_DEMO_PASSWORD=DemoWorkspace2026! npm run dev -- --port ${webPort}`,
       url: webBaseUrl,
       reuseExistingServer: false,
     },

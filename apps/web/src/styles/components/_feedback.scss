@@ -1,0 +1,27 @@
+.muted-status,
+.status-detail {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.status-detail {
+  display: block;
+  max-width: 360px;
+  margin-top: 4px;
+  white-space: normal;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

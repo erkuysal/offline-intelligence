@@ -1,0 +1,29 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 25px;
+  padding: 2px 9px;
+  border-radius: 999px;
+
+  background: #e7edf0;
+  color: var(--color-text-soft);
+
+  font-size: 12px;
+  font-weight: 750;
+
+  &[data-tone='success'] {
+    background: var(--color-success-soft);
+    color: var(--color-success);
+  }
+
+  &[data-tone='warning'] {
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+  }
+
+  &[data-tone='danger'] {
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
+  }
+}

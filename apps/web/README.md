@@ -16,6 +16,12 @@ npm run build
 The Vite dev server proxies `/api`, `/health`, and `/metrics` to `http://127.0.0.1:8000`.
 Set `VITE_API_BASE_URL` when the API is hosted on another origin.
 
+The optional demo-account button is disabled unless both `VITE_DEMO_EMAIL` and
+`VITE_DEMO_PASSWORD` are supplied to the Vite process. These values are embedded in the browser
+bundle, so use only credentials created for a disposable demonstration workspace; never supply a
+normal operator or production account. The Playwright environment injects isolated test-only
+values automatically.
+
 `npm run test:e2e` starts a dedicated API on port `8002` and Vite server on port `5174`.
 The API uses `offline_ai_e2e`, isolated document storage, synchronous ingestion, and fake model
 providers with enough concurrency for parallel workers. The suite clears its database and stored files before and after every complete run.

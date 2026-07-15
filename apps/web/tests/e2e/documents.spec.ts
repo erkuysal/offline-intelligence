@@ -30,6 +30,79 @@ test('rejects unsupported and oversized files before upload', async ({ page }) =
   expect(uploadRequests).toBe(0)
 })
 
+test('searches and filters the corpus without changing stored documents', async ({ page, uploadTextDocument }) => {
+  await uploadTextDocument('backup-policy.txt', 'Backups run nightly.')
+  await uploadTextDocument('incident-guide.txt', 'Incident updates run every thirty minutes.')
+
+  await expect(page.getByText('2 of 2 shown')).toBeVisible()
+  await page.getByPlaceholder('Search documents').fill('backup')
+
+  await expect(page.getByRole('row').filter({ hasText: 'backup-policy.txt' })).toBeVisible()
+  await expect(page.getByRole('row').filter({ hasText: 'incident-guide.txt' })).toHaveCount(0)
+  await expect(page.getByText('1 of 2 shown')).toBeVisible()
+
+  await page.getByLabel('Filter by status').selectOption('failed')
+  await expect(page.getByText('No documents match the current search and status filter.')).toBeVisible()
+  await page.getByRole('button', { name: 'Clear filters' }).click()
+
+  await expect(page.getByRole('row').filter({ hasText: 'backup-policy.txt' })).toBeVisible()
+  await expect(page.getByRole('row').filter({ hasText: 'incident-guide.txt' })).toBeVisible()
+  await expect(page.getByText('2 of 2 shown')).toBeVisible()
+})
+
+test('renders Markdown chunks as readable structured content', async ({ page }) => {
+  await page.getByLabel('Upload document').setInputFiles({
+    name: 'retrieval-notes.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from([
+      '# Retrieval notes',
+      '',
+      'Use these settings:',
+      '',
+      '- Preserve **source labels**',
+      '- Return inspectable citations',
+      '',
+      '`top_k = 5`',
+      '',
+      ...Array.from({ length: 18 }, (_, index) => [
+        `## Reference section ${index + 1}`,
+        '',
+        `Operational detail ${index + 1} remains grounded in the indexed source material.`,
+        '',
+      ]).flat(),
+    ].join('\n')),
+  })
+
+  const documentRow = page.getByRole('row').filter({ hasText: 'retrieval-notes.md' })
+  await expect(documentRow).toContainText('ready')
+  await documentRow.getByRole('link', { name: 'Open' }).click()
+
+  const chunk = page.getByRole('article', { name: 'Chunk 0' })
+  await expect(chunk.getByRole('heading', { name: 'Retrieval notes' })).toBeVisible()
+  const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' })
+  await expect(breadcrumb.getByRole('link', { name: 'Documents' })).toHaveAttribute('href', '/documents')
+  const contents = page.getByRole('complementary', { name: 'Document contents' })
+  await expect(contents.locator('.document-outline-inner')).toHaveCSS('position', 'static')
+  await expect(contents.getByRole('navigation')).toHaveCSS('overflow-y', 'auto')
+  const readerContent = page.locator('.document-reader-content')
+  await expect(readerContent).toHaveCSS('overflow-y', 'auto')
+  await expect.poll(() => readerContent.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+  const outlineTop = (await contents.boundingBox())?.y ?? 0
+  await readerContent.evaluate(element => element.scrollTo({ top: element.scrollHeight }))
+  await expect.poll(() => readerContent.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
+  expect((await contents.boundingBox())?.y ?? 0).toBeCloseTo(outlineTop, 0)
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+  const headingLink = contents.getByRole('link', { name: 'Retrieval notes' })
+  await expect(headingLink).toBeVisible()
+  await headingLink.click()
+  await expect(page).toHaveURL(/#chunk-\d+-retrieval-notes$/)
+  await expect(chunk.getByRole('listitem')).toHaveCount(2)
+  await expect(chunk.getByText('source labels', { exact: true })).toHaveJSProperty('tagName', 'STRONG')
+  await expect(chunk.locator('code')).toHaveText('top_k = 5')
+  await chunk.getByText('Retrieval details', { exact: true }).click()
+  await expect(chunk.getByText('Characters', { exact: true })).toBeVisible()
+})
+
 test('polls asynchronous ingestion from pending to ready', async ({ page }) => {
   const timestamp = new Date().toISOString()
   const document = {
@@ -84,6 +157,7 @@ test('shows version history after uploading changed content with the same filena
   await documentRow.getByRole('link', { name: 'Open' }).click()
 
   const versionHistory = page.getByRole('region', { name: 'Version history' })
+  await versionHistory.getByText('Version history', { exact: true }).click()
   await expect(versionHistory.getByRole('cell', { name: 'v1' })).toBeVisible()
   await expect(versionHistory.getByRole('cell', { name: 'v2' })).toBeVisible()
 })

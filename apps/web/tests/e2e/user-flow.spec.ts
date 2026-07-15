@@ -22,7 +22,7 @@ test('registers, uploads a document, asks a grounded question, and logs out', as
   await page.getByRole('button', { name: 'Create account' }).click()
 
   await expect(page).toHaveURL(/\/documents$/)
-  await expect(page.getByRole('heading', { name: 'Corpus' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Document corpus' })).toBeVisible()
 
   await page.getByLabel('Upload document').setInputFiles({
     name: filename,
@@ -50,7 +50,8 @@ test('registers, uploads a document, asks a grounded question, and logs out', as
   })
   if (demoPauseMs > 0) await page.waitForTimeout(demoPauseMs)
 
-  await page.getByRole('button', { name: 'Log out' }).click()
+  await page.getByRole('button', { name: 'User menu' }).click()
+  await page.getByRole('menuitem', { name: 'Log out' }).click()
   await expect(page).toHaveURL(/\/login$/)
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
 
@@ -62,7 +63,8 @@ test('registers, uploads a document, asks a grounded question, and logs out', as
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Corpus' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Log out' }).click()
+  await page.getByRole('button', { name: 'User menu' }).click()
+  await page.getByRole('menuitem', { name: 'Log out' }).click()
   await expect(page).toHaveURL(/\/login$/)
   await expect(
     page.evaluate(() => ({

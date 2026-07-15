@@ -1,6 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { FileText, MessageSquarePlus, Send, Square, Trash2 } from '@lucide/vue'
+import {
+  ArrowUpRight,
+  Bot,
+  BookOpen,
+  Clock3,
+  Database,
+  FileSearch,
+  FileText,
+  LoaderCircle,
+  MessageSquarePlus,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Square,
+  Trash2,
+  UserRound,
+} from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { api, ChatStreamApiError, readableApiError } from '@/api/client'
@@ -55,6 +71,19 @@ const canSubmit = computed(
 const activeSources = computed(
   () => [...messages.value].reverse().find(message => message.role === 'assistant')?.sources ?? [],
 )
+const currentConversation = computed(
+  () => conversations.value.find(conversation => conversation.id === currentConversationId.value) ?? null,
+)
+const groundingSummary = computed(() => {
+  if (!grounded.value) return 'General conversation'
+  if (useAllDocuments.value) return `${readyDocuments.value.length} ready documents`
+  return `${selectedDocumentIds.value.length} selected documents`
+})
+const suggestedPrompts = [
+  'Summarize the most important policies in my documents.',
+  'What information is missing or ambiguous in the available sources?',
+  'Create a concise action list from the relevant documents.',
+]
 
 onMounted(async () => {
   await Promise.all([documents.fetchDocuments(), loadConversations()])
@@ -239,119 +268,274 @@ async function deleteConversation() {
 function sourceAccessible(source: DisplaySource): boolean {
   return !('document_accessible' in source) || source.document_accessible
 }
+
+function useSuggestion(suggestion: string) {
+  prompt.value = suggestion
+}
+
+function formatConversationTime(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(value))
+}
 </script>
 
 <template>
-  <section class="chat-layout">
-    <aside class="history-panel" aria-labelledby="history-heading">
-      <header>
-        <h2 id="history-heading">Conversations</h2>
-        <button class="icon-button" type="button" title="New conversation" aria-label="New conversation" @click="startNewConversation()">
-          <MessageSquarePlus :size="18" />
-        </button>
-      </header>
-      <nav class="conversation-list" aria-label="Conversation history">
-        <div v-for="conversation in conversations" :key="conversation.id" class="conversation-row">
-          <button
-            class="conversation-link"
-            :class="{ active: currentConversationId === conversation.id }"
-            type="button"
-            @click="selectConversation(conversation.id)"
-          >
-            {{ conversation.title || 'Untitled conversation' }}
-          </button>
+  <section class="chat-workspace">
+    <header class="chat-page-header">
+      <div>
+        <p class="eyebrow">Grounded workspace</p>
+        <h1>Chat with your knowledge</h1>
+      </div>
+      <div class="chat-context-summary">
+        <span :data-active="grounded">
+          <ShieldCheck v-if="grounded" :size="15" />
+          <Sparkles v-else :size="15" />
+          {{ groundingSummary }}
+        </span>
+      </div>
+    </header>
+
+    <div class="chat-layout">
+      <aside class="history-panel" aria-labelledby="history-heading">
+        <header class="panel-heading">
+          <div>
+            <p class="panel-eyebrow">Workspace</p>
+            <h2 id="history-heading">Conversations</h2>
+          </div>
           <button
             class="icon-button"
             type="button"
-            title="Delete conversation"
-            aria-label="Delete conversation"
-            @click="confirmDelete(conversation)"
+            title="New conversation"
+            aria-label="New conversation"
+            @click="startNewConversation()"
           >
-            <Trash2 :size="16" />
+            <MessageSquarePlus :size="18" />
           </button>
-        </div>
-        <p v-if="conversations.length === 0" class="muted-status">No conversations</p>
-      </nav>
-    </aside>
-
-    <section class="conversation-panel" aria-label="Conversation">
-      <p v-if="loadingConversation" class="muted-status">Loading conversation...</p>
-      <div class="message-list" aria-live="polite">
-        <div
-          v-for="(message, index) in messages"
-          :key="message.key"
-          class="message"
-          :class="message.role"
-          role="article"
-          :aria-label="`${message.role === 'assistant' ? 'Assistant' : 'User'} message`"
-          :aria-busy="loading && index === messages.length - 1"
-        >
-          {{ message.content }}<span v-if="loading && index === messages.length - 1" class="stream-cursor" aria-hidden="true" />
-        </div>
-      </div>
-      <div v-if="generationState !== 'idle'" class="generation-status" aria-live="polite">
-        <span>{{ generationState }}</span>
-        <span v-if="result">{{ result.model }}</span>
-        <span v-if="result">{{ result.usage.total_tokens }} tokens</span>
-      </div>
-      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-      <form class="composer" @submit.prevent="submit">
-        <textarea v-model="prompt" rows="4" placeholder="Ask a question" :disabled="loading" />
-        <div class="composer-actions">
-          <button v-if="loading" class="secondary-button" type="button" @click="stop">
-            <Square :size="16" fill="currentColor" /> Stop
-          </button>
-          <button class="primary-button" type="submit" :disabled="!canSubmit">
-            <Send :size="18" /> Send
-          </button>
-        </div>
-      </form>
-    </section>
-
-    <aside class="sources-panel" aria-labelledby="sources-heading">
-      <div class="grounding-controls">
-        <label class="toggle-control">
-          <input v-model="grounded" type="checkbox" :disabled="loading" />
-          <span>Document grounding</span>
-        </label>
-        <fieldset v-if="grounded" class="document-scope" :disabled="loading || documents.loading">
-          <legend>Retrieval scope</legend>
-          <label class="check-control">
-            <input v-model="useAllDocuments" type="checkbox" />
-            <span>All ready documents</span>
-          </label>
-          <div v-if="!useAllDocuments" class="document-options">
-            <label v-for="document in readyDocuments" :key="document.id" class="check-control">
-              <input v-model="selectedDocumentIds" type="checkbox" :value="document.id" />
-              <FileText :size="16" />
-              <span>{{ document.original_filename }}</span>
-            </label>
-            <p v-if="!documents.loading && readyDocuments.length === 0" class="muted-status">No ready documents</p>
+        </header>
+        <button class="new-conversation-button" type="button" @click="startNewConversation()">
+          <MessageSquarePlus :size="17" /> New conversation
+        </button>
+        <nav class="conversation-list" aria-label="Conversation history">
+          <div v-for="conversation in conversations" :key="conversation.id" class="conversation-row">
+            <button
+              class="conversation-link"
+              :class="{ active: currentConversationId === conversation.id }"
+              type="button"
+              @click="selectConversation(conversation.id)"
+            >
+              <span>{{ conversation.title || 'Untitled conversation' }}</span>
+              <small><Clock3 :size="11" /> {{ formatConversationTime(conversation.updated_at) }}</small>
+            </button>
+            <button
+              class="icon-button conversation-delete"
+              type="button"
+              title="Delete conversation"
+              aria-label="Delete conversation"
+              @click="confirmDelete(conversation)"
+            >
+              <Trash2 :size="15" />
+            </button>
           </div>
-          <p v-if="needsDocumentSelection" class="selection-error">Select at least one document</p>
-        </fieldset>
-      </div>
-      <h2 id="sources-heading">Sources</h2>
-      <article
-        v-for="source in activeSources"
-        :key="`${source.document_id}-${source.chunk_index}`"
-        class="source-item"
-        :aria-label="`Source: ${source.document_filename}`"
-      >
-        <strong>{{ source.document_filename }}</strong>
-        <span>{{ source.source_label ?? `Chunk ${source.chunk_index}` }}</span>
-        <span v-if="source.source_page !== null">Page {{ source.source_page }}</span>
-        <span>Score {{ source.score.toFixed(3) }}</span>
-        <p v-if="source.content">{{ source.content }}</p>
-        <RouterLink
-          v-if="sourceAccessible(source) && source.chunk_id !== null"
-          :to="`/documents/${source.document_id}#chunk-${source.chunk_id}`"
+          <div v-if="conversations.length === 0" class="history-empty">
+            <MessageSquarePlus :size="22" />
+            <strong>No saved conversations</strong>
+            <span>Your grounded chats will appear here.</span>
+          </div>
+        </nav>
+      </aside>
+
+      <section class="conversation-panel" aria-label="Conversation">
+        <header class="conversation-header">
+          <div class="assistant-identity">
+            <span class="assistant-avatar"><Bot :size="19" /></span>
+            <span>
+              <strong>{{ currentConversation?.title || 'Local knowledge assistant' }}</strong>
+              <small><span class="online-dot" /> Ready on this device</small>
+            </span>
+          </div>
+          <span class="conversation-security"><ShieldCheck :size="14" /> Private session</span>
+        </header>
+
+        <div v-if="loadingConversation" class="conversation-loading" aria-live="polite">
+          <LoaderCircle class="spin" :size="18" /> Loading conversation
+        </div>
+
+        <div class="message-list" aria-live="polite">
+          <section v-if="messages.length === 0 && !loadingConversation" class="chat-empty-state">
+            <span class="chat-empty-icon"><Sparkles :size="26" /></span>
+            <h2>Ask your private knowledge base</h2>
+            <p>
+              Answers can use only the document scope you select, with inspectable source passages.
+            </p>
+            <div class="suggestion-grid" aria-label="Suggested questions">
+              <button
+                v-for="suggestion in suggestedPrompts"
+                :key="suggestion"
+                type="button"
+                @click="useSuggestion(suggestion)"
+              >
+                <BookOpen :size="16" />
+                <span>{{ suggestion }}</span>
+              </button>
+            </div>
+          </section>
+
+          <article
+            v-for="(message, index) in messages"
+            :key="message.key"
+            class="message"
+            :class="message.role"
+            :aria-label="`${message.role === 'assistant' ? 'Assistant' : 'User'} message`"
+            :aria-busy="loading && index === messages.length - 1"
+          >
+            <span class="message-avatar" aria-hidden="true">
+              <Bot v-if="message.role === 'assistant'" :size="17" />
+              <UserRound v-else :size="17" />
+            </span>
+            <div class="message-body">
+              <header>
+                <strong>{{ message.role === 'assistant' ? 'Assistant' : 'You' }}</strong>
+                <span v-if="message.model">{{ message.model }}</span>
+              </header>
+              <div class="message-content">
+                {{ message.content }}<span
+                  v-if="loading && index === messages.length - 1"
+                  class="stream-cursor"
+                  aria-hidden="true"
+                />
+                <span
+                  v-if="loading && index === messages.length - 1 && !message.content"
+                  class="thinking-dots"
+                  aria-label="Generating answer"
+                ><i /><i /><i /></span>
+              </div>
+              <footer v-if="message.role === 'assistant' && message.sources.length">
+                <span v-if="message.sources.length"><BookOpen :size="13" /> {{ message.sources.length }} sources</span>
+              </footer>
+            </div>
+          </article>
+        </div>
+
+        <div class="conversation-footer">
+          <div v-if="generationState !== 'idle'" class="generation-status" aria-live="polite">
+            <span class="generation-state" :data-state="generationState">
+              <span class="generation-dot" /> {{ generationState }}
+            </span>
+            <span v-if="result">{{ result.model }}</span>
+            <span v-if="result">{{ result.usage.total_tokens }} tokens</span>
+          </div>
+          <p v-if="error" class="form-error chat-error" role="alert">{{ error }}</p>
+          <form class="composer" @submit.prevent="submit">
+            <textarea
+              v-model="prompt"
+              rows="3"
+              placeholder="Ask a question"
+              aria-label="Ask a question"
+              :disabled="loading"
+            />
+            <div class="composer-footer">
+              <span class="composer-context">
+                <Database v-if="grounded" :size="14" />
+                <Sparkles v-else :size="14" />
+                {{ groundingSummary }}
+              </span>
+              <div class="composer-actions">
+                <button v-if="loading" class="secondary-button" type="button" @click="stop">
+                  <Square :size="15" fill="currentColor" /> Stop
+                </button>
+                <button class="primary-button send-button" type="submit" :disabled="!canSubmit">
+                  <Send :size="17" /> Send
+                </button>
+              </div>
+            </div>
+          </form>
+          <p class="composer-hint">Responses stay local. Verify important information in the cited source.</p>
+        </div>
+      </section>
+
+      <aside class="sources-panel" aria-labelledby="sources-heading">
+        <div class="grounding-controls">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-eyebrow">Retrieval</p>
+              <h2>Grounding</h2>
+            </div>
+            <Database :size="18" />
+          </div>
+          <label class="toggle-control">
+            <span>
+              <strong>Document grounding</strong>
+              <small>Answer from accessible sources</small>
+            </span>
+            <input v-model="grounded" type="checkbox" :disabled="loading" />
+          </label>
+          <fieldset v-if="grounded" class="document-scope" :disabled="loading || documents.loading">
+            <legend>Retrieval scope</legend>
+            <label class="check-control scope-all-control">
+              <input v-model="useAllDocuments" type="checkbox" />
+              <span>
+                <strong>All ready documents</strong>
+                <small>{{ readyDocuments.length }} available</small>
+              </span>
+            </label>
+            <div v-if="!useAllDocuments" class="document-options">
+              <label v-for="document in readyDocuments" :key="document.id" class="check-control">
+                <input v-model="selectedDocumentIds" type="checkbox" :value="document.id" />
+                <FileText :size="16" />
+                <span>{{ document.original_filename }}</span>
+              </label>
+              <p v-if="!documents.loading && readyDocuments.length === 0" class="muted-status">
+                No ready documents
+              </p>
+            </div>
+            <p v-if="needsDocumentSelection" class="selection-error">Select at least one document</p>
+          </fieldset>
+        </div>
+
+        <div class="sources-heading-row">
+          <div>
+            <p class="panel-eyebrow">Evidence</p>
+            <h2 id="sources-heading">Sources</h2>
+          </div>
+          <span>{{ activeSources.length }}</span>
+        </div>
+
+        <div v-if="activeSources.length === 0" class="sources-empty">
+          <FileSearch :size="23" />
+          <strong>No sources yet</strong>
+          <p>Source passages from the latest grounded answer will appear here.</p>
+        </div>
+
+        <article
+          v-for="(source, sourceIndex) in activeSources"
+          :key="`${source.document_id}-${source.chunk_index}`"
+          class="source-item"
+          :aria-label="`Source: ${source.document_filename}`"
         >
-          Open passage
-        </RouterLink>
-        <span v-else class="source-unavailable">Document unavailable</span>
-      </article>
-    </aside>
+          <header>
+            <span class="source-number">{{ sourceIndex + 1 }}</span>
+            <div>
+              <strong>{{ source.document_filename }}</strong>
+              <small>{{ source.source_label ?? `Chunk ${source.chunk_index}` }}</small>
+            </div>
+          </header>
+          <div class="source-metadata">
+            <span v-if="source.source_page !== null">Page {{ source.source_page }}</span>
+            <span>Score {{ source.score.toFixed(3) }}</span>
+          </div>
+          <p v-if="source.content">{{ source.content }}</p>
+          <RouterLink
+            v-if="sourceAccessible(source) && source.chunk_id !== null"
+            :to="`/documents/${source.document_id}#chunk-${source.chunk_id}`"
+          >
+            Open passage <ArrowUpRight :size="14" />
+          </RouterLink>
+          <span v-else class="source-unavailable">Document unavailable</span>
+        </article>
+      </aside>
+    </div>
 
     <dialog ref="deleteDialog" class="confirm-dialog" aria-labelledby="delete-conversation-title">
       <form method="dialog" @submit.prevent>

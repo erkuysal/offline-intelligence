@@ -1,5 +1,6 @@
 config/env/local.env
 config/env/prod.env
+DEMO_USER.local.md
 .venv/
 __pycache__/
 *.py[cod]

@@ -1,0 +1,35 @@
+.main-panel {
+  min-width: 0;
+}
+
+.main-content {
+  width: min(100%, 1540px);
+  margin: 0 auto;
+  padding: 26px clamp(20px, 3vw, 42px) 40px;
+}
+
+.view-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.header-actions,
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-section {
+  display: grid;
+  gap: 10px;
+}

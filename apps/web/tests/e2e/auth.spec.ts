@@ -1,5 +1,49 @@
 import { expect, test } from './fixtures'
 
+for (const entryRoute of ['/login', '/register']) {
+  test(`enters the demo workspace from ${entryRoute}`, async ({ page }) => {
+    let submittedCredentials: unknown
+    await page.route('**/api/v1/auth/login', async route => {
+      submittedCredentials = route.request().postDataJSON()
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token: 'demo-access-token',
+          refresh_token: 'demo-refresh-token',
+          token_type: 'bearer',
+        }),
+      })
+    })
+    await page.route('**/api/v1/users/me', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 1,
+          email: 'demo.visual@offline-hub.local',
+          is_active: true,
+          is_verified: false,
+          roles: [],
+        }),
+      }),
+    )
+    await page.route('**/api/v1/documents', route =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }),
+    )
+
+    await page.goto(entryRoute)
+    await page.getByRole('button', { name: 'Use demo account' }).click()
+
+    await expect(page).toHaveURL(/\/documents$/)
+    await expect(page.getByRole('heading', { name: 'Document corpus' })).toBeVisible()
+    expect(submittedCredentials).toEqual({
+      email: 'demo.visual@offline-hub.local',
+      password: 'DemoWorkspace2026!',
+    })
+  })
+}
+
 test('shows an actionable error for invalid credentials', async ({ page }) => {
   allowExpected401()
   await page.goto('/login')
@@ -36,13 +80,14 @@ test('refreshes an invalid access token and restores the session', async ({ page
   )
 
   await page.goto('/documents')
-  await expect(page.getByRole('heading', { name: 'Corpus' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Document corpus', exact: true })).toBeVisible()
   await expect(page).toHaveURL(/\/documents$/)
   await expect(page.evaluate(() => sessionStorage.getItem('offlineHub.accessToken'))).resolves.not.toBe(
     'invalid.access.token',
   )
 
-  await page.getByRole('button', { name: 'Log out' }).click()
+  await page.getByRole('button', { name: 'User menu' }).click()
+  await page.getByRole('menuitem', { name: 'Log out' }).click()
   await expect(page).toHaveURL(/\/login$/)
 })
 
