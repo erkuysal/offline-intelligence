@@ -153,3 +153,26 @@ The [generation report](baselines/generation-baseline-v1.json) records natural-a
 citation, faithfulness, refusal, safety, and streaming-performance metrics. Its pinned 1B model is
 accepted as the Phase 4 regression floor, not as a claim of production-grade answer quality; see
 the [acceptance record](../docs/acceptance/phase-4-generation-baseline.md).
+
+## Phase 5 Adaptation Matrix
+
+Phase 5 retains the Phase 4 generation metrics as diagnostics and adds language adherence,
+citation-format validity, JSON-schema validity, incident-report structure, terminology consistency,
+and supported refusal. Matrix reports aggregate those measures globally and report quality, safety,
+and performance slices by language and task. They do not copy per-case answers or source text from
+their input reports.
+
+The matrix assembler consumes four behavior-corpus reports whose embedded mode labels must be
+`base`, `base_rag`, `adapter`, and `adapter_rag`, plus `base_rag` and `adapter_rag` reports on the
+separate protected Phase 4 regression corpus. Adapter reports must identify the same adapter. It
+refuses missing modes, mismatched cases, mislabeled inputs, or reuse of one corpus for both roles.
+Task gates apply to the behavior corpus; natural-answer quality, safety, and relative performance
+promotion gates apply only to the protected regression corpus.
+See [the Phase 5 evaluation-matrix note](../docs/training/phase-5-evaluation-matrix.md) for the
+command contract and current boundary.
+
+`training-evaluation-index` creates the final checksum-addressed cross-reference without combining
+report contents. It requires one passing dataset-validation report, one passing training-run report,
+one passing held-out matrix, four behavior runtime reports, and two protected regression runtime
+reports. Dataset checksums, both evaluation identities, mode coverage, and adapter IDs must agree
+before the index is written.

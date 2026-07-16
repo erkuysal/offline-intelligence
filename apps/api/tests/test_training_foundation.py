@@ -28,7 +28,25 @@ def test_training_config_pins_model_environment_and_calibration_lengths() -> Non
     assert config["environment"]["python"] == "3.12.11"
     assert config["training"]["sequence_lengths"] == [1024, 2048]
     assert config["training"]["approved_max_sequence_length"] == 1024
+    assert config["training"]["attention_implementation"] == "eager"
+    assert config["training"]["deterministic_algorithms"] is True
     assert config["training"]["lora"]["rank"] == 8
+    assert config["training"]["optimizer"] == {
+        "name": "adamw_torch",
+        "learning_rate": 0.0001,
+        "betas": [0.9, 0.999],
+        "epsilon": 1e-8,
+        "weight_decay": 0.01,
+        "amsgrad": False,
+        "maximize": False,
+        "foreach": False,
+        "capturable": False,
+        "differentiable": False,
+        "fused": False,
+    }
+    assert config["training"]["scheduler"] == {"name": "cosine", "warmup_ratio": 0.03}
+    assert config["training"]["search"]["ranks"] == [8, 16]
+    assert len(config["training"]["search"]["learning_rates"]) <= 2
     template_path = ROOT / config["prompt_contract"]["chat_template_path"]
     assert hashlib.sha256(template_path.read_bytes()).hexdigest() == (
         config["prompt_contract"]["chat_template_sha256"]

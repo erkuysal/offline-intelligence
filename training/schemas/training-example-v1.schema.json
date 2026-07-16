@@ -12,6 +12,7 @@
     "messages",
     "expected_citations",
     "provenance",
+    "support_review",
     "sensitivity",
     "template_family",
     "group_key",
@@ -50,6 +51,7 @@
       "minItems": 1,
       "items": {"$ref": "#/$defs/provenance"}
     },
+    "support_review": {"$ref": "#/$defs/support_review"},
     "sensitivity": {"enum": ["public", "internal-approved"]},
     "approval": {"$ref": "#/$defs/approval"},
     "template_family": {
@@ -109,13 +111,21 @@
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source_id", "source_uri", "license", "redistribution", "synthetic"],
+      "required": [
+        "source_id",
+        "source_uri",
+        "license",
+        "redistribution",
+        "synthetic",
+        "source_text_included"
+      ],
       "properties": {
         "source_id": {"type": "string", "minLength": 1, "maxLength": 256},
         "source_uri": {"type": "string", "minLength": 1, "maxLength": 2048},
         "license": {"type": "string", "minLength": 1, "maxLength": 256},
         "redistribution": {"enum": ["allowed", "restricted", "prohibited"]},
         "synthetic": {"type": "boolean"},
+        "source_text_included": {"type": "boolean"},
         "generator": {"type": "string", "minLength": 1, "maxLength": 256}
       },
       "allOf": [
@@ -124,6 +134,22 @@
           "then": {"required": ["generator"]}
         }
       ]
+    },
+    "support_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reviewer", "reviewed_at", "source_ids"],
+      "properties": {
+        "status": {"const": "verified"},
+        "reviewer": {"type": "string", "minLength": 1, "maxLength": 256},
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "source_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 256}
+        }
+      }
     },
     "approval": {
       "type": "object",

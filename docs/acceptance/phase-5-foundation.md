@@ -1,7 +1,7 @@
 # Phase 5 Training Foundation Acceptance
 
 Date: 2026-07-15
-Status: Work Package 5.0 accepted; Work Package 5.1 started
+Status: Work Package 5.0 accepted; Work Package 5.1 accepted separately
 
 ## Accepted Evidence
 
@@ -29,5 +29,6 @@ Status: Work Package 5.0 accepted; Work Package 5.1 started
 ## Follow-on Gate
 
 - [x] Repair the llama.cpp CUDA build before deployment performance evaluation.
+- [x] Complete and accept the Work Package 5.1 training-data contract.
 
 No adapter training or promotion is authorized by this acceptance record.

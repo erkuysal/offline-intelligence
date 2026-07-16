@@ -26,7 +26,7 @@ implementation take precedence, and the vision should be updated.
 | [2 — Local Model Runtime](phase-2-local-model-runtime.md) | Completed | Bounded local inference behind a stable chat contract |
 | [3 — Document Ingestion and RAG](phase-3-document-rag.md) | Completed | Permission-aware document ingestion and grounded answers |
 | [4 — Retrieval and Evaluation](phase-4-retrieval-evaluation.md) | Completed | Measured retrieval strategies and reproducible RAG quality gates |
-| [5 — Model Adaptation](phase-5-model-adaptation.md) | Next | Reproducible LoRA/PEFT behavior adaptation and adapter deployment |
+| [5 — Model Adaptation](phase-5-model-adaptation.md) | In progress | Reproducible LoRA/PEFT behavior adaptation and adapter deployment |
 | [6 — Inference Optimization](phase-6-inference-optimization.md) | Future | Evidence-based quantization and hardware profiles |
 | [7 — Air-Gapped Delivery](phase-7-air-gapped-delivery.md) | Future | Verifiable offline release, operation, backup, and restore |
 | [8 — Native Acceleration](phase-8-native-acceleration.md) | Future | Safe, benchmarked C integration with portable fallback |
@@ -44,6 +44,7 @@ Cross-phase technical notes:
 
 - **Completed** means acceptance evidence exists for the delivered scope.
 - **Next** means it is the next planning and implementation target, not a delivered capability.
+- **In progress** means one or more work packages have accepted evidence while later gates remain.
 - **Future** records direction only. Interfaces, dependencies, and dates may change after research.
 - A phase is promoted to completed only after its plan, tests, measurements, documentation, and
   acceptance record agree.

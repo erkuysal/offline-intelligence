@@ -40,6 +40,7 @@ def test_training_example_schema_requires_provenance_and_grouping() -> None:
         "messages",
         "expected_citations",
         "provenance",
+        "support_review",
         "sensitivity",
         "template_family",
         "group_key",
@@ -47,14 +48,24 @@ def test_training_example_schema_requires_provenance_and_grouping() -> None:
     } <= set(schema["required"])
     assert schema["properties"]["provenance"]["type"] == "array"
     provenance = schema["$defs"]["provenance"]
-    assert {"source_id", "source_uri", "license", "redistribution", "synthetic"} <= set(
-        provenance["required"]
-    )
+    assert {
+        "source_id",
+        "source_uri",
+        "license",
+        "redistribution",
+        "synthetic",
+        "source_text_included",
+    } <= set(provenance["required"])
     assert set(provenance["properties"]["redistribution"]["enum"]) == {
         "allowed",
         "restricted",
         "prohibited",
     }
+    support_review = schema["$defs"]["support_review"]
+    assert {"status", "reviewer", "reviewed_at", "source_ids"} == set(
+        support_review["required"]
+    )
+    assert support_review["properties"]["status"] == {"const": "verified"}
 
 
 def test_training_example_schema_gates_json_synthetic_and_internal_data() -> None:

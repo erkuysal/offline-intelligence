@@ -1,6 +1,6 @@
 # Phase 5 Model Adaptation Plan
 
-Status: In progress (Work Package 5.1)
+Status: In progress (Work Package 5.2)
 
 ## Entry Criteria
 
@@ -101,48 +101,54 @@ acceptance evidence.
 - [x] Support grounded answers, grounded refusals, citation formatting, JSON output, incident reports,
   and terminology tasks in English and Turkish
 - [x] Require explicit approval metadata for any non-public or synthetically generated example
-- [ ] Forbid secrets, credentials, personal data, restricted document text, and unverifiable targets
+- [x] Forbid secrets, credentials, personal data, restricted document text, and unverifiable targets
 
 ### Validation and splits
 
-- [ ] Validate roles, required fields, citation syntax, JSON schemas, language labels, and answer
-  support (structural and target-schema validation implemented; factual support review remains)
-- [ ] Render with the pinned production chat template and reject sequences above the token limit
-- [ ] Detect exact duplicates and report near duplicates for review
-- [ ] Assign deterministic group-aware train, validation, and held-out splits
-- [ ] Keep paraphrases, translations, and examples from the same template family in one split
-- [ ] Reserve the Phase 4 corpus and questions as promotion evidence; never train on them
-- [ ] Emit task/language distributions, duplicate rates, rejection reasons, and dataset checksums
+- [x] Validate roles, required fields, citation syntax, JSON schemas, language labels, and answer
+  support through an independent verified-support record
+- [x] Render with the pinned production chat template and reject sequences above the token limit
+- [x] Detect exact duplicates and report near duplicates for review
+- [x] Assign deterministic group-aware train, validation, and held-out splits
+- [x] Keep paraphrases, translations, and examples from the same template family in one split
+- [x] Reserve the Phase 4 corpus and questions as promotion evidence; never train on them
+- [x] Emit task/language distributions, duplicate rates, rejection reasons, and dataset checksums
 
 ### Exit criteria
 
 - [x] Invalid or sensitive examples make validation fail with a non-zero exit code
-- [ ] Re-running the same manifest and seed produces identical splits and checksums
-- [ ] Every accepted example has reviewable provenance and redistribution status
+- [x] Re-running the same manifest and seed produces identical splits and checksums
+- [x] Every accepted example has reviewable provenance, support review, and redistribution status
 
 ## Work Package 5.2: Evaluation Matrix
 
 - [ ] Reuse the Phase 4 evaluator for base, base + RAG, adapter, and adapter + RAG runs
-- [ ] Add task-level measures for language adherence, citation format, JSON schema validity, incident
+- [x] Add task-level measures for language adherence, citation format, JSON schema validity, incident
   report structure, terminology consistency, and supported refusal
-- [ ] Report every quality and safety metric by language and task, not only as a global average
-- [ ] Store per-case outputs for regression diagnosis without persisting unauthorized source text
-- [ ] Separate dataset-validation, training, held-out behavior, and production-runtime reports
-- [ ] Make every promotion threshold produce a non-zero CLI exit when missed
+- [x] Report every quality and safety metric by language and task, not only as a global average
+- [x] Store per-case outputs for regression diagnosis without persisting unauthorized source text
+- [x] Separate dataset-validation, training, held-out behavior, and production-runtime reports
+- [x] Make every promotion threshold produce a non-zero CLI exit when missed
 
 ## Work Package 5.3: Bounded LoRA Training
 
-- [ ] Implement configuration-driven adapter training with no hidden library defaults
-- [ ] Mask loss to assistant/completion tokens and test the produced label mask
-- [ ] Record base revision, dataset checksum, seed, rank, alpha, dropout, target modules, optimizer,
+- [x] Implement configuration-driven adapter training with no hidden library defaults
+- [x] Mask loss to assistant/completion tokens and test the produced label mask
+- [x] Record base revision, dataset checksum, seed, rank, alpha, dropout, target modules, optimizer,
   scheduler, precision, batch sizes, accumulation, sequence length, and package revisions
-- [ ] Save adapter-only checkpoints, validation loss, gradient norms, peak memory, tokens per second,
+- [x] Save adapter-only checkpoints, validation loss, gradient norms, peak memory, tokens per second,
   and wall-clock duration
-- [ ] Resume only when the checkpoint manifest exactly matches the run configuration
-- [ ] Stop on non-finite loss, invalid gradients, VRAM exhaustion, or dataset/checkpoint mismatch
-- [ ] Limit the first search to the recorded rank `8`/`16` configurations and at most two learning
+- [x] Resume only when the checkpoint manifest exactly matches the run configuration
+- [x] Stop on non-finite loss, invalid gradients, VRAM exhaustion, or dataset/checkpoint mismatch
+- [x] Limit the first search to the recorded rank `8`/`16` configurations and at most two learning
   rates; expand only if held-out evidence justifies the cost
-- [ ] Select candidates using held-out behavior metrics, never training loss alone
+- [x] Select candidates using held-out behavior metrics, never training loss alone
+
+Implementation, unit-contract verification, and the first real bounded `2 × 2` candidate grid are
+complete. The project-owner-approved synthetic training corpus is separate from protected
+evaluation data. Rank `16` at learning rate `0.0002` is the held-out winner, but it is not promotion
+eligible: citation discipline and incident-report structure remain below the held-out gates. No
+failing candidate advances to export or runtime integration.
 
 ## Work Package 5.4: Adapter Export and Runtime Integration
 

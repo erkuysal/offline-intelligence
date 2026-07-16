@@ -137,6 +137,8 @@ def test_parser_exposes_generation_evaluation_thresholds() -> None:
     args = launcher.build_parser().parse_args(
         [
             "evaluate-generation",
+            "--mode",
+            "base",
             "--min-faithfulness",
             "0.9",
             "--max-hallucination",
@@ -145,8 +147,68 @@ def test_parser_exposes_generation_evaluation_thresholds() -> None:
     )
 
     assert args.func is launcher.evaluate_generation
+    assert args.mode == "base"
     assert args.min_faithfulness == 0.9
     assert args.max_hallucination == 0.1
+
+
+def test_parser_exposes_training_evaluation_matrix() -> None:
+    launcher = load_launcher()
+
+    args = launcher.build_parser().parse_args(
+        [
+            "training-evaluation-matrix",
+            "--base",
+            "base.json",
+            "--base-rag",
+            "base-rag.json",
+            "--adapter",
+            "adapter.json",
+            "--adapter-rag",
+            "adapter-rag.json",
+            "--base-rag-regression",
+            "phase4-base-rag.json",
+            "--adapter-rag-regression",
+            "phase4-adapter-rag.json",
+            "--min-supported-refusal",
+            "1",
+        ]
+    )
+
+    assert args.func is launcher.build_training_evaluation_matrix
+    assert args.min_supported_refusal == 1.0
+
+
+def test_parser_exposes_training_evaluation_evidence_index() -> None:
+    launcher = load_launcher()
+
+    args = launcher.build_parser().parse_args(
+        [
+            "training-evaluation-index",
+            "--dataset-validation",
+            "validation.json",
+            "--training-run",
+            "training.json",
+            "--held-out-behavior",
+            "held-out.json",
+            "--runtime",
+            "base.json",
+            "--runtime",
+            "base-rag.json",
+            "--runtime",
+            "adapter.json",
+            "--runtime",
+            "adapter-rag.json",
+            "--regression-runtime",
+            "phase4-base-rag.json",
+            "--regression-runtime",
+            "phase4-adapter-rag.json",
+        ]
+    )
+
+    assert args.func is launcher.build_training_evaluation_index
+    assert len(args.runtime) == 4
+    assert len(args.regression_runtime) == 2
 
 
 def test_parser_exposes_training_foundation_commands() -> None:
@@ -165,6 +227,20 @@ def test_parser_exposes_training_foundation_commands() -> None:
     data_validation = launcher.build_parser().parse_args(
         ["training-data-validate", "--manifest", "training/datasets/example/manifest.json"]
     )
+    training_run = launcher.build_parser().parse_args(
+        [
+            "training-run",
+            "--manifest",
+            "training/datasets/phase5/manifest.json",
+            "--output-dir",
+            "var/training/runs/candidate-1",
+            "--rank",
+            "16",
+            "--learning-rate",
+            "0.0002",
+            "--local-files-only",
+        ]
+    )
 
     assert preflight.func is launcher.training_preflight
     assert preflight.config.endswith("gemma3-1b-lora-v1.json")
@@ -176,3 +252,7 @@ def test_parser_exposes_training_foundation_commands() -> None:
     assert continuity.runtime_url == "http://localhost:9999/v1"
     assert data_validation.func is launcher.training_data_validate
     assert data_validation.manifest.endswith("manifest.json")
+    assert training_run.func is launcher.training_run
+    assert training_run.rank == 16
+    assert training_run.learning_rate == 0.0002
+    assert training_run.local_files_only is True

@@ -1,6 +1,6 @@
 # Technical Vision v1 — Phase 5 Model Adaptation with LoRA and PEFT
 
-Status: Next
+Status: In progress — Work Packages 5.0 and 5.1 accepted
 
 ## Intent
 
@@ -56,7 +56,8 @@ and the deployed artifact are equivalent enough to pass the same gates.
 
 ## Proposed Module and Function Map
 
-These names describe intended responsibilities; they are not implemented yet.
+The data-contract responsibilities are implemented by Work Package 5.1. Training, evaluation, and
+adapter responsibilities remain planned until their later work packages are accepted.
 
 | Proposed function/class | Used for | Why it should be separate |
 | --- | --- | --- |

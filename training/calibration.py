@@ -43,6 +43,7 @@ def run_calibration(
     random.seed(training["seed"])
     torch.manual_seed(training["seed"])
     torch.cuda.manual_seed_all(training["seed"])
+    torch.use_deterministic_algorithms(training["deterministic_algorithms"], warn_only=False)
     base_model = config["base_model"]
     token = get_hugging_face_token()
     if base_model.get("gated") and not token and not local_files_only:
@@ -56,6 +57,7 @@ def run_calibration(
         token=token,
         local_files_only=local_files_only,
         dtype=dtype,
+        attn_implementation=training["attention_implementation"],
     )
     model.config.use_cache = False
     if training["gradient_checkpointing"]:
@@ -69,13 +71,27 @@ def run_calibration(
             lora_alpha=lora["alpha"],
             lora_dropout=lora["dropout"],
             bias=lora["bias"],
+            fan_in_fan_out=lora["fan_in_fan_out"],
+            init_lora_weights=lora["init_lora_weights"],
+            use_rslora=lora["use_rslora"],
+            use_dora=lora["use_dora"],
             target_modules=lora["target_modules"],
             task_type="CAUSAL_LM",
         ),
     ).to("cuda")
+    optimizer_config = training["optimizer"]
     optimizer = torch.optim.AdamW(
         (parameter for parameter in model.parameters() if parameter.requires_grad),
-        lr=1e-4,
+        lr=optimizer_config["learning_rate"],
+        betas=tuple(optimizer_config["betas"]),
+        eps=optimizer_config["epsilon"],
+        weight_decay=optimizer_config["weight_decay"],
+        amsgrad=optimizer_config["amsgrad"],
+        maximize=optimizer_config["maximize"],
+        foreach=optimizer_config["foreach"],
+        capturable=optimizer_config["capturable"],
+        differentiable=optimizer_config["differentiable"],
+        fused=optimizer_config["fused"],
     )
     trainable_parameters = sum(
         parameter.numel() for parameter in model.parameters() if parameter.requires_grad

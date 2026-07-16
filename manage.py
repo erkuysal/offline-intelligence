@@ -485,8 +485,12 @@ def evaluate_generation(args: argparse.Namespace) -> int:
     try:
         dataset = load_dataset(Path(args.dataset))
         settings = get_settings()
-        provider = get_embedding_provider()
-        if dataset.manifest.embedding_model != provider.model and not args.allow_model_mismatch:
+        provider = get_embedding_provider() if args.mode == "base_rag" else None
+        if (
+            provider is not None
+            and dataset.manifest.embedding_model != provider.model
+            and not args.allow_model_mismatch
+        ):
             raise ValueError(
                 f"Dataset requires embedding model {dataset.manifest.embedding_model!r}; "
                 f"configured model is {provider.model!r}."
@@ -506,24 +510,39 @@ def evaluate_generation(args: argparse.Namespace) -> int:
             max_p95_end_to_end_latency_ms=args.max_p95_latency_ms,
             min_mean_tokens_per_second=args.min_tokens_per_second,
         )
-        with SessionLocal() as db:
-            user_id, _, id_by_document_key = prepare_corpus(
-                db,
-                dataset,
-                provider=provider,
-                settings=settings,
-            )
+        if provider is None:
             report = evaluate_generation_dataset(
                 dataset,
-                db=db,
-                user_id=user_id,
-                strategy=DenseRetrievalStrategy(provider),
+                db=None,
+                user_id=None,
+                strategy=None,
                 backend=get_llm_backend(),
                 settings=settings,
                 thresholds=thresholds,
                 retrieval_limit=args.limit,
-                id_by_document_key=id_by_document_key,
+                id_by_document_key=None,
+                evaluation_mode="base",
             )
+        else:
+            with SessionLocal() as db:
+                user_id, _, id_by_document_key = prepare_corpus(
+                    db,
+                    dataset,
+                    provider=provider,
+                    settings=settings,
+                )
+                report = evaluate_generation_dataset(
+                    dataset,
+                    db=db,
+                    user_id=user_id,
+                    strategy=DenseRetrievalStrategy(provider),
+                    backend=get_llm_backend(),
+                    settings=settings,
+                    thresholds=thresholds,
+                    retrieval_limit=args.limit,
+                    id_by_document_key=id_by_document_key,
+                    evaluation_mode="base_rag",
+                )
         write_generation_report(report, Path(args.output))
     except (EmbeddingError, LLMError, OSError, ValueError) as exc:
         print(f"Generation evaluation failed: {exc}", file=sys.stderr)
@@ -532,6 +551,74 @@ def evaluate_generation(args: argparse.Namespace) -> int:
     print(format_generation_summary(report))
     print(f"JSON report: {Path(args.output).resolve()}")
     return 0 if report.passed else 1
+
+
+def build_training_evaluation_matrix(args: argparse.Namespace) -> int:
+    configure_import_path()
+
+    from app.evaluation.adaptation import (
+        TaskThresholds,
+        build_adaptation_evaluation_report,
+        format_adaptation_summary,
+        load_generation_report,
+        write_adaptation_report,
+    )
+
+    try:
+        reports = {
+            "base": load_generation_report(Path(args.base)),
+            "base_rag": load_generation_report(Path(args.base_rag)),
+            "adapter": load_generation_report(Path(args.adapter)),
+            "adapter_rag": load_generation_report(Path(args.adapter_rag)),
+        }
+        regression_reports = {
+            "base_rag": load_generation_report(Path(args.base_rag_regression)),
+            "adapter_rag": load_generation_report(Path(args.adapter_rag_regression)),
+        }
+        report = build_adaptation_evaluation_report(
+            reports,
+            regression_reports=regression_reports,
+            task_thresholds=TaskThresholds(
+                min_language_adherence=args.min_language_adherence,
+                min_citation_format_validity=args.min_citation_format_validity,
+                min_json_schema_validity=args.min_json_schema_validity,
+                min_incident_report_structure=args.min_incident_report_structure,
+                min_terminology_consistency=args.min_terminology_consistency,
+                min_supported_refusal=args.min_supported_refusal,
+            ),
+            gated_modes=tuple(args.gate_mode or ("adapter_rag",)),
+        )
+        write_adaptation_report(report, Path(args.output))
+    except (OSError, ValueError) as exc:
+        print(f"Adaptation evaluation matrix failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_adaptation_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report.passed else 1
+
+
+def build_training_evaluation_index(args: argparse.Namespace) -> int:
+    from training.evaluation_evidence import (
+        build_evaluation_evidence_index,
+        write_evaluation_evidence_index,
+    )
+
+    try:
+        report = build_evaluation_evidence_index(
+            dataset_validation_path=Path(args.dataset_validation),
+            training_run_path=Path(args.training_run),
+            held_out_behavior_path=Path(args.held_out_behavior),
+            runtime_paths=[Path(path) for path in args.runtime],
+            regression_runtime_paths=[Path(path) for path in args.regression_runtime],
+        )
+        write_evaluation_evidence_index(report, Path(args.output))
+    except (OSError, ValueError) as exc:
+        print(f"Phase 5 evaluation evidence indexing failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(f"Phase 5 evidence index: {Path(args.output).resolve()}")
+    return 0
 
 
 def retrieval_cleanup(_args: argparse.Namespace) -> int:
@@ -664,6 +751,7 @@ def training_data_validate(args: argparse.Namespace) -> int:
         report = build_validation_report(
             Path(args.manifest),
             config_path=Path(args.config),
+            token_counter=getattr(args, "token_counter", None),
         )
         write_json_report(report, Path(args.output))
     except (OSError, TrainingFoundationError, ValueError) as exc:
@@ -679,6 +767,59 @@ def training_data_validate(args: argparse.Namespace) -> int:
         for issue in report["issues"][:10]:
             print(f"- {issue['location']}: {issue['code']}: {issue['message']}")
     print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report["passed"] else 1
+
+
+def training_run(args: argparse.Namespace) -> int:
+    from training.foundation import TrainingFoundationError, load_training_config
+    from training.trainer import TrainingRunError, run_bounded_training
+
+    try:
+        config = load_training_config(Path(args.config))
+        report = run_bounded_training(
+            config,
+            manifest_path=Path(args.manifest),
+            output_dir=Path(args.output_dir),
+            rank=args.rank,
+            learning_rate=args.learning_rate,
+            resume_from=Path(args.resume_from) if args.resume_from else None,
+            local_files_only=args.local_files_only,
+            config_path=Path(args.config),
+        )
+    except (OSError, TrainingFoundationError, TrainingRunError, ValueError) as exc:
+        print(f"Bounded LoRA training failed: {exc}", file=sys.stderr)
+        return 2
+
+    print("Bounded LoRA training: PASS")
+    print(f"Adapter: {report['adapter_id']}")
+    print(f"Steps: {report['completed_steps']}")
+    print(f"Report: {(Path(args.output_dir) / 'training-report.json').resolve()}")
+    return 0
+
+
+def training_evaluate_candidate(args: argparse.Namespace) -> int:
+    from training.candidate_evaluation import run_candidate_evaluation
+    from training.foundation import TrainingFoundationError, load_training_config
+    from training.trainer import TrainingRunError
+
+    try:
+        config = load_training_config(Path(args.config))
+        report = run_candidate_evaluation(
+            config,
+            manifest_path=Path(args.manifest),
+            adapter_path=Path(args.adapter),
+            training_report_path=Path(args.training_report),
+            output=Path(args.output),
+            local_files_only=args.local_files_only,
+            max_new_tokens=args.max_new_tokens,
+        )
+    except (OSError, TrainingFoundationError, TrainingRunError, ValueError) as exc:
+        print(f"Held-out candidate evaluation failed: {exc}", file=sys.stderr)
+        return 2
+    print(f"Held-out candidate evaluation: {'PASS' if report['passed'] else 'FAIL'}")
+    print(f"Adapter: {report['adapter_id']}")
+    print(f"Behavior score: {report['metrics']['behavior_score']:.3f}")
+    print(f"Report: {Path(args.output).resolve()}")
     return 0 if report["passed"] else 1
 
 
@@ -883,6 +1024,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="var/evaluation/generation-baseline-latest.json",
     )
     generation_parser.add_argument("--limit", type=int, default=5, choices=range(1, 21))
+    generation_parser.add_argument(
+        "--mode",
+        choices=("base", "base_rag"),
+        default="base_rag",
+        help="run without retrieval or with dense RAG; adapter modes require verified integration",
+    )
     generation_parser.add_argument("--min-parse-success", type=float)
     generation_parser.add_argument("--min-fact-coverage", type=float)
     generation_parser.add_argument("--min-citation-accuracy", type=float)
@@ -898,6 +1045,59 @@ def build_parser() -> argparse.ArgumentParser:
     generation_parser.add_argument("--min-tokens-per-second", type=float)
     generation_parser.add_argument("--allow-model-mismatch", action="store_true")
     generation_parser.set_defaults(func=evaluate_generation)
+
+    evaluation_matrix_parser = subparsers.add_parser(
+        "training-evaluation-matrix",
+        help="assemble and gate the four-mode Phase 5 behavior evaluation matrix",
+    )
+    evaluation_matrix_parser.add_argument("--base", required=True)
+    evaluation_matrix_parser.add_argument("--base-rag", required=True)
+    evaluation_matrix_parser.add_argument("--adapter", required=True)
+    evaluation_matrix_parser.add_argument("--adapter-rag", required=True)
+    evaluation_matrix_parser.add_argument("--base-rag-regression", required=True)
+    evaluation_matrix_parser.add_argument("--adapter-rag-regression", required=True)
+    evaluation_matrix_parser.add_argument(
+        "--output",
+        default="var/training/evaluation-matrix-latest.json",
+    )
+    evaluation_matrix_parser.add_argument("--min-language-adherence", type=float, default=1.0)
+    evaluation_matrix_parser.add_argument("--min-citation-format-validity", type=float, default=1.0)
+    evaluation_matrix_parser.add_argument("--min-json-schema-validity", type=float, default=1.0)
+    evaluation_matrix_parser.add_argument("--min-incident-report-structure", type=float, default=1.0)
+    evaluation_matrix_parser.add_argument("--min-terminology-consistency", type=float, default=1.0)
+    evaluation_matrix_parser.add_argument("--min-supported-refusal", type=float, default=1.0)
+    evaluation_matrix_parser.add_argument(
+        "--gate-mode",
+        action="append",
+        choices=("base", "base_rag", "adapter", "adapter_rag"),
+        help="mode to gate with task thresholds; repeat as needed (default: adapter_rag)",
+    )
+    evaluation_matrix_parser.set_defaults(func=build_training_evaluation_matrix)
+
+    evaluation_index_parser = subparsers.add_parser(
+        "training-evaluation-index",
+        help="cross-reference the separated Phase 5 validation, training, held-out, and runtime reports",
+    )
+    evaluation_index_parser.add_argument("--dataset-validation", required=True)
+    evaluation_index_parser.add_argument("--training-run", required=True)
+    evaluation_index_parser.add_argument("--held-out-behavior", required=True)
+    evaluation_index_parser.add_argument(
+        "--runtime",
+        action="append",
+        required=True,
+        help="production runtime report; provide all four modes",
+    )
+    evaluation_index_parser.add_argument(
+        "--regression-runtime",
+        action="append",
+        required=True,
+        help="protected Phase 4 runtime report; provide base_rag and adapter_rag",
+    )
+    evaluation_index_parser.add_argument(
+        "--output",
+        default="var/training/phase-5-evidence-index.json",
+    )
+    evaluation_index_parser.set_defaults(func=build_training_evaluation_index)
 
     training_preflight_parser = subparsers.add_parser(
         "training-preflight",
@@ -996,6 +1196,43 @@ def build_parser() -> argparse.ArgumentParser:
         default="var/training/data-validation-latest.json",
     )
     training_data_parser.set_defaults(func=training_data_validate)
+
+    training_run_parser = subparsers.add_parser(
+        "training-run",
+        help="run one bounded, manifest-validated LoRA training candidate on CUDA",
+    )
+    training_run_parser.add_argument("--manifest", required=True)
+    training_run_parser.add_argument("--output-dir", required=True)
+    training_run_parser.add_argument(
+        "--config",
+        default="config/training/gemma3-1b-lora-v1.json",
+    )
+    training_run_parser.add_argument("--rank", type=int, choices=(8, 16))
+    training_run_parser.add_argument("--learning-rate", type=float)
+    training_run_parser.add_argument("--resume-from")
+    training_run_parser.add_argument(
+        "--local-files-only",
+        action="store_true",
+        help="refuse downloads and load the pinned model/tokenizer from the local cache",
+    )
+    training_run_parser.set_defaults(func=training_run)
+
+    candidate_evaluation_parser = subparsers.add_parser(
+        "training-evaluate-candidate",
+        help="evaluate a PEFT adapter on its untouched training-corpus held-out split",
+    )
+    candidate_evaluation_parser.add_argument("--manifest", required=True)
+    candidate_evaluation_parser.add_argument("--adapter", required=True)
+    candidate_evaluation_parser.add_argument("--training-report", required=True)
+    candidate_evaluation_parser.add_argument(
+        "--output", default="var/training/held-out-candidate-latest.json"
+    )
+    candidate_evaluation_parser.add_argument(
+        "--config", default="config/training/gemma3-1b-lora-v1.json"
+    )
+    candidate_evaluation_parser.add_argument("--max-new-tokens", type=int, default=192)
+    candidate_evaluation_parser.add_argument("--local-files-only", action="store_true")
+    candidate_evaluation_parser.set_defaults(func=training_evaluate_candidate)
 
     retrieval_cleanup_parser = subparsers.add_parser(
         "retrieval-cleanup",

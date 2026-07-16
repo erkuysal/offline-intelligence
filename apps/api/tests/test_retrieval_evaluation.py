@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.evaluation.retrieval import (
+    EvaluationManifest,
     EvaluationReport,
     EvaluationThresholds,
     RetrievalCandidate,
@@ -19,6 +20,7 @@ from app.evaluation.retrieval import (
 ROOT = Path(__file__).resolve().parents[3]
 DATASET_PATH = ROOT / "evaluation" / "datasets" / "dense-baseline-smoke-v1.jsonl"
 FORMAL_DATASET_PATH = ROOT / "evaluation" / "datasets" / "dense-baseline-v1.jsonl"
+PHASE_5_DATASET_PATH = ROOT / "evaluation" / "datasets" / "phase-5-behavior-v1.jsonl"
 BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "dense-baseline-v1.json"
 LEXICAL_BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "lexical-baseline-v1.json"
 HYBRID_BASELINE_REPORT_PATH = ROOT / "evaluation" / "baselines" / "hybrid-baseline-v1.json"
@@ -56,6 +58,51 @@ def test_formal_dataset_has_balanced_20_document_40_case_contract() -> None:
         "8dd0ca2a66a8f14470acb0e2a71f801afbc5fb73"
     )
     assert dataset.manifest.embedding_dimensions == 768
+
+
+def test_phase_5_behavior_dataset_is_balanced_and_task_complete() -> None:
+    dataset = load_dataset(PHASE_5_DATASET_PATH)
+
+    assert len(dataset.documents) == 12
+    assert len(dataset.cases) == 12
+    assert Counter(case.language for case in dataset.cases) == {"en": 6, "tr": 6}
+    assert Counter(case.task for case in dataset.cases) == {
+        "grounded_answer": 2,
+        "grounded_refusal": 2,
+        "citation_formatting": 2,
+        "json_output": 2,
+        "incident_report": 2,
+        "terminology": 2,
+    }
+    assert dataset.manifest.content_policy == "public"
+    assert dataset.manifest.case_output_policy == "reviewable"
+
+
+def test_phase_5_behavior_corpus_does_not_copy_phase_4_questions_or_passages() -> None:
+    phase_4 = load_dataset(FORMAL_DATASET_PATH)
+    phase_5 = load_dataset(PHASE_5_DATASET_PATH)
+
+    phase_4_questions = {case.question.casefold() for case in phase_4.cases}
+    phase_4_passages = {
+        passage.text.casefold()
+        for document in phase_4.documents
+        for passage in document.passages
+    }
+    assert not phase_4_questions & {case.question.casefold() for case in phase_5.cases}
+    assert not phase_4_passages & {
+        passage.text.casefold()
+        for document in phase_5.documents
+        for passage in document.passages
+    }
+
+
+def test_restricted_evaluation_manifest_requires_redacted_outputs() -> None:
+    dataset = load_dataset(PHASE_5_DATASET_PATH)
+    payload = dataset.manifest.model_dump()
+    payload.update(content_policy="restricted", case_output_policy="reviewable")
+
+    with pytest.raises(ValueError, match="requires case_output_policy=redacted"):
+        EvaluationManifest.model_validate(payload)
 
 
 def test_accepted_dense_baseline_report_meets_regression_thresholds() -> None:

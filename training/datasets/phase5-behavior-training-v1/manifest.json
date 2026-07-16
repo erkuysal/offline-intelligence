@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "phase5-behavior-training",
+  "dataset_version": "1.0.0",
+  "description": "Project-owner-authorized bilingual synthetic behavior training corpus; separate from protected evaluation evidence",
+  "examples_file": "examples.jsonl",
+  "examples_sha256": "b1b4f4d4446545bf5dc8b56a9f4ab2c1e13e1f0f0f2574a04b36a5d39b30798c",
+  "example_schema": "../schemas/training-example-v1.schema.json",
+  "template_contract": {
+    "base_model_revision": "dcc83ea841ab6100d6b47a070329e1ba4cf78752",
+    "chat_template_sha256": "d2f96210400e38149e26e01918a408c3f2ad3d4bd87c44e8dcf8e1a611a98535",
+    "max_sequence_length": 1024
+  },
+  "split_policy": {
+    "seed": 20260715,
+    "train_percent": 70,
+    "validation_percent": 10,
+    "held_out_percent": 20,
+    "group_field": "group_key"
+  },
+  "reserved_evaluation_datasets": [
+    "evaluation/datasets/dense-baseline-v1.jsonl",
+    "evaluation/datasets/phase-5-behavior-v1.jsonl"
+  ]
+}

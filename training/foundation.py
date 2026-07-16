@@ -61,6 +61,112 @@ def load_training_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
         raise TrainingFoundationError("Initial calibration must cover 1024 and 2048 tokens")
     if payload["training"].get("approved_max_sequence_length") != 1024:
         raise TrainingFoundationError("Initial approved training length must be 1024 tokens")
+    training = payload["training"]
+    required_training_fields = {
+        "precision",
+        "fallback_precision",
+        "micro_batch_size",
+        "gradient_accumulation_steps",
+        "gradient_checkpointing",
+        "attention_implementation",
+        "deterministic_algorithms",
+        "seed",
+        "epochs",
+        "max_steps",
+        "max_gradient_norm",
+        "evaluation_steps",
+        "checkpoint_steps",
+        "optimizer",
+        "scheduler",
+        "lora",
+        "search",
+    }
+    missing_training_fields = sorted(required_training_fields - training.keys())
+    if missing_training_fields:
+        raise TrainingFoundationError(
+            "Training configuration is missing explicit fields: "
+            + ", ".join(missing_training_fields)
+        )
+    optimizer = training["optimizer"]
+    if set(optimizer) != {
+        "name",
+        "learning_rate",
+        "betas",
+        "epsilon",
+        "weight_decay",
+        "amsgrad",
+        "maximize",
+        "foreach",
+        "capturable",
+        "differentiable",
+        "fused",
+    }:
+        raise TrainingFoundationError("optimizer must declare every supported setting exactly")
+    if optimizer["name"] != "adamw_torch" or optimizer["learning_rate"] <= 0:
+        raise TrainingFoundationError("only adamw_torch with a positive learning rate is supported")
+    if optimizer["betas"] != [0.9, 0.999] or optimizer["epsilon"] <= 0:
+        raise TrainingFoundationError("optimizer betas and epsilon must be explicit and valid")
+    scheduler = training["scheduler"]
+    if set(scheduler) != {"name", "warmup_ratio"}:
+        raise TrainingFoundationError("scheduler must declare name and warmup_ratio exactly")
+    if scheduler["name"] not in {"linear", "cosine"} or not 0 <= scheduler["warmup_ratio"] < 1:
+        raise TrainingFoundationError("scheduler name or warmup_ratio is invalid")
+    search = training["search"]
+    if search.get("ranks") != [8, 16]:
+        raise TrainingFoundationError("initial LoRA search ranks must be exactly 8 and 16")
+    learning_rates = search.get("learning_rates")
+    if not isinstance(learning_rates, list) or not 1 <= len(learning_rates) <= 2:
+        raise TrainingFoundationError("initial search must define one or two learning rates")
+    if search.get("maximum_candidates") != len(search["ranks"]) * len(learning_rates):
+        raise TrainingFoundationError("maximum_candidates must match the bounded search grid")
+    if search.get("selection_source") != "held_out_behavior_metrics":
+        raise TrainingFoundationError("candidate selection must use held-out behavior metrics")
+    positive_integer_fields = (
+        "micro_batch_size",
+        "gradient_accumulation_steps",
+        "epochs",
+        "max_steps",
+        "evaluation_steps",
+        "checkpoint_steps",
+    )
+    if any(
+        not isinstance(training[field], int)
+        or isinstance(training[field], bool)
+        or training[field] <= 0
+        for field in positive_integer_fields
+    ):
+        raise TrainingFoundationError("batch, epoch, step, and cadence values must be positive integers")
+    if training["micro_batch_size"] != 1:
+        raise TrainingFoundationError("the calibrated micro_batch_size is exactly 1")
+    if training["attention_implementation"] != "eager":
+        raise TrainingFoundationError("training attention_implementation must be deterministic eager")
+    if training["deterministic_algorithms"] is not True:
+        raise TrainingFoundationError("deterministic_algorithms must be enabled")
+    if not isinstance(training["seed"], int) or isinstance(training["seed"], bool):
+        raise TrainingFoundationError("training seed must be an integer")
+    if not isinstance(training["max_gradient_norm"], (int, float)) or training[
+        "max_gradient_norm"
+    ] <= 0:
+        raise TrainingFoundationError("max_gradient_norm must be positive")
+    lora = training["lora"]
+    if set(lora) != {
+        "rank",
+        "alpha",
+        "dropout",
+        "bias",
+        "fan_in_fan_out",
+        "init_lora_weights",
+        "use_rslora",
+        "use_dora",
+        "target_modules",
+    }:
+        raise TrainingFoundationError("LoRA must declare every supported setting exactly")
+    if lora["rank"] not in search["ranks"] or lora["alpha"] <= 0:
+        raise TrainingFoundationError("LoRA rank or alpha is invalid")
+    if not 0 <= lora["dropout"] < 1 or lora["bias"] != "none":
+        raise TrainingFoundationError("LoRA dropout or bias is invalid")
+    if not isinstance(lora["target_modules"], list) or not lora["target_modules"]:
+        raise TrainingFoundationError("LoRA target_modules must be a non-empty list")
     return payload
 
 

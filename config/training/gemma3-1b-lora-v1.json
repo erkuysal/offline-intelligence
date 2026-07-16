@@ -52,13 +52,47 @@
     "micro_batch_size": 1,
     "gradient_accumulation_steps": 8,
     "gradient_checkpointing": false,
+    "attention_implementation": "eager",
+    "deterministic_algorithms": true,
     "seed": 20260715,
+    "epochs": 3,
+    "max_steps": 200,
+    "max_gradient_norm": 1.0,
+    "evaluation_steps": 25,
+    "checkpoint_steps": 25,
+    "optimizer": {
+      "name": "adamw_torch",
+      "learning_rate": 0.0001,
+      "betas": [0.9, 0.999],
+      "epsilon": 1e-8,
+      "weight_decay": 0.01,
+      "amsgrad": false,
+      "maximize": false,
+      "foreach": false,
+      "capturable": false,
+      "differentiable": false,
+      "fused": false
+    },
+    "scheduler": {
+      "name": "cosine",
+      "warmup_ratio": 0.03
+    },
     "lora": {
       "rank": 8,
       "alpha": 16,
       "dropout": 0.05,
       "bias": "none",
+      "fan_in_fan_out": false,
+      "init_lora_weights": true,
+      "use_rslora": false,
+      "use_dora": false,
       "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj"]
+    },
+    "search": {
+      "ranks": [8, 16],
+      "learning_rates": [0.0001, 0.0002],
+      "maximum_candidates": 4,
+      "selection_source": "held_out_behavior_metrics"
     }
   }
 }

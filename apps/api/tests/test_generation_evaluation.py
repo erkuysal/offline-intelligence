@@ -1,16 +1,25 @@
 from pathlib import Path
 
+import pytest
+
 from app.evaluation.generation import (
     GeneratedAnswer,
     GenerationCaseResult,
     GenerationClaim,
     GenerationReport,
     GenerationThresholds,
+    apply_case_output_policy,
     aggregate_generation_metrics,
+    answer_uses_language,
+    build_generation_request,
+    citation_format_is_valid,
     generation_threshold_failures,
+    incident_report_has_sections,
+    json_answer_matches_schema,
     normalize_text,
     parse_generated_answer,
     score_generated_answer,
+    terminology_is_consistent,
 )
 from app.evaluation.retrieval import EvaluationCase, RelevantPassage
 
@@ -95,6 +104,9 @@ def test_parse_generated_answer_extracts_natural_citations_and_refusals() -> Non
     refusal, refusal_success = parse_generated_answer(
         "The available documents do not provide that answer."
     )
+    no_answer, no_answer_success = parse_generated_answer(
+        "I do not have the answer to your question."
+    )
     empty, empty_success = parse_generated_answer("  ")
 
     assert success is True
@@ -103,6 +115,8 @@ def test_parse_generated_answer_extracts_natural_citations_and_refusals() -> Non
     assert refusal_success is True
     assert refusal.refusal is True
     assert refusal.claims == []
+    assert no_answer_success is True
+    assert no_answer.refusal is True
     assert empty_success is False
     assert empty.answer == ""
 
@@ -129,6 +143,71 @@ def test_parse_generated_answer_accepts_extended_runtime_source_label() -> None:
 def test_normalize_text_is_case_and_punctuation_insensitive() -> None:
     assert normalize_text("WCAG 2.2 — Level AA") == "wcag 2 2 level aa"
     assert normalize_text("YİRMİ GÜN") == "yirmi gun"
+
+
+def test_phase_5_task_metrics_validate_language_and_citation_format() -> None:
+    assert answer_uses_language("The report is ready.", "en") is True
+    assert answer_uses_language("Rapor hazırdır ve gözden geçirilmiştir.", "tr") is True
+    assert answer_uses_language("Rapor hazırdır ve gözden geçirilmiştir.", "en") is False
+    assert citation_format_is_valid("Backups run nightly. [Source 1]") is True
+    assert citation_format_is_valid("Backups run nightly. [Source one]") is False
+
+
+def test_base_only_request_does_not_inject_rag_context() -> None:
+    request = build_generation_request(
+        relevant_case(),
+        "ignored context",
+        "test-model",
+        rag_enabled=False,
+    )
+
+    assert [message.role for message in request.messages] == ["user"]
+    assert request.messages[0].content == "What is the policy?"
+
+
+def test_phase_5_task_metrics_validate_json_incident_and_terminology() -> None:
+    schema = {
+        "type": "object",
+        "required": ["status", "count"],
+        "additionalProperties": False,
+        "properties": {
+            "status": {"enum": ["open", "closed"]},
+            "count": {"type": "integer"},
+        },
+    }
+
+    assert json_answer_matches_schema('{"status":"open","count":2}', schema) is True
+    assert json_answer_matches_schema('{"status":"open","count":"2"}', schema) is False
+    assert incident_report_has_sections(
+        "Impact: API unavailable\nTimeline: 10:00 detected\nActions: rollback",
+        ["impact", "timeline", "actions"],
+    ) is True
+    assert terminology_is_consistent(
+        "Use the recovery point objective for this service.",
+        required=["recovery point objective"],
+        forbidden=["backup window"],
+    ) is True
+
+
+def test_restricted_case_output_policy_retains_scores_but_redacts_answer() -> None:
+    original = make_result(answer="sensitive diagnostic output", expected_fact_coverage=0.5)
+
+    redacted = apply_case_output_policy([original], policy="redacted")
+
+    assert redacted[0].answer == ""
+    assert redacted[0].answer_persisted is False
+    assert redacted[0].expected_fact_coverage == 0.5
+    assert original.answer == "sensitive diagnostic output"
+
+
+def test_restricted_generation_report_rejects_persisted_answers() -> None:
+    payload = GenerationReport.model_validate_json(
+        GENERATION_BASELINE_PATH.read_text(encoding="utf-8")
+    ).model_dump()
+    payload.update(content_policy="restricted", case_output_policy="redacted")
+
+    with pytest.raises(ValueError, match="must not persist answer text"):
+        GenerationReport.model_validate(payload)
 
 
 def make_result(**overrides) -> GenerationCaseResult:

@@ -6,10 +6,11 @@ import json
 import re
 from statistics import mean
 from time import perf_counter
+from typing import Any, Literal, Self, TypedDict
 import unicodedata
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -35,6 +36,7 @@ REFUSAL_PATTERNS = (
     "unable to answer",
     "lack the information",
     "does not contain the answer",
+    "do not have the answer",
     "no accessible document",
     "belirtilmem",
     "bulunmam",
@@ -78,6 +80,15 @@ class AnswerScores:
     restricted_fact_leak: bool
 
 
+class TaskBehaviorScores(TypedDict):
+    language_adherent: bool | None
+    citation_format_valid: bool | None
+    json_schema_valid: bool | None
+    incident_report_structure_valid: bool | None
+    terminology_consistent: bool | None
+    supported_refusal: bool | None
+
+
 class GenerationCaseResult(BaseModel):
     case_id: str
     language: str
@@ -99,6 +110,14 @@ class GenerationCaseResult(BaseModel):
     end_to_end_latency_ms: float
     completion_tokens: int
     tokens_per_second: float
+    task: str = "grounded_answer"
+    language_adherent: bool | None = None
+    citation_format_valid: bool | None = None
+    json_schema_valid: bool | None = None
+    incident_report_structure_valid: bool | None = None
+    terminology_consistent: bool | None = None
+    supported_refusal: bool | None = None
+    answer_persisted: bool = True
 
 
 class GenerationMetrics(BaseModel):
@@ -138,6 +157,11 @@ class GenerationThresholds(BaseModel):
 
 class GenerationReport(BaseModel):
     schema_version: str = "1.0"
+    report_type: Literal["production_runtime_evaluation"] = "production_runtime_evaluation"
+    evaluation_mode: Literal["base", "base_rag", "adapter", "adapter_rag"] = "base_rag"
+    adapter_id: str | None = None
+    content_policy: Literal["public", "restricted"] = "public"
+    case_output_policy: Literal["reviewable", "redacted"] = "reviewable"
     generated_at: datetime
     dataset_id: str
     dataset_version: str
@@ -154,6 +178,15 @@ class GenerationReport(BaseModel):
     threshold_failures: list[str]
     cases: list[GenerationCaseResult]
 
+    @model_validator(mode="after")
+    def validate_output_policy(self) -> Self:
+        if self.content_policy == "restricted":
+            if self.case_output_policy != "redacted":
+                raise ValueError("restricted report content requires case_output_policy=redacted")
+            if any(case.answer or case.answer_persisted for case in self.cases):
+                raise ValueError("restricted report cases must not persist answer text")
+        return self
+
     @property
     def passed(self) -> bool:
         return not self.threshold_failures
@@ -162,15 +195,22 @@ class GenerationReport(BaseModel):
 def evaluate_generation_dataset(
     dataset: EvaluationDataset,
     *,
-    db: Session,
-    user_id: int,
-    strategy: RetrievalStrategy,
+    db: Session | None,
+    user_id: int | None,
+    strategy: RetrievalStrategy | None,
     backend: LLMBackend,
     settings: Settings,
     thresholds: GenerationThresholds,
     retrieval_limit: int,
-    id_by_document_key: dict[str, int],
+    id_by_document_key: dict[str, int] | None,
+    evaluation_mode: Literal["base", "base_rag"] = "base_rag",
 ) -> GenerationReport:
+    if evaluation_mode == "base_rag" and (
+        db is None or user_id is None or strategy is None or id_by_document_key is None
+    ):
+        raise ValueError("base_rag evaluation requires database-backed retrieval inputs")
+    if evaluation_mode == "base" and strategy is not None:
+        raise ValueError("base evaluation must not receive a retrieval strategy")
     results = [
         evaluate_generation_case(
             case,
@@ -185,6 +225,10 @@ def evaluate_generation_dataset(
         for case in dataset.cases
     ]
     metrics = aggregate_generation_metrics(results)
+    persisted_results = apply_case_output_policy(
+        results,
+        policy=dataset.manifest.case_output_policy,
+    )
     return GenerationReport(
         generated_at=datetime.now(UTC),
         dataset_id=dataset.manifest.dataset_id,
@@ -194,56 +238,91 @@ def evaluate_generation_dataset(
         embedding_model_revision=dataset.manifest.embedding_model_revision,
         generator_model=settings.llm_model,
         generator_model_revision=settings.llm_model_revision,
-        retrieval_strategy=strategy.name,
+        evaluation_mode=evaluation_mode,
+        content_policy=dataset.manifest.content_policy,
+        case_output_policy=dataset.manifest.case_output_policy,
+        retrieval_strategy=strategy.name if strategy is not None else "none",
         retrieval_limit=retrieval_limit,
         metrics=metrics,
         thresholds=thresholds,
         threshold_failures=generation_threshold_failures(metrics, thresholds),
-        cases=results,
+        cases=persisted_results,
     )
+
+
+def apply_case_output_policy(
+    results: list[GenerationCaseResult],
+    *,
+    policy: Literal["reviewable", "redacted"],
+) -> list[GenerationCaseResult]:
+    if policy == "reviewable":
+        return results
+    return [
+        result.model_copy(update={"answer": "", "answer_persisted": False})
+        for result in results
+    ]
 
 
 def evaluate_generation_case(
     case: EvaluationCase,
     *,
-    db: Session,
-    user_id: int,
-    strategy: RetrievalStrategy,
+    db: Session | None,
+    user_id: int | None,
+    strategy: RetrievalStrategy | None,
     backend: LLMBackend,
     settings: Settings,
     retrieval_limit: int,
-    id_by_document_key: dict[str, int],
+    id_by_document_key: dict[str, int] | None,
 ) -> GenerationCaseResult:
     total_started_at = perf_counter()
-    retrieval_started_at = perf_counter()
-    retrieval_result = strategy.retrieve(
-        db,
-        RetrievalQuery(
-            user_id=user_id,
-            text=case.question,
-            limit=retrieval_limit,
-            document_ids=(
-                tuple(id_by_document_key[key] for key in case.document_keys)
-                if case.document_keys is not None
-                else None
+    source_contents: list[str] = []
+    source_count = 0
+    retrieval_latency_ms = 0.0
+    context = ""
+    if strategy is not None:
+        if db is None or user_id is None or id_by_document_key is None:
+            raise ValueError("retrieval evaluation inputs are incomplete")
+        retrieval_started_at = perf_counter()
+        retrieval_result = strategy.retrieve(
+            db,
+            RetrievalQuery(
+                user_id=user_id,
+                text=case.question,
+                limit=retrieval_limit,
+                document_ids=(
+                    tuple(id_by_document_key[key] for key in case.document_keys)
+                    if case.document_keys is not None
+                    else None
+                ),
             ),
-        ),
+        )
+        retrieval_latency_ms = elapsed_ms(retrieval_started_at)
+        selection = select_context(
+            retrieval_result.candidates,
+            max_chars=settings.rag_max_context_chars,
+            max_chars_per_document=settings.rag_max_context_chars_per_document,
+        )
+        context = selection.context
+        source_contents = [candidate.content for candidate in selection.candidates]
+        source_count = len(selection.candidates)
+    request = build_generation_request(
+        case,
+        context,
+        settings.llm_model,
+        rag_enabled=strategy is not None,
     )
-    retrieval_latency_ms = elapsed_ms(retrieval_started_at)
-    selection = select_context(
-        retrieval_result.candidates,
-        max_chars=settings.rag_max_context_chars,
-        max_chars_per_document=settings.rag_max_context_chars_per_document,
-    )
-    request = build_generation_request(case, selection.context, settings.llm_model)
     content, usage, ttft_ms, generation_ms = collect_stream(backend, request)
     generated, parse_success = parse_generated_answer(content)
     result = score_generated_answer(
         case,
         generated,
-        [candidate.content for candidate in selection.candidates],
+        source_contents,
     )
     completion_tokens = usage.completion_tokens if usage else estimate_tokens(content)
+    task = case.task or (
+        "grounded_refusal" if case.expected_result == "no_result" else "grounded_answer"
+    )
+    task_scores = score_task_behavior(case, generated, result)
     return GenerationCaseResult(
         case_id=case.case_id,
         language=case.language,
@@ -252,12 +331,14 @@ def evaluate_generation_case(
         answer=generated.answer,
         refusal=generated.refusal,
         parse_success=parse_success,
-        source_count=len(selection.candidates),
+        source_count=source_count,
         retrieval_latency_ms=round(retrieval_latency_ms, 3),
         time_to_first_token_ms=round(ttft_ms, 3),
         end_to_end_latency_ms=round(elapsed_ms(total_started_at), 3),
         completion_tokens=completion_tokens,
         tokens_per_second=round(completion_tokens / max(generation_ms / 1000, 0.001), 3),
+        task=task,
+        **task_scores,
         expected_fact_coverage=result.expected_fact_coverage,
         citation_accuracy=result.citation_accuracy,
         citation_coverage=result.citation_coverage,
@@ -268,20 +349,159 @@ def evaluate_generation_case(
     )
 
 
+def score_task_behavior(
+    case: EvaluationCase,
+    generated: GeneratedAnswer,
+    answer_scores: AnswerScores,
+) -> TaskBehaviorScores:
+    task = case.task or (
+        "grounded_refusal" if case.expected_result == "no_result" else "grounded_answer"
+    )
+    return {
+        "language_adherent": answer_uses_language(generated.answer, case.language),
+        "citation_format_valid": (
+            citation_format_is_valid(generated.answer)
+            if task != "grounded_refusal"
+            else None
+        ),
+        "json_schema_valid": (
+            json_answer_matches_schema(generated.answer, case.target_json_schema)
+            if task == "json_output"
+            else None
+        ),
+        "incident_report_structure_valid": (
+            incident_report_has_sections(generated.answer, case.required_incident_sections)
+            if task == "incident_report"
+            else None
+        ),
+        "terminology_consistent": (
+            terminology_is_consistent(
+                generated.answer,
+                required=case.required_terms,
+                forbidden=case.forbidden_terms,
+            )
+            if task == "terminology"
+            else None
+        ),
+        "supported_refusal": (
+            bool(answer_scores.refusal_correct) and not answer_scores.restricted_fact_leak
+            if task == "grounded_refusal"
+            else None
+        ),
+    }
+
+
+def answer_uses_language(answer: str, language: str) -> bool:
+    normalized = normalize_text(answer)
+    if not normalized:
+        return False
+    words = set(normalized.split())
+    english_markers = {"the", "is", "are", "and", "must", "does", "not", "within", "every"}
+    turkish_markers = {"bir", "bu", "ve", "icin", "degil", "gerekir", "her", "icinde", "olarak"}
+    english_score = len(words & english_markers)
+    turkish_score = len(words & turkish_markers)
+    has_turkish_character = bool(re.search(r"[çğıöşü]", answer.casefold()))
+    if language == "tr":
+        return has_turkish_character or turkish_score >= english_score
+    return not has_turkish_character and english_score >= turkish_score
+
+
+def citation_format_is_valid(answer: str) -> bool:
+    source_like = re.findall(r"\[[^\]]*source[^\]]*\]", answer, flags=re.IGNORECASE)
+    return bool(source_like) and all(SOURCE_CITATION_RE.fullmatch(item) for item in source_like)
+
+
+def json_answer_matches_schema(answer: str, schema: dict[str, Any] | None) -> bool:
+    if schema is None:
+        return False
+    payload = answer.strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", payload, flags=re.DOTALL | re.IGNORECASE)
+    if fenced:
+        payload = fenced.group(1)
+    try:
+        value = json.loads(payload)
+    except json.JSONDecodeError:
+        return False
+    return json_value_matches_schema(value, schema)
+
+
+def json_value_matches_schema(value: Any, schema: dict[str, Any]) -> bool:
+    if "enum" in schema and value not in schema["enum"]:
+        return False
+    expected_type = schema.get("type")
+    type_matches = {
+        "object": isinstance(value, dict),
+        "array": isinstance(value, list),
+        "string": isinstance(value, str),
+        "integer": isinstance(value, int) and not isinstance(value, bool),
+        "number": isinstance(value, int | float) and not isinstance(value, bool),
+        "boolean": isinstance(value, bool),
+        "null": value is None,
+    }
+    if isinstance(expected_type, str) and not type_matches.get(expected_type, False):
+        return False
+    if isinstance(value, dict):
+        required = schema.get("required", [])
+        if not isinstance(required, list) or not all(field in value for field in required):
+            return False
+        properties = schema.get("properties", {})
+        if not isinstance(properties, dict):
+            return False
+        if schema.get("additionalProperties") is False and any(
+            field not in properties for field in value
+        ):
+            return False
+        return all(
+            not isinstance(properties.get(field), dict)
+            or json_value_matches_schema(field_value, properties[field])
+            for field, field_value in value.items()
+            if field in properties
+        )
+    if isinstance(value, list) and isinstance(schema.get("items"), dict):
+        return all(json_value_matches_schema(item, schema["items"]) for item in value)
+    return True
+
+
+def incident_report_has_sections(answer: str, required_sections: list[str]) -> bool:
+    if not required_sections:
+        return False
+    normalized = normalize_text(answer)
+    return all(normalize_text(section) in normalized for section in required_sections)
+
+
+def terminology_is_consistent(
+    answer: str,
+    *,
+    required: list[str],
+    forbidden: list[str],
+) -> bool:
+    if not required:
+        return False
+    normalized = normalize_text(answer)
+    return all(normalize_text(term) in normalized for term in required) and not any(
+        normalize_text(term) in normalized for term in forbidden
+    )
+
+
 def build_generation_request(
     case: EvaluationCase,
     context: str,
     model: str,
+    *,
+    rag_enabled: bool = True,
 ) -> ChatCompletionRequest:
-    return ChatCompletionRequest(
-        model=model,
-        messages=[
+    messages = [ChatMessage(role="user", content=case.question)]
+    if rag_enabled:
+        messages.insert(
+            0,
             ChatMessage(
                 role="system",
                 content=build_grounded_system_message(context),
             ),
-            ChatMessage(role="user", content=case.question),
-        ],
+        )
+    return ChatCompletionRequest(
+        model=model,
+        messages=messages,
         temperature=0,
         max_tokens=192,
         stream=True,

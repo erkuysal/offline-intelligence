@@ -7,9 +7,9 @@ import json
 from pathlib import Path
 from statistics import mean
 from time import perf_counter
-from typing import Literal
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,14 @@ from app.services.embeddings import (
 )
 
 SCHEMA_VERSION = "1.0"
+BehaviorTask = Literal[
+    "grounded_answer",
+    "grounded_refusal",
+    "citation_formatting",
+    "json_output",
+    "incident_report",
+    "terminology",
+]
 
 
 class EvaluationManifest(BaseModel):
@@ -48,6 +56,14 @@ class EvaluationManifest(BaseModel):
     generator_model: str = Field(min_length=1)
     generator_model_revision: str = "not-applicable"
     evaluator_version: str = Field(min_length=1)
+    content_policy: Literal["public", "restricted"] = "public"
+    case_output_policy: Literal["reviewable", "redacted"] = "reviewable"
+
+    @model_validator(mode="after")
+    def require_redaction_for_restricted_content(self) -> Self:
+        if self.content_policy == "restricted" and self.case_output_policy != "redacted":
+            raise ValueError("restricted evaluation content requires case_output_policy=redacted")
+        return self
 
 
 class CorpusPassage(BaseModel):
@@ -79,6 +95,23 @@ class EvaluationCase(BaseModel):
     expected_result: Literal["relevant_passages", "no_result"]
     category: Literal["answerable", "unanswerable", "ambiguous", "permission_restricted"]
     document_keys: list[str] | None = None
+    task: BehaviorTask | None = None
+    target_json_schema: dict[str, Any] | None = None
+    required_incident_sections: list[str] = Field(default_factory=list)
+    required_terms: list[str] = Field(default_factory=list)
+    forbidden_terms: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_behavior_contract(self) -> Self:
+        if self.task == "grounded_refusal" and self.expected_result != "no_result":
+            raise ValueError("grounded_refusal requires expected_result=no_result")
+        if self.task == "json_output" and self.target_json_schema is None:
+            raise ValueError("json_output requires target_json_schema")
+        if self.task == "incident_report" and not self.required_incident_sections:
+            raise ValueError("incident_report requires required_incident_sections")
+        if self.task == "terminology" and not self.required_terms:
+            raise ValueError("terminology requires required_terms")
+        return self
 
 
 class EvaluationDataset(BaseModel):
