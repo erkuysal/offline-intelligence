@@ -2,7 +2,7 @@
 
 Date: 2026-07-15
 
-Status: Work Package 5.1 accepted; Work Package 5.2 in progress
+Status: Work Package 5.1 accepted; Phase 5 subsequently closed with the base-only runtime
 
 ## Accepted Scope
 

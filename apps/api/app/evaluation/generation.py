@@ -37,7 +37,12 @@ REFUSAL_PATTERNS = (
     "lack the information",
     "does not contain the answer",
     "do not have the answer",
+    "do not have enough information",
+    "not enough information",
     "no accessible document",
+    "yeterli bilgi bulunmuyor",
+    "yeterli bilgi yok",
+    "cevabi verilmedi",
     "belirtilmem",
     "bulunmam",
     "bilgi yok",
@@ -203,14 +208,20 @@ def evaluate_generation_dataset(
     thresholds: GenerationThresholds,
     retrieval_limit: int,
     id_by_document_key: dict[str, int] | None,
-    evaluation_mode: Literal["base", "base_rag"] = "base_rag",
+    evaluation_mode: Literal["base", "base_rag", "adapter", "adapter_rag"] = "base_rag",
 ) -> GenerationReport:
-    if evaluation_mode == "base_rag" and (
+    rag_enabled = evaluation_mode in {"base_rag", "adapter_rag"}
+    adapter_enabled = evaluation_mode in {"adapter", "adapter_rag"}
+    if rag_enabled and (
         db is None or user_id is None or strategy is None or id_by_document_key is None
     ):
-        raise ValueError("base_rag evaluation requires database-backed retrieval inputs")
-    if evaluation_mode == "base" and strategy is not None:
-        raise ValueError("base evaluation must not receive a retrieval strategy")
+        raise ValueError(f"{evaluation_mode} evaluation requires database-backed retrieval inputs")
+    if not rag_enabled and strategy is not None:
+        raise ValueError(f"{evaluation_mode} evaluation must not receive a retrieval strategy")
+    if adapter_enabled and not settings.llm_adapter_id:
+        raise ValueError(f"{evaluation_mode} evaluation requires LLM_ADAPTER_ID")
+    if not adapter_enabled and settings.llm_adapter_id:
+        raise ValueError(f"{evaluation_mode} evaluation requires an adapter-free runtime")
     results = [
         evaluate_generation_case(
             case,
@@ -239,6 +250,7 @@ def evaluate_generation_dataset(
         generator_model=settings.llm_model,
         generator_model_revision=settings.llm_model_revision,
         evaluation_mode=evaluation_mode,
+        adapter_id=settings.llm_adapter_id if adapter_enabled else None,
         content_policy=dataset.manifest.content_policy,
         case_output_policy=dataset.manifest.case_output_policy,
         retrieval_strategy=strategy.name if strategy is not None else "none",

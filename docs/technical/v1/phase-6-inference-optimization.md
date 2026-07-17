@@ -1,12 +1,16 @@
 # Technical Vision v1 — Phase 6 Quantization and Inference Optimization
 
-Status: Future
+Status: Next — barebones Q4 benchmark scope ready to begin
 
 ## Intent
 
 Produce evidence-backed runtime profiles for constrained on-premise hardware. Optimization must
 reduce storage or compute cost while preserving the grounded-answer, refusal, and authorization
 quality established in earlier phases.
+
+The first implementation intentionally measures and packages the already accepted Q4 base runtime.
+Broad Q8/Q5/INT8/BF16 comparisons and kernel experiments are deferred until after Phase 8. The
+bounded implementation checklist is the [Phase 6 plan](../../plans/phase-6.md).
 
 ## Comparison Space
 

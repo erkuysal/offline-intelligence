@@ -33,6 +33,7 @@ SEMVER_PATTERN = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)
 CITATION_PATTERN = re.compile(
     r"\[([a-z0-9][a-z0-9._-]{2,127})(?:#([a-z0-9][a-z0-9._-]{2,127}))?\]"
 )
+RUNTIME_CITATION_PATTERN = re.compile(r"\[Source ([1-9][0-9]*)\]")
 SENSITIVE_PATTERNS = (
     ("private_key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
     ("hugging_face_token", re.compile(r"\bhf_[A-Za-z0-9]{20,}\b")),
@@ -564,7 +565,7 @@ def _validate_example(
     if not isinstance(citations_value, list):
         _issue(issues, "citations", "expected_citations must be an array", location)
     else:
-        seen_citations: set[tuple[str, str]] = set()
+        seen_citations: set[tuple[str, str, str]] = set()
         for index, citation in enumerate(citations_value):
             citation_location = f"{location}.expected_citations[{index}]"
             if not isinstance(citation, dict):
@@ -572,7 +573,7 @@ def _validate_example(
                 continue
             _reject_unknown_fields(
                 citation,
-                {"source_id", "passage_id"},
+                {"source_id", "passage_id", "runtime_label"},
                 issues,
                 citation_location,
             )
@@ -590,13 +591,26 @@ def _validate_example(
                     "passage_id has an invalid format",
                     citation_location,
                 )
-            key = (source_id, passage_id)
+            runtime_label = citation.get("runtime_label", "")
+            if not isinstance(runtime_label, str):
+                _issue(issues, "citation", "runtime_label must be a string", citation_location)
+                runtime_label = ""
+            elif runtime_label and not re.fullmatch(r"\[Source [1-9][0-9]*\]", runtime_label):
+                _issue(
+                    issues,
+                    "citation_syntax",
+                    "runtime_label must use exact [Source N] syntax",
+                    citation_location,
+                )
+            key = (source_id, passage_id, runtime_label)
             if key in seen_citations:
                 _issue(issues, "citation", "duplicate expected citation", citation_location)
             seen_citations.add(key)
             if source_id not in source_ids:
                 _issue(issues, "citation_source", f"unknown source_id {source_id}", citation_location)
-            marker = f"[{source_id}#{passage_id}]" if passage_id else f"[{source_id}]"
+            marker = runtime_label or (
+                f"[{source_id}#{passage_id}]" if passage_id else f"[{source_id}]"
+            )
             if marker not in assistant_output:
                 _issue(
                     issues,
@@ -604,7 +618,13 @@ def _validate_example(
                     f"assistant output is missing {marker}",
                     citation_location,
                 )
-            citations.append({"source_id": source_id, **({"passage_id": passage_id} if passage_id else {})})
+            citations.append(
+                {
+                    "source_id": source_id,
+                    **({"passage_id": passage_id} if passage_id else {}),
+                    **({"runtime_label": runtime_label} if runtime_label else {}),
+                }
+            )
     if task in {"grounded_answer", "citation_formatting"} and not citations:
         _issue(issues, "citations", f"{task} requires at least one expected citation", location)
     if task == "grounded_refusal" and citations:
@@ -612,12 +632,25 @@ def _validate_example(
     declared_citations = {
         (citation["source_id"], citation.get("passage_id", "")) for citation in citations
     }
+    declared_runtime_labels = {
+        citation["runtime_label"] for citation in citations if citation.get("runtime_label")
+    }
     rendered_citations = {
         (match.group(1), match.group(2) or "")
         for match in CITATION_PATTERN.finditer(assistant_output)
     }
     for source_id, passage_id in sorted(rendered_citations - declared_citations):
         marker = f"[{source_id}#{passage_id}]" if passage_id else f"[{source_id}]"
+        _issue(
+            issues,
+            "undeclared_citation",
+            f"assistant output contains undeclared citation {marker}",
+            location,
+        )
+    rendered_runtime_labels = {
+        match.group(0) for match in RUNTIME_CITATION_PATTERN.finditer(assistant_output)
+    }
+    for marker in sorted(rendered_runtime_labels - declared_runtime_labels):
         _issue(
             issues,
             "undeclared_citation",

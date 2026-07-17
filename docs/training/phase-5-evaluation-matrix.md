@@ -1,6 +1,6 @@
 # Phase 5 Evaluation Matrix
 
-Status: In progress
+Status: Implemented; v2 and v3 production candidates evaluated and rejected
 
 Work Package 5.2 compares four explicit modes:
 
@@ -77,8 +77,9 @@ verified `base` and `base_rag` modes:
 ```
 
 The base run needs the generation server only. The base + RAG run also needs PostgreSQL and the
-embedding server. Adapter modes remain unavailable until the adapter runtime boundary can verify
-the active adapter ID rather than trusting a caller-provided label.
+embedding server. Adapter modes require `LLM_ADAPTER_ID`; base modes reject an adapted runtime
+identity. Startup verifies the adapter path, immutable manifest, ID, checksum, compatible base, and
+scale, while `/lora-adapters` confirms the live llama.cpp state.
 
 The checked-in `phase-5-behavior-v1` corpus contains twelve synthetic public cases, balanced across
 English/Turkish and the six tasks. It shares no exact question or passage text with the protected
@@ -141,4 +142,13 @@ unadapted structured-task gaps rather than a regression of the accepted natural-
 
 ## Remaining Work
 
-- Reuse the live evaluator for all four modes without allowing callers to mislabel runtime state.
+- Build a production-contract-aligned v3 training corpus and independently authored development set.
+- Retain the rejected v2 evidence; do not make its adapter profile the default.
+
+## WP5.5 Outcome
+
+The four behavior modes and protected base+RAG/adapter+RAG pair completed on 2026-07-17. The v2
+adapter was rejected. It passed supported refusal after a refusal-parser methodology correction, but
+failed language (`0.8333`), citation format (`0.8000`), JSON (`0.0000`), incident structure
+(`0.5000`), terminology (`0.5000`), protected fact coverage (`0.3906`), faithfulness (`0.4062`),
+and hallucination (`0.5938`). See `docs/acceptance/phase-5-promotion-v2.md` and the WP5.5 post-mortem.

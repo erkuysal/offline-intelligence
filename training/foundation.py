@@ -107,20 +107,75 @@ def load_training_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     if optimizer["betas"] != [0.9, 0.999] or optimizer["epsilon"] <= 0:
         raise TrainingFoundationError("optimizer betas and epsilon must be explicit and valid")
     scheduler = training["scheduler"]
-    if set(scheduler) != {"name", "warmup_ratio"}:
-        raise TrainingFoundationError("scheduler must declare name and warmup_ratio exactly")
-    if scheduler["name"] not in {"linear", "cosine"} or not 0 <= scheduler["warmup_ratio"] < 1:
-        raise TrainingFoundationError("scheduler name or warmup_ratio is invalid")
+    ratio_scheduler = set(scheduler) == {"name", "warmup_ratio"}
+    step_scheduler = set(scheduler) == {"name", "warmup_steps"}
+    if not ratio_scheduler and not step_scheduler:
+        raise TrainingFoundationError(
+            "scheduler must declare exactly one explicit warmup_ratio or warmup_steps contract"
+        )
+    if scheduler["name"] not in {"linear", "cosine", "constant_with_warmup"}:
+        raise TrainingFoundationError("scheduler name is unsupported")
+    if ratio_scheduler and not 0 <= scheduler["warmup_ratio"] < 1:
+        raise TrainingFoundationError("scheduler warmup_ratio is invalid")
+    if step_scheduler and (
+        not isinstance(scheduler["warmup_steps"], int)
+        or isinstance(scheduler["warmup_steps"], bool)
+        or scheduler["warmup_steps"] <= 0
+    ):
+        raise TrainingFoundationError("scheduler warmup_steps must be a positive integer")
+    if scheduler["name"] == "constant_with_warmup" and not step_scheduler:
+        raise TrainingFoundationError(
+            "constant_with_warmup requires an explicit positive warmup_steps value"
+        )
     search = training["search"]
-    if search.get("ranks") != [8, 16]:
-        raise TrainingFoundationError("initial LoRA search ranks must be exactly 8 and 16")
+    ranks = search.get("ranks")
+    if (
+        not isinstance(ranks, list)
+        or not ranks
+        or len(ranks) != len(set(ranks))
+        or not set(ranks) <= {8, 16}
+    ):
+        raise TrainingFoundationError(
+            "LoRA search ranks must be a non-empty unique subset of the approved ranks 8 and 16"
+        )
     learning_rates = search.get("learning_rates")
-    if not isinstance(learning_rates, list) or not 1 <= len(learning_rates) <= 2:
-        raise TrainingFoundationError("initial search must define one or two learning rates")
-    if search.get("maximum_candidates") != len(search["ranks"]) * len(learning_rates):
+    if (
+        not isinstance(learning_rates, list)
+        or not 1 <= len(learning_rates) <= 2
+        or len(learning_rates) != len(set(learning_rates))
+        or not all(
+            isinstance(rate, (int, float)) and not isinstance(rate, bool) and rate > 0
+            for rate in learning_rates
+        )
+    ):
+        raise TrainingFoundationError("search must define one or two unique positive learning rates")
+    candidate_count = len(ranks) * len(learning_rates)
+    if search.get("maximum_candidates") != candidate_count or candidate_count > 4:
         raise TrainingFoundationError("maximum_candidates must match the bounded search grid")
     if search.get("selection_source") != "held_out_behavior_metrics":
         raise TrainingFoundationError("candidate selection must use held-out behavior metrics")
+    export = payload.get("export")
+    if export is not None:
+        if not isinstance(export, dict) or set(export) != {
+            "schema_version",
+            "llama_cpp_revision",
+            "converter_path",
+            "gguf_output_type",
+            "runtime_adapter_scale",
+        }:
+            raise TrainingFoundationError("export must declare every compatibility setting exactly")
+        if export["schema_version"] != 1:
+            raise TrainingFoundationError("export schema_version must be 1")
+        if not isinstance(export["llama_cpp_revision"], str) or len(
+            export["llama_cpp_revision"]
+        ) != 40:
+            raise TrainingFoundationError("export llama_cpp_revision must be a pinned commit")
+        if export["converter_path"] != "convert_lora_to_gguf.py":
+            raise TrainingFoundationError("export converter_path is unsupported")
+        if export["gguf_output_type"] not in {"f16", "bf16"}:
+            raise TrainingFoundationError("export GGUF output type must preserve 16-bit precision")
+        if export["runtime_adapter_scale"] != 1.0:
+            raise TrainingFoundationError("initial runtime adapter scale must be exactly 1.0")
     positive_integer_fields = (
         "micro_batch_size",
         "gradient_accumulation_steps",

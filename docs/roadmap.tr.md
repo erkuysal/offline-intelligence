@@ -314,8 +314,15 @@ Basit vector search sonrasında RAG sisteminin gerçekten çalışıp çalışma
 
 RAG sistemi çalıştıktan sonra açık kaynaklı model belirli görevler için özelleştirilir.
 
-> **Durum:** Sıradaki faz. Teknik sınırlar tanımlandı; uygulama, sürümlenmiş
-> [Faz 5 planı](plans/phase-5.md), eğitim verisi sözleşmesi ve donanım kalibrasyon kapısıyla başlar.
+> **Durum:** Yalnızca temel model çalışma zamanıyla kapatıldı. Tekrarlanabilir eğitim, GGUF dışa
+> aktarma, çalışma zamanı etkinleştirme ve
+> dört modlu değerlendirme uygulandı. v2 adapter üretim davranışı ve korumalı RAG kapılarında
+> reddedildi; ardından üretim sözleşmesiyle uyumlu v3 düzeltme çalışması tamamlandı.
+> v3 düzeltme adapteri geliştirme/dışa aktarma uyumluluğunu geçti ancak 11 üretim kapısında başarısız
+> oldu; reddedildi ve yalnızca temel model çalışma zamanı varsayılan olarak kaldı.
+> Proje kararıyla ek adaptasyon kalitesi çalışmaları, sekiz fazlı yalın çalışan yapı tamamlanana kadar
+> ertelendi. Faz 6, kabul edilmiş temel Q4 çalışma zamanıyla ilerler.
+> Ayrıntılar için [Faz 5 planına](plans/phase-5.md) bakın.
 
 ### Fine-Tuning Amaçları
 

@@ -442,9 +442,16 @@ def run_bounded_training(
         accumulation = run_manifest["gradient_accumulation_steps"]
         updates_per_epoch = math.ceil(len(train_examples) / accumulation)
         total_steps = min(run_manifest["max_steps"], run_manifest["epochs"] * updates_per_epoch)
-        warmup_steps = math.floor(total_steps * run_manifest["scheduler"]["warmup_ratio"])
+        scheduler_config = run_manifest["scheduler"]
+        warmup_steps = (
+            scheduler_config["warmup_steps"]
+            if "warmup_steps" in scheduler_config
+            else math.floor(total_steps * scheduler_config["warmup_ratio"])
+        )
+        if warmup_steps >= total_steps:
+            raise TrainingRunError("scheduler warmup_steps must be below total optimizer steps")
         scheduler = get_scheduler(
-            run_manifest["scheduler"]["name"],
+            scheduler_config["name"],
             optimizer,
             num_warmup_steps=warmup_steps,
             num_training_steps=total_steps,

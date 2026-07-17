@@ -121,6 +121,23 @@ def test_parse_generated_answer_extracts_natural_citations_and_refusals() -> Non
     assert empty.answer == ""
 
 
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "I do not have enough information in the available documents to answer that question.",
+        "Not enough information in documents.",
+        "Mevcut belgelerde yeterli bilgi bulunmuyor.",
+        "Kaynaklarda yeterli bilgi yok.",
+    ],
+)
+def test_parse_generated_answer_recognizes_training_contract_refusals(answer: str) -> None:
+    parsed, success = parse_generated_answer(answer)
+
+    assert success is True
+    assert parsed.refusal is True
+    assert parsed.claims == []
+
+
 def test_parse_generated_answer_attaches_trailing_citation_to_previous_claim() -> None:
     parsed, success = parse_generated_answer(
         "Backups run every night at 02:00 UTC.\nSource: [Source 1]"

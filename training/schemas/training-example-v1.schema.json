@@ -105,7 +105,11 @@
       "required": ["source_id"],
       "properties": {
         "source_id": {"type": "string", "minLength": 1, "maxLength": 256},
-        "passage_id": {"type": "string", "minLength": 1, "maxLength": 256}
+        "passage_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "runtime_label": {
+          "type": "string",
+          "pattern": "^\\[Source [1-9][0-9]*\\]$"
+        }
       }
     },
     "provenance": {

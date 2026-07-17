@@ -3,6 +3,7 @@ import asyncio
 from fastapi.testclient import TestClient
 
 from app.main import app, lifespan
+from app.config import get_settings
 from app.services.llm import LLMUnavailableError
 from app.services.llm_readiness import LLMReadiness, llm_readiness
 
@@ -18,6 +19,17 @@ def test_llm_health_check_returns_ready_state() -> None:
     assert response.json()["service"] == "llm"
     assert response.json()["status"] == "healthy"
     assert response.json()["metadata"]["failure_type"] is None
+
+
+def test_llm_health_exposes_active_adapter_identity(monkeypatch) -> None:
+    monkeypatch.setattr(get_settings(), "llm_adapter_id", "adapter-v1")
+    monkeypatch.setattr(get_settings(), "llm_adapter_sha256", "a" * 64)
+    llm_readiness.set("ready")
+
+    response = client.get("/health/llm")
+
+    assert response.json()["metadata"]["adapter_id"] == "adapter-v1"
+    assert response.json()["metadata"]["adapter_sha256"] == "a" * 64
 
 
 def test_llm_health_check_returns_503_while_warming() -> None:

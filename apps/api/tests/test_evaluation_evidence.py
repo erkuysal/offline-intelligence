@@ -99,6 +99,7 @@ def test_evidence_index_separates_and_cross_references_report_families(tmp_path:
     assert report.training_dataset_checksum == "a" * 64
     assert report.evaluation_dataset_id == "behavior-v1"
     assert report.adapter_id == "adapter-v1"
+    assert report.promotion_passed is True
     assert report.regression_dataset_id == "phase-4-regression-v1"
     assert len(report.artifacts) == 9
     assert {artifact.evaluation_mode for artifact in report.artifacts if artifact.evaluation_mode} == {
@@ -109,6 +110,27 @@ def test_evidence_index_separates_and_cross_references_report_families(tmp_path:
     }
     assert all(len(artifact.sha256) == 64 for artifact in report.artifacts)
     assert sum(artifact.evaluation_scope == "regression" for artifact in report.artifacts) == 2
+
+
+def test_evidence_index_records_rejected_promotion(tmp_path: Path) -> None:
+    validation, training, held_out, runtimes, regressions = evidence_paths(tmp_path)
+    payload = json.loads(held_out.read_text(encoding="utf-8"))
+    payload["threshold_failures"] = ["adapter_rag: json_schema_validity failed"]
+    write_json(held_out, payload)
+
+    report = build_evaluation_evidence_index(
+        dataset_validation_path=validation,
+        training_run_path=training,
+        held_out_behavior_path=held_out,
+        runtime_paths=runtimes,
+        regression_runtime_paths=regressions,
+    )
+
+    assert report.promotion_passed is False
+    held_out_artifact = next(
+        artifact for artifact in report.artifacts if artifact.report_type == "held_out_behavior_matrix"
+    )
+    assert held_out_artifact.sha256
 
 
 def test_evidence_index_rejects_training_dataset_mismatch(tmp_path: Path) -> None:

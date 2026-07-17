@@ -26,8 +26,8 @@ implementation take precedence, and the vision should be updated.
 | [2 — Local Model Runtime](phase-2-local-model-runtime.md) | Completed | Bounded local inference behind a stable chat contract |
 | [3 — Document Ingestion and RAG](phase-3-document-rag.md) | Completed | Permission-aware document ingestion and grounded answers |
 | [4 — Retrieval and Evaluation](phase-4-retrieval-evaluation.md) | Completed | Measured retrieval strategies and reproducible RAG quality gates |
-| [5 — Model Adaptation](phase-5-model-adaptation.md) | In progress | Reproducible LoRA/PEFT behavior adaptation and adapter deployment |
-| [6 — Inference Optimization](phase-6-inference-optimization.md) | Future | Evidence-based quantization and hardware profiles |
+| [5 — Model Adaptation](phase-5-model-adaptation.md) | Completed | Reproducible LoRA/PEFT infrastructure; adapters rejected and base retained |
+| [6 — Inference Optimization](phase-6-inference-optimization.md) | Next | Barebones benchmark boundary for the accepted Q4 runtime |
 | [7 — Air-Gapped Delivery](phase-7-air-gapped-delivery.md) | Future | Verifiable offline release, operation, backup, and restore |
 | [8 — Native Acceleration](phase-8-native-acceleration.md) | Future | Safe, benchmarked C integration with portable fallback |
 

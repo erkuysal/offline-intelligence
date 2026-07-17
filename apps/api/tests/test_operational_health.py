@@ -87,4 +87,6 @@ def test_runtime_health_exposes_configured_limits_and_model_names() -> None:
         "embedding_model": settings.embedding_model,
         "embedding_dimensions": settings.embedding_dimensions,
         "llm_model": settings.llm_model,
+        "llm_adapter_id": settings.llm_adapter_id,
+        "llm_adapter_sha256": settings.llm_adapter_sha256,
     }

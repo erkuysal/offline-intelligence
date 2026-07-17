@@ -38,6 +38,7 @@ class EvaluationEvidenceIndex(BaseModel):
     regression_dataset_id: str
     regression_dataset_version: str
     adapter_id: str
+    promotion_passed: bool
     artifacts: list[EvidenceArtifact]
 
 
@@ -64,8 +65,11 @@ def build_evaluation_evidence_index(
         raise ValueError("dataset validation report must pass before evidence can be indexed")
     if training.get("passed") is not True:
         raise ValueError("training run report must pass before evidence can be indexed")
-    if held_out.get("threshold_failures") != []:
-        raise ValueError("held-out behavior matrix must pass before evidence can be indexed")
+    threshold_failures = held_out.get("threshold_failures")
+    if not isinstance(threshold_failures, list) or not all(
+        isinstance(failure, str) for failure in threshold_failures
+    ):
+        raise ValueError("held-out behavior matrix must contain structured threshold_failures")
 
     training_dataset_id = required_string(validation, "dataset_id")
     training_dataset_version = required_string(validation, "dataset_version")
@@ -174,6 +178,7 @@ def build_evaluation_evidence_index(
         regression_dataset_id=regression_dataset_id,
         regression_dataset_version=regression_dataset_version,
         adapter_id=adapter_id,
+        promotion_passed=not threshold_failures,
         artifacts=artifacts,
     )
 

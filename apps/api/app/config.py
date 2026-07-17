@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:8080/v1"
     llm_model: str = "local-default"
     llm_model_revision: str = "operator-managed"
+    llm_adapter_id: str | None = None
+    llm_adapter_sha256: str | None = None
     llm_timeout_seconds: float = 60.0
     llm_warmup_enabled: bool = True
     llm_warmup_timeout_seconds: float = 5.0

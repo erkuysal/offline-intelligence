@@ -26,6 +26,7 @@ from training.trainer import (
 
 
 ROOT = Path(__file__).resolve().parents[3]
+V2_CONFIG_PATH = ROOT / "config/training/gemma3-1b-lora-v2.json"
 
 
 class FakeChatTokenizer:
@@ -142,6 +143,19 @@ def test_run_manifest_records_reproducibility_inputs_and_bounded_override() -> N
 
     with pytest.raises(TrainingRunError, match="outside the bounded search"):
         build_run_manifest(config, dataset, analysis, rank=32)
+
+
+def test_v2_manifest_pins_constant_warmup_schedule_and_selected_v1_hyperparameters() -> None:
+    config = load_training_config(V2_CONFIG_PATH)
+    dataset, analysis = dataset_and_analysis()
+
+    manifest = build_run_manifest(config, dataset, analysis)
+
+    assert manifest["scheduler"] == {"name": "constant_with_warmup", "warmup_steps": 5}
+    assert manifest["lora"]["rank"] == 16
+    assert manifest["lora"]["alpha"] == 16
+    assert manifest["optimizer"]["learning_rate"] == 0.0002
+    assert manifest["max_gradient_norm"] == 1.0
 
 
 def test_resume_requires_byte_equivalent_manifest_content(tmp_path: Path) -> None:

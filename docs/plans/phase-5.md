@@ -1,6 +1,6 @@
 # Phase 5 Model Adaptation Plan
 
-Status: In progress (Work Package 5.2)
+Status: Closed with base-only runtime (adaptation infrastructure accepted; v2/v3 adapters rejected)
 
 ## Entry Criteria
 
@@ -122,7 +122,7 @@ acceptance evidence.
 
 ## Work Package 5.2: Evaluation Matrix
 
-- [ ] Reuse the Phase 4 evaluator for base, base + RAG, adapter, and adapter + RAG runs
+- [x] Reuse the Phase 4 evaluator for base, base + RAG, adapter, and adapter + RAG runs
 - [x] Add task-level measures for language adherence, citation format, JSON schema validity, incident
   report structure, terminology consistency, and supported refusal
 - [x] Report every quality and safety metric by language and task, not only as a global average
@@ -145,22 +145,26 @@ acceptance evidence.
 - [x] Select candidates using held-out behavior metrics, never training loss alone
 
 Implementation, unit-contract verification, and the first real bounded `2 × 2` candidate grid are
-complete. The project-owner-approved synthetic training corpus is separate from protected
-evaluation data. Rank `16` at learning rate `0.0002` is the held-out winner, but it is not promotion
-eligible: citation discipline and incident-report structure remain below the held-out gates. No
-failing candidate advances to export or runtime integration.
+complete. The initial winner failed development gates. A controlled v2 iteration expanded data and
+optimization duration while holding the selected adapter hyperparameters fixed. The corrected
+v2.0.1 adapter passed all 120 development held-out cases and is eligible for Work Package 5.4 export
+testing. It is not promotion eligible; protected runtime and regression evidence remain required.
 
 ## Work Package 5.4: Adapter Export and Runtime Integration
 
-- [ ] Export adapter weights as Safetensors with tokenizer, chat-template, and base compatibility data
-- [ ] Generate SHA-256 checksums and an immutable adapter manifest
-- [ ] Convert the PEFT adapter to GGUF using a pinned llama.cpp converter revision
-- [ ] Reject unsupported target modules, added-token embeddings, or base architecture mismatches
-- [ ] Add an opt-in runtime adapter path and scale while preserving the adapter-free default
-- [ ] Expose active adapter ID and checksum through health/diagnostic metadata
-- [ ] Prove startup failure is actionable when an adapter is missing, corrupt, or incompatible
-- [ ] Prove disabling the adapter restores the exact prior base configuration without data migration
-- [ ] Compare the training-framework adapter and deployed GGUF adapter on the same deterministic cases
+- [x] Export adapter weights as Safetensors with tokenizer, chat-template, and base compatibility data
+- [x] Generate SHA-256 checksums and an immutable adapter manifest
+- [x] Convert the PEFT adapter to GGUF using a pinned llama.cpp converter revision
+- [x] Reject unsupported target modules, added-token embeddings, or base architecture mismatches
+- [x] Add an opt-in runtime adapter path and scale while preserving the adapter-free default
+- [x] Expose active adapter ID and checksum through health/diagnostic metadata
+- [x] Prove startup failure is actionable when an adapter is missing, corrupt, or incompatible
+- [x] Prove disabling the adapter restores the exact prior base configuration without data migration
+- [x] Compare the training-framework adapter and deployed GGUF adapter on the same deterministic cases
+
+WP5.4 completed on 2026-07-17. The deployed adapter passed 120-case PEFT/GGUF compatibility with
+`0.998380` parity F1 and `0.991667` task validity. One Turkish JSON output drifted to labeled prose,
+so runtime integration is accepted but the candidate remains ineligible for promotion until WP5.5.
 
 ## Work Package 5.5: Promotion and Acceptance
 
@@ -185,11 +189,35 @@ In addition:
 
 - [ ] No English/Turkish task slice may hide a material regression behind the overall score
 - [ ] JSON and incident-report tasks pass their schema/structure gates
-- [ ] Base + RAG and adapter + RAG are evaluated from the same corpus, prompts, retrieval results,
+- [x] Base + RAG and adapter + RAG are evaluated from the same corpus, prompts, retrieval results,
   generation settings, and runtime build
 - [ ] The deployed GGUF adapter passes the same gates as the training-framework adapter
 - [ ] Activation and rollback pass production-profile smoke and browser chat tests
-- [ ] The decision is recorded as accepted or rejected; a rejected adapter is not made the default
+- [x] The decision is recorded as accepted or rejected; a rejected adapter is not made the default
+
+The v2 adapter was rejected on 2026-07-17. Adapter+RAG failed five strict behavior gates and the
+protected regression quality gates; Turkish faithfulness was `0.2000`, protected fact coverage was
+`0.3906`, and protected hallucination was `0.5938`. The base-only profile remains the default. The
+failed matrix and all nine source artifacts are checksum-indexed with `promotion_passed: false`.
+
+Corrective v3 readiness is complete: a 600-example production-prompt training/validation corpus and
+a separately authored 240-case development corpus both pass the deterministic data contract. The
+single bounded candidate uses rank 16/alpha 32, `2e-4`, a five-step constant warmup, gradient norm
+2.0, and at most 180 effective optimizer updates. No v3 training or promotion claim has yet run.
+
+The v3 run subsequently completed, passed independent development and PEFT/GGUF compatibility, but
+was rejected by the production matrix on 2026-07-17. Eleven behavior, protected-quality, refusal,
+and relative-TTFT gates failed. The base-only profile remains default; v3 is negative evidence.
+
+## Barebones Closure Decision
+
+Phase 5 is closed without a promoted adapter. The reproducible data, training, evaluation, export,
+activation, rollback, and evidence machinery is retained as a working extension point. The accepted
+product outcome is the existing base Q4 model with permission-aware RAG. Further dataset iteration,
+checkpoint selection, and adapter promotion are deferred until after the initial eight-phase roadmap.
+
+Unchecked promotion criteria below describe what a future adapter must satisfy; they no longer block
+progression to Phase 6 because no adapter is being activated as the product default.
 
 ## Phase 5 Definition of Done
 

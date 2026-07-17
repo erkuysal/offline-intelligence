@@ -1,12 +1,21 @@
 # Technical Vision v1 — Phase 5 Model Adaptation with LoRA and PEFT
 
-Status: In progress — Work Packages 5.0 and 5.1 accepted
+Status: Completed with base-only runtime — infrastructure accepted; v2/v3 adapters rejected
 
 ## Intent
 
 Improve repeatable model behavior without moving changeable organizational knowledge out of RAG.
 LoRA/PEFT should teach response language, grounded refusal, citation style, structured output, report
 formats, and terminology—not memorize private source documents.
+
+## Implemented Outcome
+
+The full data, training, evaluation, export, activation, rollback, and evidence path was implemented
+and verified. Two bounded candidates reached production evaluation; neither passed the protected
+quality and performance gates. The accepted product configuration therefore remains the pinned
+Gemma 3 1B Q4 base model with permission-aware RAG. Further adapter-quality work is deferred until
+after the initial eight-phase barebones structure is complete. See the
+[Phase 5 acceptance record](../../acceptance/phase-5.md) and its linked v2/v3 decisions.
 
 ## Target Capabilities
 

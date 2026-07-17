@@ -151,6 +151,11 @@ def test_parser_exposes_generation_evaluation_thresholds() -> None:
     assert args.min_faithfulness == 0.9
     assert args.max_hallucination == 0.1
 
+    adapter_args = launcher.build_parser().parse_args(
+        ["evaluate-generation", "--mode", "adapter_rag"]
+    )
+    assert adapter_args.mode == "adapter_rag"
+
 
 def test_parser_exposes_training_evaluation_matrix() -> None:
     launcher = load_launcher()
@@ -241,6 +246,21 @@ def test_parser_exposes_training_foundation_commands() -> None:
             "--local-files-only",
         ]
     )
+    adapter_export = launcher.build_parser().parse_args(
+        [
+            "training-export-adapter",
+            "--adapter",
+            "adapter",
+            "--training-report",
+            "training.json",
+            "--selection-report",
+            "selection.json",
+            "--output-dir",
+            "export",
+            "--base-model-dir",
+            "base",
+        ]
+    )
 
     assert preflight.func is launcher.training_preflight
     assert preflight.config.endswith("gemma3-1b-lora-v1.json")
@@ -256,3 +276,23 @@ def test_parser_exposes_training_foundation_commands() -> None:
     assert training_run.rank == 16
     assert training_run.learning_rate == 0.0002
     assert training_run.local_files_only is True
+    assert adapter_export.func is launcher.training_export_adapter
+    assert adapter_export.config.endswith("gemma3-1b-lora-v2.json")
+    runtime_adapter = launcher.build_parser().parse_args(
+        [
+            "training-evaluate-runtime-adapter",
+            "--manifest",
+            "manifest.json",
+            "--training-framework-report",
+            "framework.json",
+            "--output",
+            "runtime.json",
+            "--runtime-model",
+            "gemma",
+            "--adapter-id",
+            "adapter-v1",
+            "--adapter-sha256",
+            "0" * 64,
+        ]
+    )
+    assert runtime_adapter.func is launcher.training_evaluate_runtime_adapter

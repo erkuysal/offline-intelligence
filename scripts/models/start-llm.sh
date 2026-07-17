@@ -57,6 +57,53 @@ fi
 case "${LLAMA_FLASH_ATTN,,}" in
   1|true|yes|on) args+=(--flash-attn on) ;;
 esac
+if [[ -n "$LLM_ADAPTER_PATH" ]]; then
+  resolved_adapter_path="$(expand_llama_path "$LLM_ADAPTER_PATH")"
+  if [[ ! -r "$resolved_adapter_path" ]]; then
+    echo "LLM adapter file is missing or unreadable: ${resolved_adapter_path}" >&2
+    echo "Set LLM_ADAPTER_PATH to a readable GGUF adapter or clear it to disable adaptation." >&2
+    exit 2
+  fi
+  if [[ -z "$LLM_ADAPTER_ID" || ! "$LLM_ADAPTER_SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+    echo "Adapter activation requires LLM_ADAPTER_ID and a lowercase 64-character LLM_ADAPTER_SHA256." >&2
+    exit 2
+  fi
+  actual_adapter_sha256="$(sha256sum "$resolved_adapter_path" | cut -d ' ' -f 1)"
+  if [[ "$actual_adapter_sha256" != "$LLM_ADAPTER_SHA256" ]]; then
+    echo "LLM adapter checksum mismatch for ${resolved_adapter_path}" >&2
+    echo "Expected ${LLM_ADAPTER_SHA256}; found ${actual_adapter_sha256}." >&2
+    exit 2
+  fi
+  if [[ ! "$LLM_ADAPTER_SCALE" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    echo "LLM_ADAPTER_SCALE must be a non-negative decimal number." >&2
+    exit 2
+  fi
+  resolved_adapter_manifest="$(expand_llama_path "$LLM_ADAPTER_MANIFEST")"
+  if [[ -z "$LLM_ADAPTER_MANIFEST" || ! -r "$resolved_adapter_manifest" ]]; then
+    echo "Adapter activation requires a readable LLM_ADAPTER_MANIFEST." >&2
+    exit 2
+  fi
+  if ! command -v jq >/dev/null 2>&1 || ! jq -e . "$resolved_adapter_manifest" >/dev/null; then
+    echo "LLM adapter manifest is invalid or jq is unavailable: ${resolved_adapter_manifest}" >&2
+    exit 2
+  fi
+  manifest_adapter_id="$(jq -r '.adapter_id // empty' "$resolved_adapter_manifest")"
+  manifest_base_model="$(jq -r '.base_model.accepted_runtime_model // empty' "$resolved_adapter_manifest")"
+  manifest_gguf_file="$(jq -r '.runtime.gguf_file // empty' "$resolved_adapter_manifest")"
+  manifest_adapter_sha256="$(jq -r --arg file "$manifest_gguf_file" '.files[$file].sha256 // empty' "$resolved_adapter_manifest")"
+  if [[ "$manifest_adapter_id" != "$LLM_ADAPTER_ID" || "$manifest_adapter_sha256" != "$LLM_ADAPTER_SHA256" || "$(basename "$resolved_adapter_path")" != "$manifest_gguf_file" ]]; then
+    echo "LLM adapter identity, file, or checksum does not match its immutable manifest." >&2
+    exit 2
+  fi
+  if [[ -n "$LLAMA_MODEL_REPO" && "$manifest_base_model" != "$LLAMA_MODEL_REPO" ]]; then
+    echo "LLM adapter is incompatible with configured base model ${LLAMA_MODEL_REPO}; manifest requires ${manifest_base_model}." >&2
+    exit 2
+  fi
+  args+=(--lora-scaled "${resolved_adapter_path}:${LLM_ADAPTER_SCALE}")
+elif [[ -n "$LLM_ADAPTER_ID" || -n "$LLM_ADAPTER_SHA256" ]]; then
+  echo "LLM_ADAPTER_ID or LLM_ADAPTER_SHA256 was set without LLM_ADAPTER_PATH." >&2
+  exit 2
+fi
 if [[ -n "$LLAMA_EXTRA_ARGS" ]]; then
   read -r -a extra_args <<< "$LLAMA_EXTRA_ARGS"
   args+=("${extra_args[@]}")
@@ -89,6 +136,12 @@ echo "PID file: ${LLAMA_PID_FILE}"
 [[ -n "${LLAMA_PROFILE:-}" ]] && echo "Profile: ${LLAMA_PROFILE}"
 [[ -n "$LLAMA_THREADS" ]] && echo "Threads: ${LLAMA_THREADS}"
 [[ -n "$LLAMA_BATCH_SIZE" ]] && echo "Batch size: ${LLAMA_BATCH_SIZE}"
+if [[ -n "$LLM_ADAPTER_PATH" ]]; then
+  echo "Adapter: ${LLM_ADAPTER_ID} (${LLM_ADAPTER_SHA256})"
+  echo "Adapter scale: ${LLM_ADAPTER_SCALE}"
+else
+  echo "Adapter: disabled"
+fi
 if [[ -n "$LLAMA_GPU_LAYERS" ]]; then
   echo "GPU layer offload: ${LLAMA_GPU_LAYERS}"
 else

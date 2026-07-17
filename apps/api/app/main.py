@@ -189,6 +189,8 @@ def llm_health_check(response: Response) -> ServiceHealthResponse:
         metadata={
             "backend": settings.llm_backend,
             "model": settings.llm_model,
+            "adapter_id": settings.llm_adapter_id or None,
+            "adapter_sha256": settings.llm_adapter_sha256 or None,
             "last_check": snapshot.checked_at,
             "failure_type": snapshot.error,
         },
@@ -266,6 +268,8 @@ def runtime_configuration() -> ServiceHealthResponse:
             "embedding_model": settings.embedding_model,
             "embedding_dimensions": settings.embedding_dimensions,
             "llm_model": settings.llm_model,
+            "llm_adapter_id": settings.llm_adapter_id or None,
+            "llm_adapter_sha256": settings.llm_adapter_sha256 or None,
         },
     )
 

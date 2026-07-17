@@ -18,6 +18,8 @@ from training.foundation import (
 
 ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = ROOT / "config" / "training" / "gemma3-1b-lora-v1.json"
+V2_CONFIG_PATH = ROOT / "config" / "training" / "gemma3-1b-lora-v2.json"
+V3_CONFIG_PATH = ROOT / "config" / "training" / "gemma3-1b-lora-v3.json"
 
 
 def test_training_config_pins_model_environment_and_calibration_lengths() -> None:
@@ -55,6 +57,63 @@ def test_training_config_pins_model_environment_and_calibration_lengths() -> Non
     assert config["base_model"]["accepted_runtime_file_sha256"] == (
         "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135"
     )
+
+
+def test_v2_training_config_changes_only_the_controlled_data_schedule_experiment() -> None:
+    baseline = load_training_config(CONFIG_PATH)
+    config = load_training_config(V2_CONFIG_PATH)
+
+    assert config["experiment_id"] == "gemma3-1b-lora-v2-data-schedule"
+    assert config["training"]["lora"] == {
+        **baseline["training"]["lora"],
+        "rank": 16,
+    }
+    assert config["training"]["optimizer"] == {
+        **baseline["training"]["optimizer"],
+        "learning_rate": 0.0002,
+    }
+    assert config["training"]["scheduler"] == {
+        "name": "constant_with_warmup",
+        "warmup_steps": 5,
+    }
+    assert config["training"]["max_gradient_norm"] == 1.0
+    assert config["training"]["epochs"] == 3
+    assert config["export"] == {
+        "schema_version": 1,
+        "llama_cpp_revision": "c198af4dc24f8e0ab8a569a60f931e03a192fd79",
+        "converter_path": "convert_lora_to_gguf.py",
+        "gguf_output_type": "f16",
+        "runtime_adapter_scale": 1.0,
+    }
+
+
+def test_v3_training_config_declares_one_controlled_candidate() -> None:
+    config = load_training_config(V3_CONFIG_PATH)
+
+    assert config["experiment_id"] == "gemma3-1b-lora-v3-production-contract"
+    assert config["training"]["search"] == {
+        "ranks": [16],
+        "learning_rates": [0.0002],
+        "maximum_candidates": 1,
+        "selection_source": "held_out_behavior_metrics",
+    }
+    assert config["training"]["lora"]["alpha"] == 32
+    assert config["training"]["max_gradient_norm"] == 2.0
+    assert config["training"]["scheduler"] == {
+        "name": "constant_with_warmup",
+        "warmup_steps": 5,
+    }
+
+
+def test_training_config_rejects_unapproved_search_rank(tmp_path: Path) -> None:
+    config = load_training_config(V3_CONFIG_PATH)
+    config["training"]["search"]["ranks"] = [32]
+    config["training"]["lora"]["rank"] = 32
+    path = tmp_path / "invalid-rank.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+
+    with pytest.raises(TrainingFoundationError, match="approved ranks"):
+        load_training_config(path)
 
 
 def test_training_config_rejects_unpinned_package(tmp_path: Path) -> None:

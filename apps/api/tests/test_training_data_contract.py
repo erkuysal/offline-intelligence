@@ -188,6 +188,34 @@ def test_support_review_must_cover_cited_sources(tmp_path: Path) -> None:
     assert issue_codes(captured.value) >= {"support_review_sources", "unverified_target"}
 
 
+def test_production_runtime_citation_label_is_supported(tmp_path: Path) -> None:
+    example = valid_example()
+    example["messages"][-1]["content"] = "The example backup runs nightly. [Source 1]"
+    example["expected_citations"] = [
+        {
+            "source_id": "public-backup",
+            "passage_id": "schedule",
+            "runtime_label": "[Source 1]",
+        }
+    ]
+    manifest_path = write_dataset(tmp_path, [example])
+
+    dataset = load_training_dataset(manifest_path, config_path=CONFIG_PATH)
+
+    assert dataset.examples[0].expected_citations[0]["runtime_label"] == "[Source 1]"
+
+
+def test_runtime_citation_label_requires_exact_syntax(tmp_path: Path) -> None:
+    example = valid_example()
+    example["expected_citations"][0]["runtime_label"] = "[source one]"
+    manifest_path = write_dataset(tmp_path, [example])
+
+    with pytest.raises(TrainingDataError) as captured:
+        load_training_dataset(manifest_path, config_path=CONFIG_PATH)
+
+    assert "citation_syntax" in issue_codes(captured.value)
+
+
 def test_roles_citations_and_json_targets_are_semantically_validated(tmp_path: Path) -> None:
     example = valid_example()
     example["task"] = "json_output"

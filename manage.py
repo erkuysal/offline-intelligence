@@ -7,6 +7,7 @@ import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Literal
 
 ROOT = Path(__file__).resolve().parent
 API_PATH = ROOT / "apps" / "api"
@@ -384,6 +385,7 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
         LexicalRetrievalStrategy,
         build_retrieval_strategy,
     )
+    from app.retrieval.contracts import RetrievalStrategy
 
     try:
         dataset = load_dataset(Path(args.dataset))
@@ -402,6 +404,7 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
                 f"configured model is {provider.model!r}. Use --allow-model-mismatch only for experiments."
             )
         settings = get_settings()
+        strategy: RetrievalStrategy
         if args.strategy == "dense" and provider is not None:
             strategy = DenseRetrievalStrategy(provider)
         elif args.strategy in {"hybrid", "reranked", "multi_query"} and provider is not None:
@@ -485,7 +488,7 @@ def evaluate_generation(args: argparse.Namespace) -> int:
     try:
         dataset = load_dataset(Path(args.dataset))
         settings = get_settings()
-        provider = get_embedding_provider() if args.mode == "base_rag" else None
+        provider = get_embedding_provider() if args.mode in {"base_rag", "adapter_rag"} else None
         if (
             provider is not None
             and dataset.manifest.embedding_model != provider.model
@@ -521,7 +524,7 @@ def evaluate_generation(args: argparse.Namespace) -> int:
                 thresholds=thresholds,
                 retrieval_limit=args.limit,
                 id_by_document_key=None,
-                evaluation_mode="base",
+                evaluation_mode=args.mode,
             )
         else:
             with SessionLocal() as db:
@@ -541,7 +544,7 @@ def evaluate_generation(args: argparse.Namespace) -> int:
                     thresholds=thresholds,
                     retrieval_limit=args.limit,
                     id_by_document_key=id_by_document_key,
-                    evaluation_mode="base_rag",
+                    evaluation_mode=args.mode,
                 )
         write_generation_report(report, Path(args.output))
     except (EmbeddingError, LLMError, OSError, ValueError) as exc:
@@ -557,21 +560,25 @@ def build_training_evaluation_matrix(args: argparse.Namespace) -> int:
     configure_import_path()
 
     from app.evaluation.adaptation import (
+        EvaluationMode,
         TaskThresholds,
         build_adaptation_evaluation_report,
         format_adaptation_summary,
         load_generation_report,
         write_adaptation_report,
     )
+    from app.evaluation.generation import GenerationReport
 
     try:
-        reports = {
+        reports: Mapping[EvaluationMode, GenerationReport] = {
             "base": load_generation_report(Path(args.base)),
             "base_rag": load_generation_report(Path(args.base_rag)),
             "adapter": load_generation_report(Path(args.adapter)),
             "adapter_rag": load_generation_report(Path(args.adapter_rag)),
         }
-        regression_reports = {
+        regression_reports: Mapping[
+            Literal["base_rag", "adapter_rag"], GenerationReport
+        ] = {
             "base_rag": load_generation_report(Path(args.base_rag_regression)),
             "adapter_rag": load_generation_report(Path(args.adapter_rag_regression)),
         }
@@ -807,11 +814,15 @@ def training_evaluate_candidate(args: argparse.Namespace) -> int:
         report = run_candidate_evaluation(
             config,
             manifest_path=Path(args.manifest),
+            training_manifest_path=(
+                Path(args.training_manifest) if args.training_manifest else None
+            ),
             adapter_path=Path(args.adapter),
             training_report_path=Path(args.training_report),
             output=Path(args.output),
             local_files_only=args.local_files_only,
             max_new_tokens=args.max_new_tokens,
+            config_path=Path(args.config),
         )
     except (OSError, TrainingFoundationError, TrainingRunError, ValueError) as exc:
         print(f"Held-out candidate evaluation failed: {exc}", file=sys.stderr)
@@ -820,6 +831,81 @@ def training_evaluate_candidate(args: argparse.Namespace) -> int:
     print(f"Adapter: {report['adapter_id']}")
     print(f"Behavior score: {report['metrics']['behavior_score']:.3f}")
     print(f"Report: {Path(args.output).resolve()}")
+    return 0 if report["passed"] else 1
+
+
+def training_select_candidate(args: argparse.Namespace) -> int:
+    from training.candidate_evaluation import build_candidate_selection_report
+    from training.trainer import TrainingRunError
+
+    try:
+        report = build_candidate_selection_report(
+            [Path(path) for path in args.training_report],
+            [Path(path) for path in args.held_out_report],
+            output=Path(args.output),
+        )
+    except (OSError, TrainingRunError, ValueError) as exc:
+        print(f"Candidate selection failed: {exc}", file=sys.stderr)
+        return 2
+    print("Bounded candidate selection: PASS")
+    print(f"Selected adapter: {report['selected_adapter_id']}")
+    print(f"Development eligible: {report['held_out_selection_eligible']}")
+    print(f"Promotion eligible: {report['promotion_eligible']}")
+    print(f"Report: {Path(args.output).resolve()}")
+    return 0
+
+
+def training_export_adapter(args: argparse.Namespace) -> int:
+    from training.adapter_export import export_adapter_to_gguf
+    from training.foundation import TrainingFoundationError, load_training_config
+    from training.trainer import TrainingRunError
+
+    try:
+        config = load_training_config(Path(args.config))
+        report = export_adapter_to_gguf(
+            config,
+            adapter_path=Path(args.adapter),
+            training_report_path=Path(args.training_report),
+            selection_report_path=Path(args.selection_report),
+            output_dir=Path(args.output_dir),
+            llama_cpp_dir=Path(args.llama_cpp_dir).expanduser(),
+            base_model_dir=Path(args.base_model_dir).expanduser(),
+        )
+    except (OSError, TrainingFoundationError, TrainingRunError, ValueError) as exc:
+        print(f"Adapter export failed: {exc}", file=sys.stderr)
+        return 2
+    print("Adapter export: PASS")
+    print(f"Adapter: {report['adapter_id']}")
+    print(f"GGUF: {report['runtime']['gguf_file']}")
+    print(f"Manifest: {(Path(args.output_dir) / 'manifest.json').resolve()}")
+    return 0
+
+
+def training_evaluate_runtime_adapter(args: argparse.Namespace) -> int:
+    from training.candidate_evaluation import run_deployed_candidate_evaluation
+    from training.foundation import TrainingFoundationError, load_training_config
+    from training.trainer import TrainingRunError
+
+    try:
+        report = run_deployed_candidate_evaluation(
+            load_training_config(Path(args.config)),
+            manifest_path=Path(args.manifest),
+            training_framework_report_path=Path(args.training_framework_report),
+            output=Path(args.output),
+            runtime_base_url=args.runtime_url,
+            runtime_model=args.runtime_model,
+            adapter_id=args.adapter_id,
+            adapter_sha256=args.adapter_sha256,
+            max_new_tokens=args.max_new_tokens,
+            config_path=Path(args.config),
+        )
+    except (OSError, TrainingFoundationError, TrainingRunError, ValueError) as exc:
+        print(f"Deployed adapter evaluation failed: {exc}", file=sys.stderr)
+        return 2
+    print(f"Deployed adapter evaluation: {'PASS' if report['passed'] else 'FAIL'}")
+    print(f"Cases: {report['case_count']}")
+    print(f"Metrics: {report['metrics']}")
+    print(f"JSON report: {Path(args.output).resolve()}")
     return 0 if report["passed"] else 1
 
 
@@ -1026,9 +1112,9 @@ def build_parser() -> argparse.ArgumentParser:
     generation_parser.add_argument("--limit", type=int, default=5, choices=range(1, 21))
     generation_parser.add_argument(
         "--mode",
-        choices=("base", "base_rag"),
+        choices=("base", "base_rag", "adapter", "adapter_rag"),
         default="base_rag",
-        help="run without retrieval or with dense RAG; adapter modes require verified integration",
+        help="select base/adapter runtime with or without dense RAG",
     )
     generation_parser.add_argument("--min-parse-success", type=float)
     generation_parser.add_argument("--min-fact-coverage", type=float)
@@ -1219,9 +1305,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     candidate_evaluation_parser = subparsers.add_parser(
         "training-evaluate-candidate",
-        help="evaluate a PEFT adapter on its untouched training-corpus held-out split",
+        help="evaluate a PEFT adapter on an untouched held-out or independent development set",
     )
     candidate_evaluation_parser.add_argument("--manifest", required=True)
+    candidate_evaluation_parser.add_argument(
+        "--training-manifest",
+        help="training corpus manifest when --manifest is a separate development corpus",
+    )
     candidate_evaluation_parser.add_argument("--adapter", required=True)
     candidate_evaluation_parser.add_argument("--training-report", required=True)
     candidate_evaluation_parser.add_argument(
@@ -1233,6 +1323,62 @@ def build_parser() -> argparse.ArgumentParser:
     candidate_evaluation_parser.add_argument("--max-new-tokens", type=int, default=192)
     candidate_evaluation_parser.add_argument("--local-files-only", action="store_true")
     candidate_evaluation_parser.set_defaults(func=training_evaluate_candidate)
+
+    candidate_selection_parser = subparsers.add_parser(
+        "training-select-candidate",
+        help="select from paired bounded training and development reports",
+    )
+    candidate_selection_parser.add_argument(
+        "--training-report",
+        action="append",
+        required=True,
+        help="repeat once per candidate in the same order as --held-out-report",
+    )
+    candidate_selection_parser.add_argument(
+        "--held-out-report",
+        action="append",
+        required=True,
+        help="repeat once per candidate in the same order as --training-report",
+    )
+    candidate_selection_parser.add_argument(
+        "--output",
+        default="var/training/bounded-candidate-selection-latest.json",
+    )
+    candidate_selection_parser.set_defaults(func=training_select_candidate)
+
+    adapter_export_parser = subparsers.add_parser(
+        "training-export-adapter",
+        help="validate and immutably export a selected PEFT adapter to GGUF",
+    )
+    adapter_export_parser.add_argument("--adapter", required=True)
+    adapter_export_parser.add_argument("--training-report", required=True)
+    adapter_export_parser.add_argument("--selection-report", required=True)
+    adapter_export_parser.add_argument("--output-dir", required=True)
+    adapter_export_parser.add_argument(
+        "--config", default="config/training/gemma3-1b-lora-v2.json"
+    )
+    adapter_export_parser.add_argument(
+        "--llama-cpp-dir", default="/home/imroot/tools/llama.cpp"
+    )
+    adapter_export_parser.add_argument("--base-model-dir", required=True)
+    adapter_export_parser.set_defaults(func=training_export_adapter)
+
+    runtime_adapter_parser = subparsers.add_parser(
+        "training-evaluate-runtime-adapter",
+        help="compare a deployed GGUF adapter with its training-framework held-out results",
+    )
+    runtime_adapter_parser.add_argument(
+        "--config", default="config/training/gemma3-1b-lora-v2.json"
+    )
+    runtime_adapter_parser.add_argument("--manifest", required=True)
+    runtime_adapter_parser.add_argument("--training-framework-report", required=True)
+    runtime_adapter_parser.add_argument("--output", required=True)
+    runtime_adapter_parser.add_argument("--runtime-url", default="http://127.0.0.1:8080/v1")
+    runtime_adapter_parser.add_argument("--runtime-model", required=True)
+    runtime_adapter_parser.add_argument("--adapter-id", required=True)
+    runtime_adapter_parser.add_argument("--adapter-sha256", required=True)
+    runtime_adapter_parser.add_argument("--max-new-tokens", type=int, default=192)
+    runtime_adapter_parser.set_defaults(func=training_evaluate_runtime_adapter)
 
     retrieval_cleanup_parser = subparsers.add_parser(
         "retrieval-cleanup",

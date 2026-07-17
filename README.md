@@ -1,6 +1,14 @@
 # Offline Intelligence Hub
 
-`v0.4.0` browser MVP for an offline/on-premise document intelligence platform.
+`v0.4.0` browser MVP plus the accepted Phase 4 retrieval/evaluation and Phase 5 model-adaptation
+infrastructure for an offline/on-premise document intelligence platform.
+
+## Project Status
+
+Phases 1–5 are closed. The working product uses the pinned Gemma 3 1B Q4 base runtime with
+permission-aware dense RAG. Phase 5 delivered reproducible LoRA training, evaluation, GGUF export,
+opt-in activation, rollback, and evidence indexing, but both trained adapters failed protected
+production gates and remain unpromoted. Phase 6 is the current barebones implementation target.
 
 ## Current Capabilities
 
@@ -22,7 +30,11 @@
 - Opt-in document retrieval for grounded chat responses with source metadata
 - PostgreSQL lexical retrieval strategy with indexed content/filename search and evaluation mode
 - Selectable dense, lexical, and reciprocal-rank-fused hybrid retrieval modes
+- Selectable bounded reranking and multi-query retrieval with evidence-based fallback
 - Reproducible bilingual retrieval and full RAG generation evaluation commands
+- Reproducible, provenance-aware bilingual LoRA datasets and bounded CUDA training
+- Independent adapter evaluation, immutable PEFT/GGUF export, and fail-closed opt-in activation
+- Four-mode base/adapter and RAG/no-RAG promotion evaluation with protected regression gates
 - Streaming chat completions via server-sent events
 - Vue 3 browser client with protected authentication, document, chat, conversation, and health routes
 - Inspectable persisted citations and conversation history
@@ -33,7 +45,8 @@
 - [Technical vision and phase architecture](docs/technical/README.md)
 - [Installation and contributor setup](docs/installation.md)
 - [Retrieval evaluation](evaluation/README.md)
-- [Phase 5 training foundation](docs/training/phase-5-foundation.md)
+- [Phase 5 acceptance record](docs/acceptance/phase-5.md)
+- [Phase 6 barebones plan](docs/plans/phase-6.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)
@@ -107,13 +120,14 @@ http://127.0.0.1:8000/docs
 
 ## Local LLM
 
-Phase 2 starts with a fake LLM backend so the API and tests run without a model file:
+Tests and development can use a fake LLM backend so the API runs without a model file:
 
 ```env
 LLM_BACKEND=fake
 ```
 
-The Phase 2 runtime decision is recorded in
+The accepted product runtime is the base Gemma 3 1B Q4 profile; no Phase 5 adapter is promoted.
+The original Phase 2 runtime decision is recorded in
 [`docs/adr/0002-phase-2-llm-runtime.md`](docs/adr/0002-phase-2-llm-runtime.md), and current
 acceptance evidence is tracked in [`docs/acceptance/phase-2.md`](docs/acceptance/phase-2.md).
 

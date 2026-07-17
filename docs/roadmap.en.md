@@ -280,8 +280,15 @@ After basic vector search, the RAG system is measured to verify whether it actua
 
 After the RAG system is working, the open-source model is customized for specific tasks.
 
-> **Status:** Next. The technical boundary is defined; implementation begins with the versioned
-> [Phase 5 plan](plans/phase-5.md), training-data contract, and hardware calibration gate.
+> **Status:** Closed with the base-only runtime. Reproducible training, GGUF export, runtime
+> activation, and four-mode
+> evaluation are implemented. The v2 adapter was rejected by production behavior and protected RAG
+> gates, after which a production-contract-aligned v3 corrective run was completed.
+> The v3 corrective adapter later passed development/export parity but failed 11 production gates;
+> it is rejected and the base-only runtime remains default.
+> By project decision, further adaptation-quality work is deferred until the barebones eight-phase
+> structure is complete. Phase 6 proceeds with the accepted base Q4 runtime.
+> See the [Phase 5 plan](plans/phase-5.md).
 
 ### Fine-Tuning Goals
 
