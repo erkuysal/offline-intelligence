@@ -65,10 +65,9 @@ deliverables, and evidence model for every completed and future phase.
 
 The first goal is not an advanced AI system, but a basic end-to-end working product.
 
-> **Current position:** Phases 1, 2, and 3 and the integrated `v0.4.0` browser MVP are complete.
-> The accepted release adds the Vue application, streaming grounded chat, source inspection,
-> deterministic browser coverage, and the production single-origin Compose deployment. Phase 4
-> hybrid retrieval and evaluation is the next implementation phase.
+> **Current position:** Phases 1–6 and the integrated `v0.4.0` browser MVP are complete. The
+> accepted runtime is the pinned Gemma 3 1B Q4 base with permission-aware dense RAG and a measured
+> CUDA inference profile. Phase 7 air-gapped delivery is the next barebones implementation phase.
 
 ### Features
 
@@ -287,7 +286,8 @@ After the RAG system is working, the open-source model is customized for specifi
 > The v3 corrective adapter later passed development/export parity but failed 11 production gates;
 > it is rejected and the base-only runtime remains default.
 > By project decision, further adaptation-quality work is deferred until the barebones eight-phase
-> structure is complete. Phase 6 proceeds with the accepted base Q4 runtime.
+> structure is complete. Phase 6 accepted the base Q4 runtime; Phase 7 now packages that exact
+> runtime for air-gapped delivery.
 > See the [Phase 5 plan](plans/phase-5.md).
 
 ### Fine-Tuning Goals

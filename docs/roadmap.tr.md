@@ -65,7 +65,7 @@ tanımlanır.
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1, Faz 2, Faz 3 ve entegre `v0.4.0` tarayıcı MVP'si tamamlandı. Kabul edilen sürüm; Vue uygulamasını, streaming grounded chat akışını, kaynak incelemeyi, deterministik tarayıcı testlerini ve production single-origin Compose dağıtımını ekler. Sıradaki uygulama fazı, hybrid retrieval ve evaluation odaklı Faz 4'tür.
+> **Şu anki konum:** Faz 1–6 ve entegre `v0.4.0` tarayıcı MVP'si tamamlandı. Kabul edilen çalışma zamanı, permission-aware dense RAG ile sabitlenmiş Gemma 3 1B Q4 temel modeli ve ölçülmüş CUDA inference profilidir. Sıradaki barebones uygulama fazı, air-gapped teslimata odaklanan Faz 7'dir.
 
 ### Özellikler
 
@@ -321,7 +321,8 @@ RAG sistemi çalıştıktan sonra açık kaynaklı model belirli görevler için
 > v3 düzeltme adapteri geliştirme/dışa aktarma uyumluluğunu geçti ancak 11 üretim kapısında başarısız
 > oldu; reddedildi ve yalnızca temel model çalışma zamanı varsayılan olarak kaldı.
 > Proje kararıyla ek adaptasyon kalitesi çalışmaları, sekiz fazlı yalın çalışan yapı tamamlanana kadar
-> ertelendi. Faz 6, kabul edilmiş temel Q4 çalışma zamanıyla ilerler.
+> ertelendi. Faz 6 temel Q4 çalışma zamanını kabul etti; Faz 7 artık bu tam çalışma zamanını
+> air-gapped teslimat için paketler.
 > Ayrıntılar için [Faz 5 planına](plans/phase-5.md) bakın.
 
 ### Fine-Tuning Amaçları

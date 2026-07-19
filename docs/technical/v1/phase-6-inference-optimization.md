@@ -1,6 +1,6 @@
 # Technical Vision v1 — Phase 6 Quantization and Inference Optimization
 
-Status: Next — barebones Q4 benchmark scope ready to begin
+Status: Barebones Q4 runtime accepted; broad optimization remains deferred until after Phase 8
 
 ## Intent
 
@@ -32,6 +32,21 @@ Every candidate should record:
 - Tokens per second under controlled concurrency
 - Retrieval and generation quality report
 - Hardware, operating system, driver, and build configuration
+
+The first contract is now implemented in
+`apps/api/app/evaluation/inference_benchmark.py` and pinned by
+`config/models/gemma3-1b-q4-benchmark-v1.json`. It deliberately separates three inputs:
+
+1. The immutable expected model/runtime identity and acceptance thresholds.
+2. A machine-produced runtime measurement containing no evaluation prompts or answers.
+3. An existing protected generation-evaluation report.
+
+The final report copies aggregate runtime measurements, records the protected evaluation identity
+and SHA-256, and does not copy protected case content. Identity drift and threshold misses are
+separate structured failure lists. Impossible aggregate inputs, including end-to-end latency below
+time to first token, are rejected before a report is produced. Configured GPU layers and observed
+GPU offload are separate fields; unavailable per-process VRAM telemetry is recorded as unavailable
+rather than converted into a misleading zero.
 
 ## Proposed Module and Function Map
 

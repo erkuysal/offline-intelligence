@@ -628,6 +628,39 @@ def build_training_evaluation_index(args: argparse.Namespace) -> int:
     return 0
 
 
+def build_inference_benchmark(args: argparse.Namespace) -> int:
+    configure_import_path()
+
+    from app.evaluation.inference_benchmark import (
+        build_inference_benchmark_report,
+        format_inference_benchmark_summary,
+        load_benchmark_contract,
+        load_generation_evidence,
+        load_inference_measurement,
+        write_inference_benchmark_report,
+    )
+
+    try:
+        contract = load_benchmark_contract(Path(args.contract))
+        measurement = load_inference_measurement(Path(args.measurement))
+        quality_report_path = Path(args.quality_report)
+        quality_report = load_generation_evidence(quality_report_path)
+        report = build_inference_benchmark_report(
+            contract,
+            measurement,
+            quality_report,
+            quality_report_path=quality_report_path,
+        )
+        write_inference_benchmark_report(report, Path(args.output))
+    except (OSError, ValueError) as exc:
+        print(f"Inference benchmark report failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_inference_benchmark_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report.passed else 1
+
+
 def retrieval_cleanup(_args: argparse.Namespace) -> int:
     configure_import_path()
     load_root_env()
@@ -1184,6 +1217,22 @@ def build_parser() -> argparse.ArgumentParser:
         default="var/training/phase-5-evidence-index.json",
     )
     evaluation_index_parser.set_defaults(func=build_training_evaluation_index)
+
+    inference_benchmark_parser = subparsers.add_parser(
+        "inference-benchmark-report",
+        help="validate Phase 6 runtime measurements and protected quality evidence",
+    )
+    inference_benchmark_parser.add_argument(
+        "--contract",
+        default="config/models/gemma3-1b-q4-benchmark-v1.json",
+    )
+    inference_benchmark_parser.add_argument("--measurement", required=True)
+    inference_benchmark_parser.add_argument("--quality-report", required=True)
+    inference_benchmark_parser.add_argument(
+        "--output",
+        default="var/inference/gemma3-1b-q4-benchmark-latest.json",
+    )
+    inference_benchmark_parser.set_defaults(func=build_inference_benchmark)
 
     training_preflight_parser = subparsers.add_parser(
         "training-preflight",

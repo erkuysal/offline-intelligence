@@ -1,6 +1,6 @@
 # Phase 6 Barebones Quantization and Inference Plan
 
-Status: Ready to begin
+Status: Closed — barebones Q4 runtime accepted
 
 ## Scope Decision
 
@@ -19,34 +19,48 @@ the initial eight-phase structure is complete.
 
 ## Work Package 6.0: Benchmark Contract
 
-- [ ] Define a versioned inference benchmark report
-- [ ] Record model format, quantization, checksum, disk size, RAM/VRAM, startup, TTFT, end-to-end
+- [x] Define a versioned inference benchmark report
+- [x] Record model format, quantization, checksum, disk size, RAM/VRAM, startup, TTFT, end-to-end
   latency, throughput, and protected evaluation identity
-- [ ] Make threshold misses and identity mismatches fail with non-zero status
-- [ ] Add deterministic fake/static contract tests
+- [x] Make threshold misses and identity mismatches fail with non-zero status
+- [x] Add deterministic fake/static contract tests
+
+WP6.0 is implemented by the strict models in
+`apps/api/app/evaluation/inference_benchmark.py`, the accepted-runtime contract in
+`config/models/gemma3-1b-q4-benchmark-v1.json`, and the
+`./manage.py inference-benchmark-report` command. The command returns `1` for a valid report that
+misses a gate and `2` for malformed evidence. Runtime measurement collection remains WP6.1.
 
 ## Work Package 6.1: Accepted Q4 Measurement
 
-- [ ] Measure the accepted Q4 runtime on the existing protected English/Turkish corpus
-- [ ] Record cold startup and steady-state performance separately
-- [ ] Reuse the Phase 4 quality, safety, citation, refusal, and leak gates
-- [ ] Store a checksum-addressed acceptance report
+- [x] Measure the accepted Q4 runtime on the existing protected English/Turkish corpus
+- [x] Record cold startup and steady-state performance separately
+- [x] Reuse the Phase 4 quality, safety, citation, refusal, and leak gates
+- [x] Store a checksum-addressed acceptance report
+
+The accepted report SHA-256 is
+`42a5d2dff06a3fea28950d1d4226bc0dabdbee9d13d7271ae3146eaf1c4fe357`; see
+`docs/acceptance/phase-6-q4-benchmark.md` for the bounded measurement and quality outcomes.
 
 ## Work Package 6.2: Minimal Optimization
 
-- [ ] Record CPU and CUDA runtime configuration
-- [ ] Verify the current context size, parallelism, GPU offload, and Flash Attention settings
-- [ ] Make the accepted profile explicit and rollback-safe
-- [ ] Avoid an unbounded format, kernel, or parameter sweep
+- [x] Record CPU and CUDA runtime configuration
+- [x] Verify the current context size, parallelism, GPU offload, and Flash Attention settings
+- [x] Make the accepted profile explicit and rollback-safe
+- [x] Avoid an unbounded format, kernel, or parameter sweep
+
+The accepted `config/models/gemma3-1b-base.env` profile uses the pinned CUDA llama.cpp build, 4,096
+tokens of context, one slot, 99 configured GPU layers with all 27 model layers observed offloaded,
+and Flash Attention. Startup and shutdown restored both model ports cleanly.
 
 ## Barebones Definition of Done
 
-- [ ] The existing Q4 artifact has a reproducible identity and benchmark report
-- [ ] Quality and safety remain within the accepted base-model gates
-- [ ] Startup and runtime resource measurements are machine-readable
-- [ ] The selected inference profile starts, serves, stops, and restores cleanly
-- [ ] Deferred Q8/Q5/INT8/BF16 comparisons are explicitly recorded as follow-on work
-- [ ] Phase 7 can package the exact accepted model and runtime without hidden dependencies
+- [x] The existing Q4 artifact has a reproducible identity and benchmark report
+- [x] Quality and safety remain within the accepted base-model gates
+- [x] Startup and runtime resource measurements are machine-readable
+- [x] The selected inference profile starts, serves, stops, and restores cleanly
+- [x] Deferred Q8/Q5/INT8/BF16 comparisons are explicitly recorded as follow-on work
+- [x] Phase 7 can package the exact accepted model and runtime without hidden dependencies
 
 ## Deferred Until After Phase 8
 

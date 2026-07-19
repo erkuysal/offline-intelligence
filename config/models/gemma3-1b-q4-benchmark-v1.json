@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "contract_type": "inference_benchmark_contract",
+  "contract_id": "gemma3-1b-q4-base-v1",
+  "artifact": {
+    "model": "ggml-org/gemma-3-1b-it-GGUF:Q4_K_M",
+    "revision": "61333bac858461ec0c309b7baafdc408d7d2c381",
+    "format": "gguf",
+    "quantization": "Q4_K_M",
+    "sha256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135",
+    "disk_size_bytes": 806058240,
+    "adapter_id": null
+  },
+  "runtime_name": "llama.cpp",
+  "runtime_revision": "c198af4dc24f8e0ab8a569a60f931e03a192fd79",
+  "thresholds": {
+    "max_peak_process_ram_mib": null,
+    "max_peak_gpu_vram_mib": 11200.0,
+    "max_cold_startup_ms": null,
+    "max_mean_time_to_first_token_ms": 600.0,
+    "max_p95_time_to_first_token_ms": 750.0,
+    "max_mean_end_to_end_latency_ms": 1200.0,
+    "max_p95_end_to_end_latency_ms": 1600.0,
+    "min_mean_tokens_per_second": 20.0,
+    "require_gpu_offload": true,
+    "require_quality_pass": true
+  }
+}
