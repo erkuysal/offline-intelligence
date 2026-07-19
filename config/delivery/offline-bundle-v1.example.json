@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0",
+  "spec_type": "offline_bundle_spec",
+  "release_id": "offline-intelligence-hub-0.4.0-linux-x86_64",
+  "app_version": "0.4.0",
+  "target_architecture": "linux-x86_64-cuda13",
+  "inputs": [
+    {
+      "source": "../../var/release-inputs/images/application.tar",
+      "path": "images/application.tar",
+      "artifact_type": "container_image",
+      "version": "0.4.0",
+      "origin": "docker-images:offline-intelligence-hub-api:0.4.0,offline-intelligence-hub-ingestion-worker:0.4.0@sha256:9748b03d9cdeeea09df103d81eb9172549eff7eb649ddab3b78d6828cfb623c9",
+      "expected_sha256": "53db56c28f3499fec8aa837626ed9505c8b13eb93968b8a18e0faf21a35656d1",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/images/web.tar",
+      "path": "images/web.tar",
+      "artifact_type": "container_image",
+      "version": "0.4.0",
+      "origin": "docker-image:offline-intelligence-hub-web:0.4.0@sha256:f6383f64e71b41b8d9ec9e05d8a0f9bbbd61ab929c08634982bbd88fe65e00c3",
+      "expected_sha256": "a96697a6ba3b635cd43842f1f2cfe39d115c9c51029ee57a7cce950defe9f879",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/images/postgres.tar",
+      "path": "images/postgres.tar",
+      "artifact_type": "container_image",
+      "version": "pgvector-0.8.2-pg16",
+      "origin": "docker-image:pgvector/pgvector:0.8.2-pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc",
+      "expected_sha256": "46f50b416aebb366589ec88d11618ffc084189c2f469f14a330c23211c7b9149",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/images/redis.tar",
+      "path": "images/redis.tar",
+      "artifact_type": "container_image",
+      "version": "7-alpine",
+      "origin": "docker-image:redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "expected_sha256": "9971918b8a6ffb98bd198de189351eb7387371e9e6e2766a817dfaa42256be55",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/images/llama-cuda.tar",
+      "path": "images/llama-cuda.tar",
+      "artifact_type": "container_image",
+      "version": "c198af4dc24f8e0ab8a569a60f931e03a192fd79-cuda13.0.2",
+      "origin": "docker-image:offline-intelligence-hub-llama-cuda:c198af4d@sha256:425eece82bbf514d99c482e3c1f011b460d493f09b1a2cdf9473ac9e0c2d7ee6",
+      "expected_sha256": "ecec5eb959c55e9bd33139200b4ec41f2a3ceab5fedd373bedc7fff96caf5f2c",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/models/chat-model.gguf",
+      "path": "models/chat-model.gguf",
+      "artifact_type": "model",
+      "version": "61333bac858461ec0c309b7baafdc408d7d2c381-Q4_K_M",
+      "origin": "ggml-org/gemma-3-1b-it-GGUF",
+      "expected_sha256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/models/embedding-model.gguf",
+      "path": "models/embedding-model.gguf",
+      "artifact_type": "model",
+      "version": "8dd0ca2a66a8f14470acb0e2a71f801afbc5fb73-Q4_0",
+      "origin": "ggml-org/embeddinggemma-300M-qat-q4_0-GGUF",
+      "expected_sha256": "50d28e22432a148f6f8a86eab3700f92add5d1f54baf7790675a2a4dadbccf26",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../deploy/compose.prod.yaml",
+      "path": "configs/compose.yaml",
+      "artifact_type": "configuration",
+      "version": "0.4.0",
+      "origin": "repository:deploy/compose.prod.yaml",
+      "expected_sha256": "1e64db4abebfc2b98fe6c79c147b8670a96efebe506f661ada3e00ec2ddc2630",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../config/env/prod.example.env",
+      "path": "configs/prod.example.env",
+      "artifact_type": "configuration",
+      "version": "0.4.0",
+      "origin": "repository:config/env/prod.example.env",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../scripts/delivery/offline_operator.py",
+      "path": "operator/offline_operator.py",
+      "artifact_type": "operator_tool",
+      "version": "0.4.0",
+      "origin": "repository:scripts/delivery/offline_operator.py",
+      "expected_sha256": "da17cf8f616c2af3357fd9667e74d0624cf28f9b922758f0bb793e0090a38769",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../docs/operations/offline-installation.md",
+      "path": "documentation/offline-installation.md",
+      "artifact_type": "documentation",
+      "version": "0.4.0",
+      "origin": "repository:docs/operations/offline-installation.md",
+      "expected_sha256": "8a54452cd8e7fe0f06948b99e44896c470551a5671615e8c02023bc6c0e98e4e",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/migrations.tar",
+      "path": "migrations/migrations.tar",
+      "artifact_type": "migration",
+      "version": "20260714_0013",
+      "origin": "repository:alembic.ini,migrations/**",
+      "expected_sha256": "684333bd44ab92c7f7b85ebf993a84050fbb2eac05044179e60774906ac7f526",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../requirements.txt",
+      "path": "inventory/python-requirements.txt",
+      "artifact_type": "application",
+      "version": "0.4.0",
+      "origin": "repository:requirements.txt",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../apps/web/package-lock.json",
+      "path": "inventory/web-package-lock.json",
+      "artifact_type": "application",
+      "version": "0.4.0",
+      "origin": "repository:apps/web/package-lock.json",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/sbom/api.spdx.json",
+      "path": "sbom/api.spdx.json",
+      "artifact_type": "sbom",
+      "version": "0.4.0",
+      "origin": "docker-scout:offline-intelligence-hub-api:0.4.0",
+      "expected_sha256": "d493ef0c82ccfafab5e25293bfe7e9d3e716fb54cd60170b6f00e530412d64f9",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/sbom/web.spdx.json",
+      "path": "sbom/web.spdx.json",
+      "artifact_type": "sbom",
+      "version": "0.4.0",
+      "origin": "docker-scout:offline-intelligence-hub-web:0.4.0",
+      "expected_sha256": "25330d61c7e56542da6f30e4c362e3bdcbd2e412a15c06ba1e93a84bc2b7b860",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/sbom/postgres.spdx.json",
+      "path": "sbom/postgres.spdx.json",
+      "artifact_type": "sbom",
+      "version": "0.8.2-pg16",
+      "origin": "docker-scout:pgvector/pgvector:0.8.2-pg16",
+      "expected_sha256": "a8a02277e683324dfebd6ec452de8e116fcd4c561debec5b54c0839b8b3c1ee2",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/sbom/redis.spdx.json",
+      "path": "sbom/redis.spdx.json",
+      "artifact_type": "sbom",
+      "version": "7-alpine",
+      "origin": "docker-scout:redis:7-alpine",
+      "expected_sha256": "b26d8cf5586eae65607addfda1744d9baa87b99aa5aa67d6a231a5f87665b998",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/sbom/llama-cuda.spdx.json",
+      "path": "sbom/llama-cuda.spdx.json",
+      "artifact_type": "sbom",
+      "version": "c198af4dc24f8e0ab8a569a60f931e03a192fd79-cuda13.0.2",
+      "origin": "docker-scout:offline-intelligence-hub-llama-cuda:c198af4d",
+      "expected_sha256": "2ea9519de0e0d37952360310161534e576e63220e59253c15ad8fcb98e0ca54a",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../docs/legal/release-license-status.md",
+      "path": "licenses/release-license-status.md",
+      "artifact_type": "license",
+      "version": "0.4.0",
+      "origin": "repository:docs/legal/release-license-status.md",
+      "contains_secrets": false
+    }
+  ]
+}

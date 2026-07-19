@@ -19,7 +19,7 @@ x-api-environment: &api-environment
   DOCUMENT_CHUNK_SIZE_CHARS: ${DOCUMENT_CHUNK_SIZE_CHARS:-2000}
   DOCUMENT_CHUNK_OVERLAP_CHARS: ${DOCUMENT_CHUNK_OVERLAP_CHARS:-200}
   EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-openai_compatible}
-  EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://host.docker.internal:8081/v1}
+  EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-http://embedding:8080/v1}
   EMBEDDING_MODEL: ${EMBEDDING_MODEL:-embeddinggemma-300m}
   EMBEDDING_TIMEOUT_SECONDS: ${EMBEDDING_TIMEOUT_SECONDS:-30}
   EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-768}
@@ -27,7 +27,7 @@ x-api-environment: &api-environment
   RAG_RETRIEVAL_LIMIT: ${RAG_RETRIEVAL_LIMIT:-5}
   RAG_MAX_CONTEXT_CHARS: ${RAG_MAX_CONTEXT_CHARS:-12000}
   LLM_BACKEND: ${LLM_BACKEND:-openai_compatible}
-  LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:8080/v1}
+  LLM_BASE_URL: ${LLM_BASE_URL:-http://llm:8080/v1}
   LLM_MODEL: ${LLM_MODEL:-ggml-org/gemma-3-1b-it-GGUF:Q4_K_M}
   LLM_ADAPTER_ID: ${LLM_ADAPTER_ID:-}
   LLM_ADAPTER_SHA256: ${LLM_ADAPTER_SHA256:-}
@@ -67,9 +67,19 @@ name: offline-intelligence-hub-production
 
 services:
   web:
+    image: ${WEB_IMAGE:-offline-intelligence-hub-web:0.4.0}
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
+    cap_add:
+      - NET_ADMIN
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        ip route del default
+        exec /docker-entrypoint.sh nginx -g 'daemon off;'
     ports:
       - "${WEB_PORT:-3000}:80"
     depends_on:
@@ -78,14 +88,14 @@ services:
     restart: unless-stopped
     networks:
       - application
+      - edge
 
   api:
+    image: ${API_IMAGE:-offline-intelligence-hub-api:0.4.0}
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
     environment: *api-environment
-    extra_hosts:
-      - host.docker.internal:host-gateway
     volumes:
       - api_storage:/app/storage
     depends_on:
@@ -105,12 +115,11 @@ services:
       - application
 
   ingestion-worker:
+    image: ${INGESTION_WORKER_IMAGE:-offline-intelligence-hub-ingestion-worker:0.4.0}
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
     environment: *api-environment
-    extra_hosts:
-      - host.docker.internal:host-gateway
     volumes:
       - api_storage:/app/storage
     depends_on:
@@ -267,6 +276,11 @@ services:
 
 networks:
   application:
+    internal: true
+  edge:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "false"
 
 volumes:
   api_storage:

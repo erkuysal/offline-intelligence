@@ -1,6 +1,6 @@
 # Technical Vision v1 — Phase 7 Air-Gapped Delivery
 
-Status: Future
+Status: Active — deterministic release bundle assembled and verified
 
 ## Intent
 
@@ -32,6 +32,38 @@ Air-gapped target
 - Installation, verification, upgrade, rollback, backup, and restore tooling
 - SHA-256 checksums, SBOM, license inventory, and provenance metadata
 - Operator documentation and capacity requirements
+
+The first implemented boundary is `delivery/offline_bundle.py`, exposed through
+`offline-bundle-build` and `offline-bundle-verify`. It publishes a canonical manifest and checksum
+inventory through an atomic staging rename and rejects tree drift, unsafe paths, symlinks, and
+secret-bearing environment destinations before installation. The bounded execution sequence is
+tracked in the [Phase 7 plan](../../plans/phase-7.md).
+
+WP7.2 exercised that boundary with the real Linux x86-64 CUDA release inputs. The candidate contains
+five image archives, pinned chat and embedding GGUF files, production Compose and secret-free
+environment templates, deterministic migrations, dependency locks, five SPDX inventories, and an
+explicit license-status record. Its 20 payload files total 3,400,671,316 bytes and verify with no
+tree, size, or checksum failures.
+
+WP7.3 uses the dependency-free `scripts/delivery/offline_operator.py` at the target boundary. It
+re-verifies before mutation, gates host capacity and runtime support, creates target-only secrets,
+loads only bundled archives, checks loaded image IDs, and invokes Compose with local-only build/pull
+settings. Production services share an internal Docker network without host-gateway aliases; the
+web service alone joins a non-masqueraded bridge for host ingress and deletes its default route
+before nginx starts. Installations use target-derived Compose project names to prevent accidental
+cross-target volume reuse.
+
+The real WP7.3 run passed platform, Docker, Compose, RAM, VRAM, disk, and port preflight gates. A
+small `/tmp` target correctly failed the disk formula before mutation; the intended high-capacity
+filesystem passed. The installed stack reached seven healthy services, served chat and 768-value
+embeddings locally, exposed only the web health route to the host, and denied outbound traffic from
+both web and API. The bundled uninstall then stopped the stack while retaining files and volumes.
+
+WP7.4 adds target-secret-excluding but sensitive-data-bearing recovery sets with a custom PostgreSQL
+dump, uploaded-file archive, sanitized configuration, release/model/image/migration identities,
+exact checksums, and private filesystem permissions. Restore requires an empty target with the exact
+same release identity. The real drill recovered a database-linked document and matching stored-file
+hash; retrying against the populated target failed closed.
 
 ## Proposed Module and Function Map
 

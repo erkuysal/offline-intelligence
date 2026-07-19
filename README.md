@@ -9,8 +9,9 @@ Phases 1–6 are closed. The working product uses the pinned Gemma 3 1B Q4 base 
 permission-aware dense RAG. Phase 5 delivered reproducible LoRA training, evaluation, GGUF export,
 opt-in activation, rollback, and evidence indexing, but both trained adapters failed protected
 production gates and remain unpromoted. Phase 6 accepted a reproducible CUDA inference profile
-after identity, performance, resource, quality, refusal, and leak gates. Phase 7 air-gapped
-delivery is the current barebones implementation target.
+after identity, performance, resource, quality, refusal, and leak gates. Phase 7 now has a verified
+real release bundle, verified offline installation, and tested backup/restore path. The complete
+network-denied user acceptance exercise is the remaining barebones delivery work.
 
 ## Current Capabilities
 
@@ -50,6 +51,10 @@ delivery is the current barebones implementation target.
 - [Phase 5 acceptance record](docs/acceptance/phase-5.md)
 - [Phase 6 barebones plan](docs/plans/phase-6.md)
 - [Phase 6 Q4 benchmark acceptance](docs/acceptance/phase-6-q4-benchmark.md)
+- [Phase 7 barebones air-gapped delivery plan](docs/plans/phase-7.md)
+- [Phase 7 bundle and release-input acceptance](docs/acceptance/phase-7-bundle-contract.md)
+- [Offline bundle installation](docs/operations/offline-installation.md)
+- [Phase 7 recovery acceptance](docs/acceptance/phase-7-recovery.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)

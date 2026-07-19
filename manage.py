@@ -661,6 +661,41 @@ def build_inference_benchmark(args: argparse.Namespace) -> int:
     return 0 if report.passed else 1
 
 
+def offline_bundle_build(args: argparse.Namespace) -> int:
+    from delivery.offline_bundle import (
+        BundleError,
+        build_offline_bundle,
+        format_verification_summary,
+        verify_offline_bundle,
+    )
+
+    try:
+        manifest = build_offline_bundle(Path(args.spec), Path(args.output))
+        report = verify_offline_bundle(Path(args.output))
+    except (BundleError, OSError, ValueError) as exc:
+        print(f"Offline bundle build failed: {exc}", file=sys.stderr)
+        return 2
+    print(f"Offline bundle built: {Path(args.output).resolve()}")
+    print(f"Release: {manifest.release_id}")
+    print(format_verification_summary(report))
+    return 0 if report.passed else 1
+
+
+def offline_bundle_verify(args: argparse.Namespace) -> int:
+    from delivery.offline_bundle import (
+        format_verification_summary,
+        verify_offline_bundle,
+    )
+
+    report = verify_offline_bundle(Path(args.bundle))
+    if args.output:
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+    print(format_verification_summary(report))
+    return 0 if report.passed else 1
+
+
 def retrieval_cleanup(_args: argparse.Namespace) -> int:
     configure_import_path()
     load_root_env()
@@ -1233,6 +1268,22 @@ def build_parser() -> argparse.ArgumentParser:
         default="var/inference/gemma3-1b-q4-benchmark-latest.json",
     )
     inference_benchmark_parser.set_defaults(func=build_inference_benchmark)
+
+    offline_bundle_build_parser = subparsers.add_parser(
+        "offline-bundle-build",
+        help="build and verify a deterministic Phase 7 offline release directory",
+    )
+    offline_bundle_build_parser.add_argument("--spec", required=True)
+    offline_bundle_build_parser.add_argument("--output", required=True)
+    offline_bundle_build_parser.set_defaults(func=offline_bundle_build)
+
+    offline_bundle_verify_parser = subparsers.add_parser(
+        "offline-bundle-verify",
+        help="verify exact paths, sizes, and checksums in an offline release directory",
+    )
+    offline_bundle_verify_parser.add_argument("--bundle", required=True)
+    offline_bundle_verify_parser.add_argument("--output")
+    offline_bundle_verify_parser.set_defaults(func=offline_bundle_verify)
 
     training_preflight_parser = subparsers.add_parser(
         "training-preflight",
