@@ -1,0 +1,26 @@
+{
+  "report_type": "native_contiguous_ranking",
+  "schema_version": "1.0",
+  "generated_at": "2026-07-20T13:22:24.779356Z",
+  "dimensions": 768,
+  "row_count": 4096,
+  "top_k": 20,
+  "input_bytes": 12585984,
+  "preparation_in_timing": false,
+  "fallback": {
+    "mean_ms": 144.370771,
+    "p50_ms": 144.196826,
+    "p95_ms": 146.394793
+  },
+  "native": {
+    "mean_ms": 2.62493,
+    "p50_ms": 2.621261,
+    "p95_ms": 2.672996
+  },
+  "speedup": 54.999856,
+  "top_k_identity_match": true,
+  "maximum_top_k_score_error": 1.3259536316145848e-09,
+  "threshold_failures": [],
+  "native_build_info": "abi=1;implementation=scalar;c_standard=11;compiler=gcc-15.2",
+  "passed": true
+}

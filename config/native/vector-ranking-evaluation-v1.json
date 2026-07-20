@@ -1,0 +1,11 @@
+{
+  "contract_type": "native_contiguous_ranking_contract",
+  "schema_version": "1.0",
+  "dimensions": 768,
+  "row_count": 4096,
+  "top_k": 20,
+  "warmup_samples": 2,
+  "measured_samples": 7,
+  "minimum_speedup": 5.0,
+  "maximum_score_error": 0.000001
+}

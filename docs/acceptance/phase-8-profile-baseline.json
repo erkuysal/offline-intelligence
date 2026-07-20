@@ -1,0 +1,98 @@
+{
+  "report_type": "native_vector_profile",
+  "schema_version": "1.0",
+  "generated_at": "2026-07-20T11:13:49.792516Z",
+  "candidate_id": "batch_cosine_f32",
+  "use_case": "offline_evaluation_and_experimental_reranking",
+  "production_dense_retrieval_owner": "postgresql_pgvector",
+  "production_path_selected": false,
+  "decision": "proceed_experimental_only",
+  "decision_reason": "Production dense retrieval already uses PostgreSQL/pgvector. Continue only as a fallback-backed batch primitive for offline evaluation and experimental reranking until an end-to-end benchmark demonstrates material value.",
+  "host": {
+    "operating_system": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+    "machine": "x86_64",
+    "processor": "AMD Ryzen 9 9950X 16-Core Processor",
+    "python": "3.14.6",
+    "cpu_count": 32
+  },
+  "measurements": [
+    {
+      "implementation": "python_scalar",
+      "dimensions": 128,
+      "batch_size": 1,
+      "calls_per_sample": 100,
+      "measured_samples": 7,
+      "input_bytes_per_call": 1024,
+      "mean_latency_ms": 0.005984,
+      "p50_latency_ms": 0.005974,
+      "p95_latency_ms": 0.006169,
+      "mean_vectors_per_second": 167124.149,
+      "checksum": 77.468752581
+    },
+    {
+      "implementation": "python_scalar",
+      "dimensions": 128,
+      "batch_size": 256,
+      "calls_per_sample": 2,
+      "measured_samples": 7,
+      "input_bytes_per_call": 131584,
+      "mean_latency_ms": 1.217038,
+      "p50_latency_ms": 1.178927,
+      "p95_latency_ms": 1.456323,
+      "mean_vectors_per_second": 210346.698,
+      "checksum": 2.06779571
+    },
+    {
+      "implementation": "python_scalar",
+      "dimensions": 768,
+      "batch_size": 1,
+      "calls_per_sample": 30,
+      "measured_samples": 7,
+      "input_bytes_per_call": 6144,
+      "mean_latency_ms": 0.032465,
+      "p50_latency_ms": 0.032417,
+      "p95_latency_ms": 0.033323,
+      "mean_vectors_per_second": 30802.385,
+      "checksum": 5.978422166
+    },
+    {
+      "implementation": "python_scalar",
+      "dimensions": 768,
+      "batch_size": 32,
+      "calls_per_sample": 3,
+      "measured_samples": 7,
+      "input_bytes_per_call": 101376,
+      "mean_latency_ms": 0.7837,
+      "p50_latency_ms": 0.783074,
+      "p95_latency_ms": 0.815323,
+      "mean_vectors_per_second": 40831.971,
+      "checksum": 0.492294891
+    },
+    {
+      "implementation": "python_scalar",
+      "dimensions": 768,
+      "batch_size": 256,
+      "calls_per_sample": 1,
+      "measured_samples": 7,
+      "input_bytes_per_call": 789504,
+      "mean_latency_ms": 6.203078,
+      "p50_latency_ms": 6.191034,
+      "p95_latency_ms": 6.265918,
+      "mean_vectors_per_second": 41269.831,
+      "checksum": 0.257535605
+    },
+    {
+      "implementation": "python_scalar",
+      "dimensions": 1536,
+      "batch_size": 32,
+      "calls_per_sample": 2,
+      "measured_samples": 7,
+      "input_bytes_per_call": 202752,
+      "mean_latency_ms": 1.531439,
+      "p50_latency_ms": 1.533889,
+      "p95_latency_ms": 1.541126,
+      "mean_vectors_per_second": 20895.38,
+      "checksum": -0.135981888
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "contract_type": "native_vector_verification_contract",
+  "schema_version": "1.0",
+  "candidate_id": "batch_cosine_f32",
+  "fuzz_seed": 82026,
+  "fuzz_cases": 200,
+  "fuzz_max_dimensions": 768,
+  "fuzz_max_batch_size": 16,
+  "absolute_tolerance": 0.000001,
+  "relative_tolerance": 0.00001,
+  "relative_epsilon": 0.00000001,
+  "warmup_samples": 3,
+  "measured_samples": 9,
+  "performance_workloads": [
+    {
+      "dimensions": 768,
+      "batch_size": 1,
+      "calls_per_sample": 50
+    },
+    {
+      "dimensions": 768,
+      "batch_size": 32,
+      "calls_per_sample": 3
+    },
+    {
+      "dimensions": 768,
+      "batch_size": 256,
+      "calls_per_sample": 1
+    },
+    {
+      "dimensions": 1536,
+      "batch_size": 32,
+      "calls_per_sample": 2
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "report_type": "phase_8_native_acceleration_acceptance",
+  "created_at": "2026-07-20T13:36:09Z",
+  "status": "accepted",
+  "decision": {
+    "native_scope": "already-contiguous offline evaluation and experimental reranking",
+    "production_retrieval_owner": "PostgreSQL/pgvector",
+    "list_shaped_application_activation": "rejected",
+    "python_fallback": "retained and verified"
+  },
+  "correctness": {
+    "fuzz_cases": 200,
+    "compared_values": 1640,
+    "failures": 0,
+    "maximum_absolute_error": 2.9427882020094387e-08,
+    "maximum_relative_error": 5.910075076320369e-08,
+    "release_ctest": "passed",
+    "asan_ubsan_ctest": "passed"
+  },
+  "performance": {
+    "rows": 4096,
+    "dimensions": 768,
+    "top_k": 20,
+    "prepared_input_bytes": 12585984,
+    "python_fallback_p50_ms": 144.197,
+    "native_p50_ms": 2.621,
+    "speedup": 54.999856,
+    "top_k_identities_exact": true,
+    "maximum_top_k_score_error": 1.3259536316145848e-09
+  },
+  "packaging": {
+    "application_image_id": "sha256:b4287f1c88c69914d3587159b14b243976aef74bd000f687b0a04edf8c25122f",
+    "application_archive_sha256": "583d1208292905ce0411176444757f186661439b70298e040a677e54b5993aa7",
+    "base_image": "python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6",
+    "native_binary_sha256": "e96f45b20bb7c637debe79fc8f692b582d357a80294b8df2d342e9e7afc4ad30",
+    "native_binary_bytes": 15608,
+    "native_source_archive_sha256": "5ea49b69595e9857d98a81f89cbbfbd6216e56debcd2176e97281e0381a4aa74",
+    "build_info": "abi=1;implementation=scalar;c_standard=11;compiler=gcc-14.2",
+    "runtime_build_tools_absent": true,
+    "sbom_format": "SPDX-2.3",
+    "sbom_package_count": 181,
+    "license_status_record_included": true
+  },
+  "offline_bundle": {
+    "release_id": "offline-intelligence-hub-0.4.0-linux-x86_64",
+    "payload_files": 23,
+    "payload_bytes": 3400787185,
+    "manifest_sha256": "575b77751b2ab5fb21b7c222a9c72292289c074488498311625dd543128447ae",
+    "checksums_sha256": "eeeca402c97d26a35b5427b6e34a0a570a7bffc80e88f41661d9bd8da898d392",
+    "library_verifier": "passed",
+    "operator_verifier": "passed"
+  },
+  "clean_target": {
+    "preflight": "passed",
+    "healthy_services": 7,
+    "application_smoke": "passed",
+    "application_smoke_duration_seconds": 1.399,
+    "dense_retrieval_score": 0.7534227665158788,
+    "grounded_marker": "NATIVE-ABI1",
+    "native_backend": "native",
+    "native_abi_version": 1,
+    "fallback_scores_match": true,
+    "api_direct_egress": "OSError: [Errno 101] Network is unreachable",
+    "api_external_dns": "socket.gaierror: [Errno -3] Temporary failure in name resolution",
+    "web_external_dns": "wget: bad address 'example.com'",
+    "runtime_external_attempts": 0,
+    "stack_stopped_after_acceptance": true
+  }
+}

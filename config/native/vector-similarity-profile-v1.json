@@ -1,0 +1,40 @@
+{
+  "contract_type": "native_vector_profile_contract",
+  "schema_version": "1.0",
+  "candidate_id": "batch_cosine_f32",
+  "use_case": "offline_evaluation_and_experimental_reranking",
+  "warmup_samples": 2,
+  "measured_samples": 7,
+  "workloads": [
+    {
+      "dimensions": 128,
+      "batch_size": 1,
+      "calls_per_sample": 100
+    },
+    {
+      "dimensions": 128,
+      "batch_size": 256,
+      "calls_per_sample": 2
+    },
+    {
+      "dimensions": 768,
+      "batch_size": 1,
+      "calls_per_sample": 30
+    },
+    {
+      "dimensions": 768,
+      "batch_size": 32,
+      "calls_per_sample": 3
+    },
+    {
+      "dimensions": 768,
+      "batch_size": 256,
+      "calls_per_sample": 1
+    },
+    {
+      "dimensions": 1536,
+      "batch_size": 32,
+      "calls_per_sample": 2
+    }
+  ]
+}

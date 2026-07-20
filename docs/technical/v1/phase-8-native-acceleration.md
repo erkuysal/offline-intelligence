@@ -1,6 +1,6 @@
 # Technical Vision v1 — Phase 8 Native Acceleration
 
-Status: Future
+Status: Completed — bounded contiguous path and air-gapped packaging accepted
 
 ## Intent
 
@@ -15,7 +15,7 @@ A cosine-similarity library provides a deliberately narrow learning and benchmar
 Python retrieval/evaluation code
    │ validated contiguous buffers
    ▼
-CFFI or CPython extension boundary
+standard-library ctypes boundary
    │
    ▼
 portable C implementation
@@ -39,7 +39,22 @@ processing—rather than duplicating pgvector without benefit.
 | Python `cosine_similarity_fallback()` | Portable reference | Provides a correctness oracle and no-extension operation |
 | `native_capabilities()` | Reports ABI/build/SIMD information | Makes runtime selection and benchmarks diagnosable |
 
-Names and ABI remain provisional until profiling selects the actual boundary.
+The implemented scalar function names and status-code ABI are versioned as ABI `1`.
+
+WP8.0 selected batch cosine for offline evaluation and experimental reranking; production dense
+retrieval remains in PostgreSQL/pgvector. WP8.1 implemented scalar ABI version `1` with explicit
+status codes and no allocation. WP8.2 added a standard-library `ctypes` binding that constructs
+owned contiguous float32 buffers, exposes ABI/compiler capabilities, and automatically retains the
+Python scalar oracle when the shared library is unavailable. Correctness/fuzz and
+boundary-inclusive performance gates are complete. The kernel measured 12.5–40.3x faster than the
+Python oracle, but nested-list conversion made the full boundary 0.45–0.69x as fast. List-based
+activation is rejected; WP8.4 may test one already-contiguous offline path.
+WP8.4 accepted that bounded path: top-20 ranking over 4,096 prepared 768-dimensional rows measured
+`55.00x` faster with identical identities. The result applies only when conversion is absent;
+production pgvector retrieval and list-shaped application paths remain unchanged. WP8.5 packages
+the ABI-1 library through a digest-pinned multi-stage image, inventories its source/compiler/binary
+identity, and proves a clean 23-file offline bundle with native and fallback operation under denied
+outbound networking.
 
 ## Numerical Calculation
 

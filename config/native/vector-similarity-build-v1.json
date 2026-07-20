@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "inventory_type": "native_vector_similarity_build",
+  "component": {
+    "name": "oih_vector_similarity",
+    "version": "0.1.0",
+    "abi_version": 1,
+    "scope": "optional offline evaluation and experimental reranking",
+    "license_status": "inherits repository internal-distribution status; no top-level project license declared"
+  },
+  "source": {
+    "archive_path": "native/vector-similarity-source.tar",
+    "archive_sha256": "5ea49b69595e9857d98a81f89cbbfbd6216e56debcd2176e97281e0381a4aa74",
+    "archive_bytes": 30720,
+    "files": [
+      {
+        "path": "native/vector_similarity/CMakeLists.txt",
+        "sha256": "1f237db8bedd507ea3e9d8520866afe13f79b421e264e248eb8f70a72e8d3059"
+      },
+      {
+        "path": "native/vector_similarity/README.md",
+        "sha256": "9b3c3a1d94c2e5babc7c1cceb7848c8cacbafff5c128007f525e7ede7915c2bb"
+      },
+      {
+        "path": "native/vector_similarity/include/oih_vector_similarity.h",
+        "sha256": "106b38d790c49de04ed193d48b44dd28edfd51964c7caef7685a805fed57d9aa"
+      },
+      {
+        "path": "native/vector_similarity/src/oih_vector_similarity.c",
+        "sha256": "e315693381b162601ee1584989e5aeefd93d84581231ed09e936a817c76b7821"
+      },
+      {
+        "path": "native/vector_similarity/tests/test_vector_similarity.c",
+        "sha256": "6efb479ff9c99ed33edad5c92787fb856d4bc3db20f7682fef62446f72fdf3ca"
+      }
+    ]
+  },
+  "build": {
+    "dockerfile": "apps/api/Dockerfile",
+    "dockerfile_sha256": "5213d6cd7ef42c6ffee6b28b520842223ad95f354bfad9c8aa68032b0422f90f",
+    "base_image": "python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6",
+    "cmake_version": "3.31.6",
+    "compiler": "gcc-14.2.0",
+    "make_version": "4.4.1",
+    "c_standard": "11",
+    "cmake_build_type": "Release",
+    "compile_options": [
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Werror"
+    ],
+    "runtime_compilation_required": false
+  },
+  "binary": {
+    "container_path": "/app/apps/api/app/native/liboih_vector_similarity.so",
+    "sha256": "e96f45b20bb7c637debe79fc8f692b582d357a80294b8df2d342e9e7afc4ad30",
+    "bytes": 15608,
+    "build_info": "abi=1;implementation=scalar;c_standard=11;compiler=gcc-14.2"
+  },
+  "application_image": {
+    "image_id": "sha256:b4287f1c88c69914d3587159b14b243976aef74bd000f687b0a04edf8c25122f",
+    "archive_sha256": "583d1208292905ce0411176444757f186661439b70298e040a677e54b5993aa7",
+    "archive_bytes": 116333056
+  },
+  "sbom": {
+    "path": "sbom/api.spdx.json",
+    "sha256": "c5f8947e18c7150d1d0f7788c68ccb6555533e77a0743a66f53d76ae70fc4ecd",
+    "format": "SPDX-2.3",
+    "package_count": 181,
+    "scope_note": "Package inventory was generated from the immediately preceding image build with identical runtime packages and native binary; the final rebuild only pinned the already-resolved base digest and updated the embedded Dockerfile. Current image and native binary identities are authoritative in this inventory."
+  },
+  "runtime_verification": {
+    "backend": "native",
+    "compiler_tools_absent": [
+      "cmake",
+      "gcc",
+      "make"
+    ],
+    "python_fallback_retained": true
+  }
+}

@@ -5,13 +5,15 @@ infrastructure for an offline/on-premise document intelligence platform.
 
 ## Project Status
 
-Phases 1–7 are closed. The working product uses the pinned Gemma 3 1B Q4 base runtime with
+Phases 1–8 are closed. The working product uses the pinned Gemma 3 1B Q4 base runtime with
 permission-aware dense RAG. Phase 5 delivered reproducible LoRA training, evaluation, GGUF export,
 opt-in activation, rollback, and evidence indexing, but both trained adapters failed protected
 production gates and remain unpromoted. Phase 6 accepted a reproducible CUDA inference profile
 after identity, performance, resource, quality, refusal, and leak gates. Phase 7 accepted a verified
 offline release bundle, clean network-denied installation, complete document-grounded user path,
-restart persistence, and tested backup/restore recovery. Phase 8 native acceleration is next.
+restart persistence, and tested backup/restore recovery. Phase 8 accepted a checksum-inventoried
+native batch-similarity component for already-contiguous offline evaluation while retaining
+pgvector as the production retrieval owner and Python as the tested fallback.
 
 ## Current Capabilities
 
@@ -38,6 +40,8 @@ restart persistence, and tested backup/restore recovery. Phase 8 native accelera
 - Reproducible, provenance-aware bilingual LoRA datasets and bounded CUDA training
 - Independent adapter evaluation, immutable PEFT/GGUF export, and fail-closed opt-in activation
 - Four-mode base/adapter and RAG/no-RAG promotion evaluation with protected regression gates
+- Optional ABI-versioned C11 batch cosine for contiguous offline evaluation with Python fallback
+- Digest-pinned multi-stage native build and checksum-addressed air-gapped bundle inventory
 - Streaming chat completions via server-sent events
 - Vue 3 browser client with protected authentication, document, chat, conversation, and health routes
 - Inspectable persisted citations and conversation history
@@ -56,6 +60,9 @@ restart persistence, and tested backup/restore recovery. Phase 8 native accelera
 - [Offline bundle installation](docs/operations/offline-installation.md)
 - [Phase 7 recovery acceptance](docs/acceptance/phase-7-recovery.md)
 - [Phase 7 network-denied acceptance](docs/acceptance/phase-7-network-denied.md)
+- [Phase 8 barebones native acceleration plan](docs/plans/phase-8.md)
+- [Phase 8 profiling acceptance](docs/acceptance/phase-8-profile-baseline.md)
+- [Phase 8 native acceleration acceptance](docs/acceptance/phase-8-native-acceleration.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)

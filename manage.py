@@ -661,6 +661,78 @@ def build_inference_benchmark(args: argparse.Namespace) -> int:
     return 0 if report.passed else 1
 
 
+def profile_native_vector_candidate(args: argparse.Namespace) -> int:
+    configure_import_path()
+
+    from app.evaluation.native_profile import (
+        build_native_profile_report,
+        format_native_profile_summary,
+        load_native_profile_contract,
+        write_native_profile_report,
+    )
+
+    try:
+        report = build_native_profile_report(load_native_profile_contract(Path(args.contract)))
+        write_native_profile_report(report, Path(args.output))
+    except (OSError, ValueError) as exc:
+        print(f"Native vector profile failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_native_profile_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0
+
+
+def verify_native_vector_candidate(args: argparse.Namespace) -> int:
+    configure_import_path()
+
+    from app.evaluation.native_verification import (
+        build_native_verification_report,
+        format_native_verification_summary,
+        load_native_verification_contract,
+        write_native_verification_report,
+    )
+
+    try:
+        report = build_native_verification_report(
+            load_native_verification_contract(Path(args.contract)),
+            Path(args.library),
+        )
+        write_native_verification_report(report, Path(args.output))
+    except (OSError, ValueError) as exc:
+        print(f"Native vector verification failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_native_verification_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report.passed else 1
+
+
+def evaluate_native_vector_ranking(args: argparse.Namespace) -> int:
+    configure_import_path()
+
+    from app.evaluation.native_ranking import (
+        evaluate_contiguous_ranking,
+        format_native_ranking_summary,
+        load_native_ranking_contract,
+        write_native_ranking_report,
+    )
+
+    try:
+        report = evaluate_contiguous_ranking(
+            load_native_ranking_contract(Path(args.contract)),
+            Path(args.library),
+        )
+        write_native_ranking_report(report, Path(args.output))
+    except (OSError, ValueError) as exc:
+        print(f"Native vector ranking failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_native_ranking_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report.passed else 1
+
+
 def offline_bundle_build(args: argparse.Namespace) -> int:
     from delivery.offline_bundle import (
         BundleError,
@@ -1268,6 +1340,50 @@ def build_parser() -> argparse.ArgumentParser:
         default="var/inference/gemma3-1b-q4-benchmark-latest.json",
     )
     inference_benchmark_parser.set_defaults(func=build_inference_benchmark)
+
+    native_profile_parser = subparsers.add_parser(
+        "native-vector-profile",
+        help="record the Phase 8 Python batch-cosine baseline",
+    )
+    native_profile_parser.add_argument(
+        "--contract",
+        default="config/native/vector-similarity-profile-v1.json",
+    )
+    native_profile_parser.add_argument(
+        "--output",
+        default="var/native/vector-similarity-python-baseline.json",
+    )
+    native_profile_parser.set_defaults(func=profile_native_vector_candidate)
+
+    native_verification_parser = subparsers.add_parser(
+        "native-vector-verify",
+        help="verify Phase 8 native numerical correctness and boundary performance",
+    )
+    native_verification_parser.add_argument(
+        "--contract",
+        default="config/native/vector-similarity-verification-v1.json",
+    )
+    native_verification_parser.add_argument("--library", required=True)
+    native_verification_parser.add_argument(
+        "--output",
+        default="var/native/vector-similarity-verification.json",
+    )
+    native_verification_parser.set_defaults(func=verify_native_vector_candidate)
+
+    native_ranking_parser = subparsers.add_parser(
+        "native-vector-ranking-evaluate",
+        help="evaluate top-k ranking over an already-contiguous float32 matrix",
+    )
+    native_ranking_parser.add_argument(
+        "--contract",
+        default="config/native/vector-ranking-evaluation-v1.json",
+    )
+    native_ranking_parser.add_argument("--library", required=True)
+    native_ranking_parser.add_argument(
+        "--output",
+        default="var/native/vector-ranking-evaluation.json",
+    )
+    native_ranking_parser.set_defaults(func=evaluate_native_vector_ranking)
 
     offline_bundle_build_parser = subparsers.add_parser(
         "offline-bundle-build",

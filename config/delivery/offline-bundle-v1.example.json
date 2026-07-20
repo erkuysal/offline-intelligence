@@ -10,8 +10,26 @@
       "path": "images/application.tar",
       "artifact_type": "container_image",
       "version": "0.4.0",
-      "origin": "docker-images:offline-intelligence-hub-api:0.4.0,offline-intelligence-hub-ingestion-worker:0.4.0@sha256:9748b03d9cdeeea09df103d81eb9172549eff7eb649ddab3b78d6828cfb623c9",
-      "expected_sha256": "53db56c28f3499fec8aa837626ed9505c8b13eb93968b8a18e0faf21a35656d1",
+      "origin": "docker-images:offline-intelligence-hub-api:0.4.0,offline-intelligence-hub-ingestion-worker:0.4.0@sha256:b4287f1c88c69914d3587159b14b243976aef74bd000f687b0a04edf8c25122f",
+      "expected_sha256": "583d1208292905ce0411176444757f186661439b70298e040a677e54b5993aa7",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/native/vector-similarity-source.tar",
+      "path": "native/vector-similarity-source.tar",
+      "artifact_type": "application",
+      "version": "0.1.0",
+      "origin": "repository:native/vector_similarity/**",
+      "expected_sha256": "5ea49b69595e9857d98a81f89cbbfbd6216e56debcd2176e97281e0381a4aa74",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../config/native/vector-similarity-build-v1.json",
+      "path": "inventory/native-vector-similarity.json",
+      "artifact_type": "application",
+      "version": "0.1.0-abi1",
+      "origin": "repository:config/native/vector-similarity-build-v1.json",
+      "expected_sha256": "ebce921061af656a6eca57204324aa021614eca2421080a4c44944cffe66e19e",
       "contains_secrets": false
     },
     {
@@ -143,7 +161,7 @@
       "artifact_type": "sbom",
       "version": "0.4.0",
       "origin": "docker-scout:offline-intelligence-hub-api:0.4.0",
-      "expected_sha256": "d493ef0c82ccfafab5e25293bfe7e9d3e716fb54cd60170b6f00e530412d64f9",
+      "expected_sha256": "c5f8947e18c7150d1d0f7788c68ccb6555533e77a0743a66f53d76ae70fc4ecd",
       "contains_secrets": false
     },
     {
