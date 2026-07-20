@@ -1,6 +1,6 @@
 # Phase 7 Barebones Air-Gapped Delivery Plan
 
-Status: In progress — offline installation and recovery verified
+Status: Completed — network-denied installation, operation, and recovery verified
 
 ## Scope Decision
 
@@ -49,8 +49,8 @@ archive checksum. Its generated sources remain under ignored `var/release-inputs
   minimal SBOM/inventory
 - [x] Prove bundle construction does not depend on unlisted cache files
 
-Accepted release candidate: `offline-intelligence-hub-0.4.0-linux-x86_64`, containing 20 payload
-files and 3,400,671,316 payload bytes. Exact-tree verification passed with zero failures. Migration
+Accepted release candidate: `offline-intelligence-hub-0.4.0-linux-x86_64`, containing 21 payload
+files and 3,400,687,736 payload bytes. Exact-tree verification passed with zero failures. Migration
 packaging explicitly excludes Python bytecode caches; all other content is copied only from the
 strict input list. The repository has no top-level project license, so the bundle carries an
 explicit internal-distribution status record and SPDX inventories rather than implying
@@ -87,19 +87,27 @@ repeated restore into a populated target failed closed with 12 public tables.
 
 ## Work Package 7.5: Network-Denied Acceptance
 
-- [ ] Install from a clean target state with external DNS and outbound traffic unavailable
-- [ ] Exercise login, upload, ingestion, retrieval, generation, restart, backup, and restore
-- [ ] Fail on any attempted runtime download or external telemetry connection
-- [ ] Store machine-readable smoke and acceptance reports
+- [x] Install from a clean target state with external DNS and outbound traffic unavailable
+- [x] Exercise login, upload, ingestion, retrieval, generation, restart, backup, and restore
+- [x] Fail on any attempted runtime download or external telemetry connection
+- [x] Store machine-readable smoke and acceptance reports
+
+The clean WP7.5 target passed registration, login, queued ingestion, dense retrieval, grounded local
+generation, persisted citations, complete restart, backup, empty-target restore, and the same
+post-restore application path. The final network boundary returned `ENETUNREACH` for direct API
+egress and failed external DNS from both API and web. Runtime logs contained only local service
+URLs and no download or telemetry attempts. See the
+[network-denied acceptance record](../acceptance/phase-7-network-denied.md) and its adjacent JSON
+report.
 
 ## Barebones Definition of Done
 
 - [x] A connected build produces one complete, deterministic, secret-free release directory
-- [ ] A disconnected target verifies the release before installation
+- [x] A disconnected target verifies the release before installation
 - [x] The accepted Q4 and embedding models serve only from bundled local files
-- [ ] Production services start and pass the application smoke path without outbound access
+- [x] Production services start and pass the application smoke path without outbound access
 - [x] A real backup restores successfully into an empty target
-- [ ] Phase 8 can add a native module without weakening the offline bundle contract
+- [x] Phase 8 can add a native module without weakening the offline bundle contract
 
 ## Deferred Until After Phase 8
 

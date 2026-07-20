@@ -74,7 +74,7 @@
       "artifact_type": "configuration",
       "version": "0.4.0",
       "origin": "repository:deploy/compose.prod.yaml",
-      "expected_sha256": "1e64db4abebfc2b98fe6c79c147b8670a96efebe506f661ada3e00ec2ddc2630",
+      "expected_sha256": "90086e46ccb1b30e9229eb7a378cdb37547cbe4a88931772e2c03c68681688fd",
       "contains_secrets": false
     },
     {
@@ -91,7 +91,16 @@
       "artifact_type": "operator_tool",
       "version": "0.4.0",
       "origin": "repository:scripts/delivery/offline_operator.py",
-      "expected_sha256": "da17cf8f616c2af3357fd9667e74d0624cf28f9b922758f0bb793e0090a38769",
+      "expected_sha256": "1716dcb4aecd7fc8bc5e76ec94fb6887ef728af2806142409334e5dd213c5379",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../scripts/delivery/airgap_smoke.py",
+      "path": "operator/airgap_smoke.py",
+      "artifact_type": "operator_tool",
+      "version": "0.4.0",
+      "origin": "repository:scripts/delivery/airgap_smoke.py",
+      "expected_sha256": "8c0b25c7be130481945696dfe2d8d1a792f77b03ce39701b321ca79c5cb97dde",
       "contains_secrets": false
     },
     {
@@ -100,7 +109,7 @@
       "artifact_type": "documentation",
       "version": "0.4.0",
       "origin": "repository:docs/operations/offline-installation.md",
-      "expected_sha256": "8a54452cd8e7fe0f06948b99e44896c470551a5671615e8c02023bc6c0e98e4e",
+      "expected_sha256": "c9c59cdf057c880cec4bfdfe1a3df6dcc1d3c2d39c750a3e255478c21a308544",
       "contains_secrets": false
     },
     {

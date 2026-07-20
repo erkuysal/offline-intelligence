@@ -34,7 +34,7 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
             content = (
                 "services:\n"
                 "  web:\n"
-                "    command: ip route del default\n"
+                "    command: printf 'nameserver 127.0.0.1\\n' > /etc/resolv.conf\n"
                 "networks:\n"
                 "  application:\n"
                 "    internal: true\n"

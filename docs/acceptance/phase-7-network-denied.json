@@ -1,0 +1,49 @@
+{
+  "accepted": true,
+  "application": {
+    "final_post_restore_duration_seconds": 0.422,
+    "final_bundle_clean_seed_duration_seconds": 1.411,
+    "initial_seed_duration_seconds": 1.507,
+    "restart_verify_duration_seconds": 0.331,
+    "retrieval_score": 0.6854296718409782,
+    "workflow": [
+      "register",
+      "login",
+      "upload",
+      "queued_ingestion",
+      "dense_retrieval",
+      "grounded_generation",
+      "persisted_citation",
+      "restart",
+      "backup",
+      "restore",
+      "post_restore_generation"
+    ]
+  },
+  "backup": {
+    "backup_id": "20260720T104504Z-offline-intelligence-hub-0.4.0-linux-x86_64",
+    "backup_duration_seconds": 2.539,
+    "migration": "20260714_0013",
+    "payload_bytes": 60772,
+    "restore_duration_seconds": 6.354,
+    "verification_passed": true
+  },
+  "created_at": "2026-07-20T11:01:25.325436+00:00",
+  "network": {
+    "api_direct_egress": "blocked_enetunreach",
+    "api_external_dns": "blocked_temporary_failure",
+    "unprompted_download_or_telemetry_attempts_detected": 0,
+    "runtime_log_lines": 218,
+    "url_log_lines": {
+      "external": 0,
+      "local": 7
+    },
+    "web_external_dns": "blocked_bad_address"
+  },
+  "release_id": "offline-intelligence-hub-0.4.0-linux-x86_64",
+  "release_payload_bytes": 3400687736,
+  "release_payload_files": 21,
+  "report_type": "phase_7_network_denied_acceptance",
+  "schema_version": "1.0",
+  "work_package": "7.5"
+}

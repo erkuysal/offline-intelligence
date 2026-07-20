@@ -52,10 +52,22 @@ model files drifted from the bundle.
 
 The production application network is `internal: true` and has no host-gateway aliases. The web
 container additionally joins a non-masqueraded edge bridge so Docker can publish the configured web
-port. Its entrypoint removes the default route before nginx starts; the container receives
-`NET_ADMIN` only for that initialization action. Runtime downloads and external DNS are outside the
-contract and must fail from both application and edge containers. Each target path also receives a
-stable path-derived Compose project suffix so separate installations cannot silently share volumes.
+port. Before nginx starts, its entrypoint resolves only the internal `api` peer, pins that address
+in `/etc/hosts`, and replaces runtime DNS with a loopback-only resolver. The web container does not
+receive `NET_ADMIN`; edge masquerading remains disabled. Runtime downloads and external DNS are
+outside the contract and must fail from both application and edge containers. Each target path also
+receives a stable path-derived Compose project suffix so separate installations cannot silently
+share volumes.
+
+Run the dependency-free application probe from the bundle with a test-only password supplied by
+environment variable. The JSON state contains identifiers but no tokens or password:
+
+```bash
+AIRGAP_SMOKE_PASSWORD='test-only-password' \
+  python3 operator/airgap_smoke.py seed \
+  --state /secure-reports/phase-7-state.json \
+  --output /secure-reports/phase-7-seed.json
+```
 
 ## Stop or Uninstall
 

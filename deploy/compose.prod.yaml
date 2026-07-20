@@ -71,14 +71,15 @@ services:
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
-    cap_add:
-      - NET_ADMIN
     entrypoint:
       - /bin/sh
       - -ec
     command:
       - |
-        ip route del default
+        api_ip="$$(getent hosts api | awk 'NR == 1 { print $$1 }')"
+        test -n "$$api_ip"
+        echo "$$api_ip api" >> /etc/hosts
+        printf 'nameserver 127.0.0.1\n' > /etc/resolv.conf
         exec /docker-entrypoint.sh nginx -g 'daemon off;'
     ports:
       - "${WEB_PORT:-3000}:80"

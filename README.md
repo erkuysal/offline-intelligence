@@ -5,13 +5,13 @@ infrastructure for an offline/on-premise document intelligence platform.
 
 ## Project Status
 
-Phases 1–6 are closed. The working product uses the pinned Gemma 3 1B Q4 base runtime with
+Phases 1–7 are closed. The working product uses the pinned Gemma 3 1B Q4 base runtime with
 permission-aware dense RAG. Phase 5 delivered reproducible LoRA training, evaluation, GGUF export,
 opt-in activation, rollback, and evidence indexing, but both trained adapters failed protected
 production gates and remain unpromoted. Phase 6 accepted a reproducible CUDA inference profile
-after identity, performance, resource, quality, refusal, and leak gates. Phase 7 now has a verified
-real release bundle, verified offline installation, and tested backup/restore path. The complete
-network-denied user acceptance exercise is the remaining barebones delivery work.
+after identity, performance, resource, quality, refusal, and leak gates. Phase 7 accepted a verified
+offline release bundle, clean network-denied installation, complete document-grounded user path,
+restart persistence, and tested backup/restore recovery. Phase 8 native acceleration is next.
 
 ## Current Capabilities
 
@@ -55,6 +55,7 @@ network-denied user acceptance exercise is the remaining barebones delivery work
 - [Phase 7 bundle and release-input acceptance](docs/acceptance/phase-7-bundle-contract.md)
 - [Offline bundle installation](docs/operations/offline-installation.md)
 - [Phase 7 recovery acceptance](docs/acceptance/phase-7-recovery.md)
+- [Phase 7 network-denied acceptance](docs/acceptance/phase-7-network-denied.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)

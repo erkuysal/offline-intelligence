@@ -34,7 +34,7 @@ completeness failure and can write a machine-readable report outside the verifie
 
 The accepted candidate is `offline-intelligence-hub-0.4.0-linux-x86_64`:
 
-- 20 declared payload files totaling 3,400,671,316 bytes;
+- 21 declared payload files totaling 3,400,687,736 bytes;
 - API and ingestion worker image ID
   `sha256:9748b03d9cdeeea09df103d81eb9172549eff7eb649ddab3b78d6828cfb623c9`;
 - web image ID `sha256:f6383f64e71b41b8d9ec9e05d8a0f9bbbd61ab929c08634982bbd88fe65e00c3`;
@@ -83,15 +83,16 @@ The bundled dependency-free operator then proved:
 - seven healthy production services using only bundled images and models;
 - exact local chat response `offline-ready` and a 768-dimensional embedding response;
 - reachable host health through port 3000;
-- outbound denial from the gateway-less application network and from web after its edge default
-  route is removed; and
+- outbound denial from the internal application network and the non-masqueraded edge bridge, with
+  web runtime DNS sealed after its internal API peer is pinned; and
 - data-preserving uninstall with no `--volumes` operation.
 
 The first internal-only network attempt correctly blocked egress but also prevented Docker Desktop
-from publishing the web port. A non-masqueraded edge bridge restored ingress, but Docker Desktop
-still provided egress; the accepted configuration therefore removes web's default route before
-nginx starts. A policy check now rejects missing internal isolation, edge masquerading, route
-lockdown, or any `host.docker.internal`/`extra_hosts` escape path.
+from publishing the web port. A non-masqueraded edge bridge restored ingress. WP7.5 then found that
+Docker's embedded DNS could still resolve external names from web even though connections failed.
+The accepted configuration resolves and pins only the internal API peer before nginx starts, then
+replaces web runtime DNS with a loopback-only resolver. A policy check rejects missing internal
+isolation, edge masquerading/DNS lockdown, or any `host.docker.internal`/`extra_hosts` escape path.
 
 One diagnostic rendered the first test target's generated environment values. That target was
 immediately retired, its stack stopped, and the final acceptance used a new path-isolated target

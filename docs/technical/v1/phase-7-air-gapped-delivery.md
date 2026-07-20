@@ -1,6 +1,6 @@
 # Technical Vision v1 — Phase 7 Air-Gapped Delivery
 
-Status: Active — deterministic release bundle assembled and verified
+Status: Completed — clean network-denied operation and recovery accepted
 
 ## Intent
 
@@ -42,16 +42,16 @@ tracked in the [Phase 7 plan](../../plans/phase-7.md).
 WP7.2 exercised that boundary with the real Linux x86-64 CUDA release inputs. The candidate contains
 five image archives, pinned chat and embedding GGUF files, production Compose and secret-free
 environment templates, deterministic migrations, dependency locks, five SPDX inventories, and an
-explicit license-status record. Its 20 payload files total 3,400,671,316 bytes and verify with no
+explicit license-status record. Its 21 payload files total 3,400,687,736 bytes and verify with no
 tree, size, or checksum failures.
 
 WP7.3 uses the dependency-free `scripts/delivery/offline_operator.py` at the target boundary. It
 re-verifies before mutation, gates host capacity and runtime support, creates target-only secrets,
 loads only bundled archives, checks loaded image IDs, and invokes Compose with local-only build/pull
-settings. Production services share an internal Docker network without host-gateway aliases; the
-web service alone joins a non-masqueraded bridge for host ingress and deletes its default route
-before nginx starts. Installations use target-derived Compose project names to prevent accidental
-cross-target volume reuse.
+settings. Production services share an internal Docker network without host-gateway aliases. The
+web service alone joins a non-masqueraded bridge for host ingress, pins its internal API peer, and
+disables runtime DNS before nginx starts. Installations use target-derived Compose project names to
+prevent accidental cross-target volume reuse.
 
 The real WP7.3 run passed platform, Docker, Compose, RAM, VRAM, disk, and port preflight gates. A
 small `/tmp` target correctly failed the disk formula before mutation; the intended high-capacity
@@ -64,6 +64,13 @@ dump, uploaded-file archive, sanitized configuration, release/model/image/migrat
 exact checksums, and private filesystem permissions. Restore requires an empty target with the exact
 same release identity. The real drill recovered a database-linked document and matching stored-file
 hash; retrying against the populated target failed closed.
+
+WP7.5 completed the clean user-level path under that boundary. Registration, login, upload, queued
+ingestion, dense retrieval, grounded generation, restart persistence, backup, empty-target restore,
+and post-restore generation all passed. Direct API egress returned `ENETUNREACH`; external DNS
+failed from API and web; and the runtime-log scan found only local service URLs with no download or
+telemetry attempts. Machine-readable evidence is stored beside the
+[WP7.5 acceptance record](../../acceptance/phase-7-network-denied.md).
 
 ## Proposed Module and Function Map
 

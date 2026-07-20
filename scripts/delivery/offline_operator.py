@@ -222,8 +222,8 @@ def verify_bundle(bundle: Path) -> tuple[dict[str, Any] | None, Report]:
             compose_failures.append("application network is not internal")
         if 'com.docker.network.bridge.enable_ip_masquerade: "false"' not in compose_text:
             compose_failures.append("edge masquerading is not disabled")
-        if "ip route del default" not in compose_text:
-            compose_failures.append("web default-route lockdown is missing")
+        if "nameserver 127.0.0.1" not in compose_text:
+            compose_failures.append("web runtime DNS lockdown is missing")
         if "host.docker.internal" in compose_text or "extra_hosts:" in compose_text:
             compose_failures.append("host gateway access is configured")
     except OSError as exc:
