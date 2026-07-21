@@ -65,7 +65,11 @@ tanımlanır.
 
 İlk hedef, yapay zekâ açısından gelişmiş bir sistem değil; uçtan uca çalışan temel üründür.
 
-> **Şu anki konum:** Faz 1–6 ve entegre `v0.4.0` tarayıcı MVP'si tamamlandı. Kabul edilen çalışma zamanı, permission-aware dense RAG ile sabitlenmiş Gemma 3 1B Q4 temel modeli ve ölçülmüş CUDA inference profilidir. Sıradaki barebones uygulama fazı, air-gapped teslimata odaklanan Faz 7'dir.
+> **Şu anki konum:** Faz 1–8 tamamlandı. `v0.5.0` sürüm adayı; kabul edilmiş tarayıcı
+> MVP'sini, permission-aware dense RAG'i, adaptersız Gemma 3 1B Q4 CUDA çalışma zamanını,
+> doğrulanmış air-gapped teslimat ve recovery akışını ve sınırlandırılmış native hızlandırmayı
+> birleştirir. Sürüm kapatma çalışması devam etmektedir; sıradaki faz üretim ve software supply
+> chain hardening odaklı Faz 9'dur.
 
 ### Özellikler
 
@@ -521,6 +525,25 @@ Native Similarity Library
 - Benchmarking
 
 Daha sonra Python ve C implementasyonlarının latency farkı ölçülür.
+
+---
+
+## Faz 9 — Üretim ve Software Supply Chain Hardening
+
+Faz 9, model veya retrieval varsayılanlarını değiştirmeden kabul edilmiş tek sunuculu sürümü
+güçlendirir.
+
+### Temel Çıktılar
+
+- Tamamen lokal SBOM ve provenance üretimi
+- Bundle dışında tutulan trust root ile detached release imzaları
+- Target üzerinde değişiklik veya image yükleme öncesinde doğrulama
+- Uyumlu servislerde non-root, read-only ve minimum capability container politikaları
+- Eksik kanıtta fail-closed çalışan otomatik release gates
+- Backup-aware upgrade ve rollback kabul testi
+
+Yeni model katmanları, fine-tuning deneyleri, desktop paketleme, voice, high availability ve
+multi-node orchestration Faz 9 sonrasındaki seçenekler olarak kalır.
 
 ---
 

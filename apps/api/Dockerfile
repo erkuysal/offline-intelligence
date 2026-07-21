@@ -28,10 +28,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY alembic.ini .
+COPY environment.llama-build.yml environment.training.yml ./
 COPY manage.py ./manage.py
 COPY manage.py ./launcher.py
 COPY delivery ./delivery
 COPY evaluation ./evaluation
+COPY training ./training
+COPY config ./config
 COPY migrations ./migrations
 COPY apps/api ./apps/api
 COPY scripts ./scripts

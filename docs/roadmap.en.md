@@ -65,9 +65,10 @@ deliverables, and evidence model for every completed and future phase.
 
 The first goal is not an advanced AI system, but a basic end-to-end working product.
 
-> **Current position:** Phases 1–6 and the integrated `v0.4.0` browser MVP are complete. The
-> accepted runtime is the pinned Gemma 3 1B Q4 base with permission-aware dense RAG and a measured
-> CUDA inference profile. Phase 7 air-gapped delivery is the next barebones implementation phase.
+> **Current position:** Phases 1–8 are complete. The `v0.5.0` release candidate combines the
+> accepted browser MVP, permission-aware dense RAG, adapter-free Gemma 3 1B Q4 CUDA runtime,
+> verified air-gapped delivery, recovery, and bounded native acceleration. Release closure is in
+> progress; Phase 9 production and supply-chain hardening is next.
 
 ### Features
 
@@ -486,6 +487,24 @@ Native Similarity Library
 - Benchmarking
 
 Later, the latency difference between the Python and C implementations is measured.
+
+---
+
+## Phase 9 — Production and Supply-Chain Hardening
+
+Phase 9 strengthens the accepted single-host release without changing model or retrieval defaults.
+
+### Main Outcomes
+
+- Fully local SBOM and provenance generation
+- Detached release signatures with an external trust root
+- Verification before target mutation or image loading
+- Non-root, read-only, capability-minimized container policies where compatible
+- Automated fail-closed release evidence
+- Backup-aware upgrade and rollback acceptance
+
+New model tiers, fine-tuning experiments, desktop packaging, voice, high availability, and
+multi-node orchestration remain post-Phase-9 options.
 
 ---
 

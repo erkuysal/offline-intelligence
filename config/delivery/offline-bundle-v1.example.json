@@ -1,21 +1,21 @@
 {
   "schema_version": "1.0",
   "spec_type": "offline_bundle_spec",
-  "release_id": "offline-intelligence-hub-0.4.0-linux-x86_64",
-  "app_version": "0.4.0",
+  "release_id": "offline-intelligence-hub-0.5.0-linux-x86_64",
+  "app_version": "0.5.0",
   "target_architecture": "linux-x86_64-cuda13",
   "inputs": [
     {
-      "source": "../../var/release-inputs/images/application.tar",
+      "source": "../../var/release-inputs/v0.5.0/images/application.tar",
       "path": "images/application.tar",
       "artifact_type": "container_image",
-      "version": "0.4.0",
-      "origin": "docker-images:offline-intelligence-hub-api:0.4.0,offline-intelligence-hub-ingestion-worker:0.4.0@sha256:b4287f1c88c69914d3587159b14b243976aef74bd000f687b0a04edf8c25122f",
-      "expected_sha256": "583d1208292905ce0411176444757f186661439b70298e040a677e54b5993aa7",
+      "version": "0.5.0",
+      "origin": "docker-images:offline-intelligence-hub-api:0.5.0,offline-intelligence-hub-ingestion-worker:0.5.0@sha256:0a67973ad9d2ecaace3101986586448df7c211d36c88f8cb24a0673a58548076",
+      "expected_sha256": "9770930977987c2e8368170a9c9ece8abc17716b06dfad9b8c4967a98f75d7d6",
       "contains_secrets": false
     },
     {
-      "source": "../../var/release-inputs/native/vector-similarity-source.tar",
+      "source": "../../var/release-inputs/v0.5.0/native/vector-similarity-source.tar",
       "path": "native/vector-similarity-source.tar",
       "artifact_type": "application",
       "version": "0.1.0",
@@ -24,21 +24,30 @@
       "contains_secrets": false
     },
     {
-      "source": "../../config/native/vector-similarity-build-v1.json",
+      "source": "../../config/native/vector-similarity-build-v0.5.0.json",
       "path": "inventory/native-vector-similarity.json",
       "artifact_type": "application",
       "version": "0.1.0-abi1",
-      "origin": "repository:config/native/vector-similarity-build-v1.json",
-      "expected_sha256": "ebce921061af656a6eca57204324aa021614eca2421080a4c44944cffe66e19e",
+      "origin": "repository:config/native/vector-similarity-build-v0.5.0.json",
+      "expected_sha256": "7fb6403592f37f7381cc80061c42a36248939ec87668bdd52e80a6f2efd1ac15",
       "contains_secrets": false
     },
     {
-      "source": "../../var/release-inputs/images/web.tar",
+      "source": "../../config/supply-chain/syft-v1.json",
+      "path": "inventory/sbom-tool.json",
+      "artifact_type": "application",
+      "version": "1.48.0",
+      "origin": "repository:config/supply-chain/syft-v1.json",
+      "expected_sha256": "4b773fb3680e83c755b0d6c9e5cb1ebc820cc8795659e3f4658444ca565bf5e8",
+      "contains_secrets": false
+    },
+    {
+      "source": "../../var/release-inputs/v0.5.0/images/web.tar",
       "path": "images/web.tar",
       "artifact_type": "container_image",
-      "version": "0.4.0",
-      "origin": "docker-image:offline-intelligence-hub-web:0.4.0@sha256:f6383f64e71b41b8d9ec9e05d8a0f9bbbd61ab929c08634982bbd88fe65e00c3",
-      "expected_sha256": "a96697a6ba3b635cd43842f1f2cfe39d115c9c51029ee57a7cce950defe9f879",
+      "version": "0.5.0",
+      "origin": "docker-image:offline-intelligence-hub-web:0.5.0@sha256:3b81897fcc3709fd653788fcf3ce703b3b18b2cc24f1c71dbbf461948641a999",
+      "expected_sha256": "a60bf68619300fff8ca0c841e388002c7099c9f9fdad1263948b2e70cb70d0f6",
       "contains_secrets": false
     },
     {
@@ -90,24 +99,25 @@
       "source": "../../deploy/compose.prod.yaml",
       "path": "configs/compose.yaml",
       "artifact_type": "configuration",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "origin": "repository:deploy/compose.prod.yaml",
-      "expected_sha256": "90086e46ccb1b30e9229eb7a378cdb37547cbe4a88931772e2c03c68681688fd",
+      "expected_sha256": "b3fef0f55b460fbb2852470c272fe7eae307b17e50c5efc76ce48fdfdc53bf3e",
       "contains_secrets": false
     },
     {
       "source": "../../config/env/prod.example.env",
       "path": "configs/prod.example.env",
       "artifact_type": "configuration",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "origin": "repository:config/env/prod.example.env",
+      "expected_sha256": "d42c106c57b8c592cf46d14d0206a7162c7224b8701d0f601e39f6046a15dffb",
       "contains_secrets": false
     },
     {
       "source": "../../scripts/delivery/offline_operator.py",
       "path": "operator/offline_operator.py",
       "artifact_type": "operator_tool",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "origin": "repository:scripts/delivery/offline_operator.py",
       "expected_sha256": "1716dcb4aecd7fc8bc5e76ec94fb6887ef728af2806142409334e5dd213c5379",
       "contains_secrets": false
@@ -116,7 +126,7 @@
       "source": "../../scripts/delivery/airgap_smoke.py",
       "path": "operator/airgap_smoke.py",
       "artifact_type": "operator_tool",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "origin": "repository:scripts/delivery/airgap_smoke.py",
       "expected_sha256": "8c0b25c7be130481945696dfe2d8d1a792f77b03ce39701b321ca79c5cb97dde",
       "contains_secrets": false
@@ -125,7 +135,7 @@
       "source": "../../docs/operations/offline-installation.md",
       "path": "documentation/offline-installation.md",
       "artifact_type": "documentation",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "origin": "repository:docs/operations/offline-installation.md",
       "expected_sha256": "c9c59cdf057c880cec4bfdfe1a3df6dcc1d3c2d39c750a3e255478c21a308544",
       "contains_secrets": false
@@ -143,7 +153,7 @@
       "source": "../../requirements.txt",
       "path": "inventory/python-requirements.txt",
       "artifact_type": "application",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "origin": "repository:requirements.txt",
       "contains_secrets": false
     },
@@ -151,26 +161,27 @@
       "source": "../../apps/web/package-lock.json",
       "path": "inventory/web-package-lock.json",
       "artifact_type": "application",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "origin": "repository:apps/web/package-lock.json",
+      "expected_sha256": "d0577a35be4e555fe8df1170056fa84b7b7d400f8e729c11c8e2d64bcf88cf86",
       "contains_secrets": false
     },
     {
-      "source": "../../var/release-inputs/sbom/api.spdx.json",
+      "source": "../../var/release-inputs/v0.5.0/sbom/api.spdx.json",
       "path": "sbom/api.spdx.json",
       "artifact_type": "sbom",
-      "version": "0.4.0",
-      "origin": "docker-scout:offline-intelligence-hub-api:0.4.0",
-      "expected_sha256": "c5f8947e18c7150d1d0f7788c68ccb6555533e77a0743a66f53d76ae70fc4ecd",
+      "version": "0.5.0",
+      "origin": "local-syft-1.48.0:offline-intelligence-hub-api:0.5.0",
+      "expected_sha256": "d2e7682f127485ab4c89a92f997f74a314e7f47d4d0fb50e09eca4442052d8b4",
       "contains_secrets": false
     },
     {
-      "source": "../../var/release-inputs/sbom/web.spdx.json",
+      "source": "../../var/release-inputs/v0.5.0/sbom/web.spdx.json",
       "path": "sbom/web.spdx.json",
       "artifact_type": "sbom",
-      "version": "0.4.0",
-      "origin": "docker-scout:offline-intelligence-hub-web:0.4.0",
-      "expected_sha256": "25330d61c7e56542da6f30e4c362e3bdcbd2e412a15c06ba1e93a84bc2b7b860",
+      "version": "0.5.0",
+      "origin": "local-syft-1.48.0:offline-intelligence-hub-web:0.5.0",
+      "expected_sha256": "7ac993fe58fddf28b103c92d47fb0bc513a185985704c966bd7b3c3abb5f7167",
       "contains_secrets": false
     },
     {
@@ -204,7 +215,7 @@
       "source": "../../docs/legal/release-license-status.md",
       "path": "licenses/release-license-status.md",
       "artifact_type": "license",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "origin": "repository:docs/legal/release-license-status.md",
       "contains_secrets": false
     }

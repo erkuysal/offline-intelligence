@@ -1,11 +1,12 @@
 # Offline Intelligence Hub
 
-`v0.4.0` browser MVP plus the accepted Phase 4 retrieval/evaluation and Phase 5 model-adaptation
-infrastructure for an offline/on-premise document intelligence platform.
+`v0.5.0` release candidate for an offline/on-premise document intelligence platform, including the
+accepted browser MVP, measured RAG/model pipeline, air-gapped delivery, and bounded native
+acceleration.
 
 ## Project Status
 
-Phases 1–8 are closed. The working product uses the pinned Gemma 3 1B Q4 base runtime with
+Phases 1–8 are closed and `v0.5.0` release closure is in progress. The working product uses the
 permission-aware dense RAG. Phase 5 delivered reproducible LoRA training, evaluation, GGUF export,
 opt-in activation, rollback, and evidence indexing, but both trained adapters failed protected
 production gates and remain unpromoted. Phase 6 accepted a reproducible CUDA inference profile
@@ -14,6 +15,8 @@ offline release bundle, clean network-denied installation, complete document-gro
 restart persistence, and tested backup/restore recovery. Phase 8 accepted a checksum-inventoried
 native batch-similarity component for already-contiguous offline evaluation while retaining
 pgvector as the production retrieval owner and Python as the tested fallback.
+Phase 9 production and supply-chain hardening is the next implementation phase after the release
+candidate is rebuilt, independently verified, and tagged.
 
 ## Current Capabilities
 
@@ -49,6 +52,7 @@ pgvector as the production retrieval owner and Python as the tested fallback.
 
 ## Product Plans
 
+- [AGLEA optional air-gapped extraction vision](docs/visions/vision_0.md)
 - [Technical vision and phase architecture](docs/technical/README.md)
 - [Installation and contributor setup](docs/installation.md)
 - [Retrieval evaluation](evaluation/README.md)
@@ -63,6 +67,10 @@ pgvector as the production retrieval owner and Python as the tested fallback.
 - [Phase 8 barebones native acceleration plan](docs/plans/phase-8.md)
 - [Phase 8 profiling acceptance](docs/acceptance/phase-8-profile-baseline.md)
 - [Phase 8 native acceleration acceptance](docs/acceptance/phase-8-native-acceleration.md)
+- [v0.5.0 release-closure plan](docs/plans/release-v0.5.0.md)
+- [v0.5.0 release-candidate acceptance](docs/acceptance/v0.5.0.md)
+- [Phase 9 production and supply-chain hardening plan](docs/plans/phase-9.md)
+- [Post-Phase-9 feature options](docs/plans/post-phase-9-feature-options.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)
 - [MVP product and release plan](docs/mvp/README.md)

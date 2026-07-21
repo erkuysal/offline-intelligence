@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "inventory_type": "native_vector_similarity_build",
+  "component": {
+    "name": "oih_vector_similarity",
+    "version": "0.1.0",
+    "abi_version": 1,
+    "scope": "optional offline evaluation and experimental reranking",
+    "license_status": "inherits repository internal-distribution status; no top-level project license declared"
+  },
+  "source": {
+    "archive_path": "native/vector-similarity-source.tar",
+    "archive_sha256": "5ea49b69595e9857d98a81f89cbbfbd6216e56debcd2176e97281e0381a4aa74",
+    "archive_bytes": 30720
+  },
+  "build": {
+    "dockerfile": "apps/api/Dockerfile",
+    "dockerfile_sha256": "21e5a4b68c989dc190f0917ab4577dd29173e4614b14613d16982353427f297b",
+    "base_image": "python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6",
+    "cmake_version": "3.31.6",
+    "compiler": "gcc-14.2.0",
+    "make_version": "4.4.1",
+    "c_standard": "11",
+    "cmake_build_type": "Release",
+    "runtime_compilation_required": false
+  },
+  "binary": {
+    "container_path": "/app/apps/api/app/native/liboih_vector_similarity.so",
+    "sha256": "e96f45b20bb7c637debe79fc8f692b582d357a80294b8df2d342e9e7afc4ad30",
+    "bytes": 15608,
+    "build_info": "abi=1;implementation=scalar;c_standard=11;compiler=gcc-14.2"
+  },
+  "application_image": {
+    "image_id": "sha256:0a67973ad9d2ecaace3101986586448df7c211d36c88f8cb24a0673a58548076",
+    "archive_sha256": "9770930977987c2e8368170a9c9ece8abc17716b06dfad9b8c4967a98f75d7d6",
+    "archive_bytes": 116704768
+  },
+  "sbom": {
+    "path": "sbom/api.spdx.json",
+    "sha256": "d2e7682f127485ab4c89a92f997f74a314e7f47d4d0fb50e09eca4442052d8b4",
+    "format": "SPDX-2.3",
+    "package_count": 147,
+    "generator": "syft-1.48.0-local"
+  },
+  "runtime_verification": {
+    "backend": "native",
+    "compiler_tools_absent": [
+      "cmake",
+      "gcc",
+      "make"
+    ],
+    "python_fallback_retained": true
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "report_type": "v0_5_0_release_candidate_acceptance",
+  "created_at": "2026-07-20T14:14:17Z",
+  "status": "accepted_locally_publication_pending",
+  "release": {
+    "version": "0.5.0",
+    "release_id": "offline-intelligence-hub-0.5.0-linux-x86_64",
+    "payload_files": 24,
+    "payload_bytes": 3400071855,
+    "manifest_sha256": "aa5a887f0767dea6cfec8d1ac0287d278cec9156d5c89aff02a21aca7e9004f8",
+    "checksums_sha256": "418fbcd05f8fd40b357595bfe5f87ccf1c6715c71e76da14a3c05bd806680906"
+  },
+  "images": {
+    "application_image_id": "sha256:0a67973ad9d2ecaace3101986586448df7c211d36c88f8cb24a0673a58548076",
+    "application_archive_sha256": "9770930977987c2e8368170a9c9ece8abc17716b06dfad9b8c4967a98f75d7d6",
+    "web_image_id": "sha256:3b81897fcc3709fd653788fcf3ce703b3b18b2cc24f1c71dbbf461948641a999",
+    "web_archive_sha256": "a60bf68619300fff8ca0c841e388002c7099c9f9fdad1263948b2e70cb70d0f6"
+  },
+  "sbom": {
+    "generator": "syft-1.48.0-local",
+    "generator_archive_sha256": "6cef9a7f37220d9067eaf9cfaaa2fce986e9f320a8d42cbc36658c99af78ea04",
+    "remote_indexing": false,
+    "application_packages": 147,
+    "web_packages": 72,
+    "application_spdx_sha256": "d2e7682f127485ab4c89a92f997f74a314e7f47d4d0fb50e09eca4442052d8b4",
+    "web_spdx_sha256": "7ac993fe58fddf28b103c92d47fb0bc513a185985704c966bd7b3c3abb5f7167",
+    "publisher_signature_verified": false
+  },
+  "validation": {
+    "backend_tests": 322,
+    "backend_tests_passed": true,
+    "frontend_test_files": 7,
+    "frontend_tests": 28,
+    "frontend_tests_passed": true,
+    "ruff": "passed",
+    "mypy_source_files": 72,
+    "mypy": "passed",
+    "release_ctest": "passed",
+    "asan_ubsan_ctest": "passed",
+    "bundle_library_verifier": "passed",
+    "bundle_operator_verifier": "passed"
+  },
+  "clean_target": {
+    "healthy_services": 7,
+    "application_smoke": "passed",
+    "duration_seconds": 1.378,
+    "dense_retrieval_score": 0.7086594874465784,
+    "grounded_marker": "FINAL-050",
+    "runtime_version": "0.5.0",
+    "native_abi_version": 1,
+    "python_fallback_scores_match": true,
+    "training_package_present": true,
+    "training_configuration_present": true,
+    "adapter_manifest_reader_present": true,
+    "api_direct_egress": "OSError: [Errno 101] Network is unreachable",
+    "api_external_dns": "socket.gaierror: [Errno -3] Temporary failure in name resolution",
+    "web_external_dns": "wget: bad address 'example.com'",
+    "runtime_external_attempts": 0,
+    "stack_stopped_after_acceptance": true
+  },
+  "publication": {
+    "source_commit_created": false,
+    "merged": false,
+    "tagged": false,
+    "pushed": false
+  }
+}

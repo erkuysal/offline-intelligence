@@ -1,6 +1,6 @@
 x-api-environment: &api-environment
   APP_NAME: Offline Intelligence Hub API
-  APP_VERSION: ${APP_VERSION:-0.4.0}
+  APP_VERSION: ${APP_VERSION:-0.5.0}
   ENVIRONMENT: production
   DEBUG: "false"
   HOST: 0.0.0.0
@@ -67,7 +67,7 @@ name: offline-intelligence-hub-production
 
 services:
   web:
-    image: ${WEB_IMAGE:-offline-intelligence-hub-web:0.4.0}
+    image: ${WEB_IMAGE:-offline-intelligence-hub-web:0.5.0}
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
@@ -92,7 +92,7 @@ services:
       - edge
 
   api:
-    image: ${API_IMAGE:-offline-intelligence-hub-api:0.4.0}
+    image: ${API_IMAGE:-offline-intelligence-hub-api:0.5.0}
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
@@ -116,7 +116,7 @@ services:
       - application
 
   ingestion-worker:
-    image: ${INGESTION_WORKER_IMAGE:-offline-intelligence-hub-ingestion-worker:0.4.0}
+    image: ${INGESTION_WORKER_IMAGE:-offline-intelligence-hub-ingestion-worker:0.5.0}
     build:
       context: ..
       dockerfile: apps/api/Dockerfile

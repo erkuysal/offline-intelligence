@@ -30,6 +30,7 @@ implementation take precedence, and the vision should be updated.
 | [6 — Inference Optimization](phase-6-inference-optimization.md) | Completed | Accepted, reproducible Q4 CUDA runtime profile and benchmark |
 | [7 — Air-Gapped Delivery](phase-7-air-gapped-delivery.md) | Completed | Verified bundle, network-denied operation, and tested recovery |
 | [8 — Native Acceleration](phase-8-native-acceleration.md) | Completed | Bounded contiguous batch cosine, Python fallback, and offline packaging accepted |
+| [9 — Production Hardening](phase-9-production-hardening.md) | Next | Local provenance, signing, least privilege, automated gates, and safe upgrades |
 
 See [Target Architecture](target-architecture.md) for the intended end state and the constraints
 that must remain true across every phase.

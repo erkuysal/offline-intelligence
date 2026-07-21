@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "tool": "syft",
+  "version": "1.48.0",
+  "git_commit": "3e2bc6ed095f7ec1a415fb38cfe1c319e95dfed6",
+  "platform": "linux/amd64",
+  "archive": {
+    "name": "syft_1.48.0_linux_amd64.tar.gz",
+    "url": "https://github.com/anchore/syft/releases/download/v1.48.0/syft_1.48.0_linux_amd64.tar.gz",
+    "sha256": "6cef9a7f37220d9067eaf9cfaaa2fce986e9f320a8d42cbc36658c99af78ea04"
+  },
+  "binary_sha256": "fd260522b9695350ee23483c88b803e96ffe9f8f3954106a7bcad7940a1ade89",
+  "output_format": "spdx-json",
+  "spdx_version": "SPDX-2.3",
+  "network_policy": {
+    "remote_image_resolution": false,
+    "application_update_check": false,
+    "remote_indexing": false
+  },
+  "verification_status": {
+    "published_checksum_matched": true,
+    "publisher_signature_verified": false,
+    "note": "The host did not have Cosign or GitHub CLI. Phase 9 WP9.2 must add publisher-authenticity verification; checksum verification alone proves integrity, not authorship."
+  }
+}

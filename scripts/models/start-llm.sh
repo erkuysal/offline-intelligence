@@ -83,14 +83,16 @@ if [[ -n "$LLM_ADAPTER_PATH" ]]; then
     echo "Adapter activation requires a readable LLM_ADAPTER_MANIFEST." >&2
     exit 2
   fi
-  if ! command -v jq >/dev/null 2>&1 || ! jq -e . "$resolved_adapter_manifest" >/dev/null; then
-    echo "LLM adapter manifest is invalid or jq is unavailable: ${resolved_adapter_manifest}" >&2
+  manifest_reader="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/read-adapter-manifest.py"
+  if ! command -v python >/dev/null 2>&1 || ! manifest_output="$(python "$manifest_reader" "$resolved_adapter_manifest")"; then
+    echo "LLM adapter manifest is invalid or Python is unavailable: ${resolved_adapter_manifest}" >&2
     exit 2
   fi
-  manifest_adapter_id="$(jq -r '.adapter_id // empty' "$resolved_adapter_manifest")"
-  manifest_base_model="$(jq -r '.base_model.accepted_runtime_model // empty' "$resolved_adapter_manifest")"
-  manifest_gguf_file="$(jq -r '.runtime.gguf_file // empty' "$resolved_adapter_manifest")"
-  manifest_adapter_sha256="$(jq -r --arg file "$manifest_gguf_file" '.files[$file].sha256 // empty' "$resolved_adapter_manifest")"
+  mapfile -t manifest_fields <<< "$manifest_output"
+  manifest_adapter_id="${manifest_fields[0]:-}"
+  manifest_base_model="${manifest_fields[1]:-}"
+  manifest_gguf_file="${manifest_fields[2]:-}"
+  manifest_adapter_sha256="${manifest_fields[3]:-}"
   if [[ "$manifest_adapter_id" != "$LLM_ADAPTER_ID" || "$manifest_adapter_sha256" != "$LLM_ADAPTER_SHA256" || "$(basename "$resolved_adapter_path")" != "$manifest_gguf_file" ]]; then
     echo "LLM adapter identity, file, or checksum does not match its immutable manifest." >&2
     exit 2
