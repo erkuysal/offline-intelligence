@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "report_type": "v0_5_0_clean_tag_reproducibility",
+  "created_at": "2026-07-22T16:39:04Z",
+  "status": "failed_exact_artifact_reproduction",
+  "source": {
+    "tag": "v0.5.0",
+    "commit": "b0f51e3b5f0819beca9efddfe5780549ba6b5a9f",
+    "detached_worktree_clean": true,
+    "detached_worktree_generated_cache_files": 0,
+    "application_dockerfile_sha256": "21e5a4b68c989dc190f0917ab4577dd29173e4614b14613d16982353427f297b",
+    "web_dockerfile_sha256": "dff5aa21e01b2822f26977cda740bf6c96b106022787740528e65bec8de7e3af",
+    "pull_base_images": false,
+    "local_buildkit_cache_allowed": true,
+    "cache_independence_tested": false
+  },
+  "recorded": {
+    "application_image_id": "sha256:0a67973ad9d2ecaace3101986586448df7c211d36c88f8cb24a0673a58548076",
+    "application_archive_sha256": "9770930977987c2e8368170a9c9ece8abc17716b06dfad9b8c4967a98f75d7d6",
+    "application_archive_bytes": 116704768,
+    "application_spdx_sha256": "d2e7682f127485ab4c89a92f997f74a314e7f47d4d0fb50e09eca4442052d8b4",
+    "web_image_id": "sha256:3b81897fcc3709fd653788fcf3ce703b3b18b2cc24f1c71dbbf461948641a999",
+    "web_archive_sha256": "a60bf68619300fff8ca0c841e388002c7099c9f9fdad1263948b2e70cb70d0f6",
+    "web_archive_bytes": 26099712,
+    "web_spdx_sha256": "7ac993fe58fddf28b103c92d47fb0bc513a185985704c966bd7b3c3abb5f7167"
+  },
+  "rebuilt": {
+    "application_image_id": "sha256:2540330e94be6635588bc3b535f1d0ec494ff461a332386a1d21f0d271ca8d03",
+    "application_archive_sha256": "df9f95e6ac631b96ee88468c78174cdd5e8d1e41ec973b638bcf67c5ff713356",
+    "application_archive_bytes": 115929088,
+    "application_spdx_sha256": "83c618ca8f8bf0c6e76d40648becb074c3871fe8fc600db5d5cf4b9d6fc2c0b3",
+    "web_image_id": "sha256:eec9caf05f3b9bb06fc3b01a4ec177a0d417c644ee595d341ba6974b3d339b94",
+    "web_archive_sha256": "b6506aed5d7456b301a4bb5736830245aeca846fb809c4d9617d15e73891b82a",
+    "web_archive_bytes": 26105344,
+    "web_spdx_sha256": "469c37351aa1b3c419adc03d7b21cf0aa524f67968836bb6748a8137e7dcbe7f"
+  },
+  "comparison": {
+    "application_image_id_matches": false,
+    "application_archive_matches": false,
+    "web_image_id_matches": false,
+    "web_archive_matches": false,
+    "native_binary_sha256_matches": true,
+    "native_binary_sha256": "e96f45b20bb7c637debe79fc8f692b582d357a80294b8df2d342e9e7afc4ad30",
+    "web_runtime_files_and_permissions_match": true,
+    "application_package_count_matches": true,
+    "application_packages": 147,
+    "web_package_count_matches": true,
+    "web_packages": 72,
+    "package_inventory_matches_except_application_oci_identity": true,
+    "recorded_application_bytecode_cache_files": 163,
+    "rebuilt_application_bytecode_cache_files": 0,
+    "bundle_contract_rejected_rebuilt_application_archive": true,
+    "bundle_contract_expected_application_archive_sha256": "9770930977987c2e8368170a9c9ece8abc17716b06dfad9b8c4967a98f75d7d6",
+    "bundle_contract_found_application_archive_sha256": "df9f95e6ac631b96ee88468c78174cdd5e8d1e41ec973b638bcf67c5ff713356"
+  },
+  "decision": {
+    "published_tag_mutated": false,
+    "accepted_bundle_replaced": false,
+    "exact_reproducibility_gate_passed": false,
+    "required_follow_up": "Define a cache-independent canonical image and SBOM build/export process, then produce a new patch release rather than moving v0.5.0."
+  }
+}

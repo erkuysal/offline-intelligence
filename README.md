@@ -69,6 +69,7 @@ candidate is rebuilt, independently verified, and tagged.
 - [Phase 8 native acceleration acceptance](docs/acceptance/phase-8-native-acceleration.md)
 - [v0.5.0 release-closure plan](docs/plans/release-v0.5.0.md)
 - [v0.5.0 release-candidate acceptance](docs/acceptance/v0.5.0.md)
+- [v0.5.0 clean-tag reproducibility audit](docs/acceptance/v0.5.0-reproducibility.md)
 - [Phase 9 production and supply-chain hardening plan](docs/plans/phase-9.md)
 - [Post-Phase-9 feature options](docs/plans/post-phase-9-feature-options.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)

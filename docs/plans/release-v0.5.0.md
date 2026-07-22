@@ -1,6 +1,6 @@
 # v0.5.0 Release-Closure Plan
 
-Status: Candidate accepted locally — publication pending
+Status: Published — clean-tag reproducibility gap recorded
 
 ## Release Scope
 
@@ -20,11 +20,16 @@ No new model, adapter, retrieval default, or external service is introduced duri
 
 ## RC1: Reproducible Release Images and Inventories
 
-- [ ] Build API/worker and web images as `0.5.0` from the committed source revision
+- [x] Build API/worker and web images as `0.5.0` from the committed source revision
 - [x] Record immutable image IDs and exported archive SHA-256 values
 - [x] Generate the application and web SBOMs locally without uploading private image metadata
 - [x] Confirm the packaged native ABI, binary checksum, and Python fallback
 - [x] Confirm build tools remain absent from runtime images
+
+The post-publication clean-tag rebuild completed on 22 July 2026. It did not reproduce the
+accepted image or archive identities. The fail-closed result and exact replacement identities are
+recorded in [the reproducibility audit](../acceptance/v0.5.0-reproducibility.md); the final
+Definition of Done item therefore remains open.
 
 ## RC2: Offline Bundle
 
@@ -49,10 +54,10 @@ the run begins.
 ## RC4: Publication
 
 - [x] Run backend, frontend, native, documentation, and release-contract validation
-- [ ] Review the final diff and acceptance evidence
-- [ ] Merge the release branch through the repository's normal review path
-- [ ] Create annotated tag `v0.5.0` only after every required gate passes
-- [ ] Push the release commit and tag
+- [x] Review the final diff and acceptance evidence
+- [x] Fast-forward the release branch into the default `root` branch
+- [x] Create annotated tag `v0.5.0` after the required candidate gates passed
+- [x] Push the release commit and tag
 
 ## Definition of Done
 

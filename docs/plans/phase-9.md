@@ -16,7 +16,8 @@ and fleet orchestration remain outside this phase.
 
 ## Work Package 9.0: Release Baseline and Threat Review
 
-- [ ] Accept and tag `v0.5.0` as the immutable hardening baseline
+- [x] Accept and tag `v0.5.0` as the immutable hardening baseline; retain the documented clean-tag
+      artifact reproducibility gap as a mandatory hardening input
 - [ ] Update the connected-builder/disconnected-target threat model
 - [ ] Classify release keys, manifests, SBOMs, images, models, backups, and operator secrets
 - [ ] Define failure behavior for missing, expired, revoked, or mismatched trust material

@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "report_type": "v0_5_0_release_candidate_acceptance",
   "created_at": "2026-07-20T14:14:17Z",
-  "status": "accepted_locally_publication_pending",
+  "status": "published_reproducibility_gap_recorded",
   "release": {
     "version": "0.5.0",
     "release_id": "offline-intelligence-hub-0.5.0-linux-x86_64",
@@ -60,9 +60,16 @@
     "stack_stopped_after_acceptance": true
   },
   "publication": {
-    "source_commit_created": false,
-    "merged": false,
-    "tagged": false,
-    "pushed": false
+    "source_commit": "b0f51e3b5f0819beca9efddfe5780549ba6b5a9f",
+    "source_commit_created": true,
+    "merged": true,
+    "tagged": true,
+    "tag": "v0.5.0",
+    "pushed": true
+  },
+  "reproducibility": {
+    "clean_tag_rebuild_completed": true,
+    "exact_artifact_reproduction_passed": false,
+    "report": "docs/acceptance/v0.5.0-reproducibility.json"
   }
 }
