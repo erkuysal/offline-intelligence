@@ -10,6 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from delivery.offline_bundle import BundleSpec, build_offline_bundle
+from delivery.release_signing import sign_bundle, write_signature
 from scripts.delivery import offline_operator as operator
 
 
@@ -269,6 +270,110 @@ def completed(
     stdout: str = "", stderr: str = "", returncode: int = 0
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess([], returncode, stdout, stderr)
+
+
+def write_trust_material(
+    tmp_path: Path,
+    bundle: Path,
+    manifest: dict[str, object],
+    *,
+    revoke_key: bool = False,
+    revoke_release: bool = False,
+) -> tuple[Path, Path, Path]:
+    private_key = tmp_path / "release-private.pem"
+    public_key = tmp_path / "release-public.pem"
+    signature = tmp_path / "release-signature.json"
+    subprocess.run(
+        ["openssl", "genpkey", "-algorithm", "ED25519", "-out", str(private_key)],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            "openssl",
+            "pkey",
+            "-in",
+            str(private_key),
+            "-pubout",
+            "-out",
+            str(public_key),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    envelope = sign_bundle(bundle, private_key, public_key)
+    write_signature(envelope, signature)
+    policy = tmp_path / "revocations.json"
+    policy.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "policy_type": "offline_release_revocations",
+                "revoked_key_ids": [envelope.key_id] if revoke_key else [],
+                "revoked_release_ids": [manifest["release_id"]]
+                if revoke_release
+                else [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return signature, public_key, policy
+
+
+def test_dependency_free_release_authenticity_accepts_external_trust_root(
+    tmp_path: Path,
+) -> None:
+    bundle, manifest = build_operator_bundle(tmp_path)
+    signature, public_key, policy = write_trust_material(tmp_path, bundle, manifest)
+
+    key_id = operator.verify_release_authenticity(
+        bundle, manifest, signature, public_key, policy
+    )
+
+    assert key_id.startswith("sha256:")
+
+
+@pytest.mark.parametrize("revocation", ["key", "release"])
+def test_dependency_free_release_authenticity_rejects_revocation(
+    tmp_path: Path, revocation: str
+) -> None:
+    bundle, manifest = build_operator_bundle(tmp_path)
+    signature, public_key, policy = write_trust_material(
+        tmp_path,
+        bundle,
+        manifest,
+        revoke_key=revocation == "key",
+        revoke_release=revocation == "release",
+    )
+
+    with pytest.raises(operator.OperatorError, match="revoked"):
+        operator.verify_release_authenticity(
+            bundle, manifest, signature, public_key, policy
+        )
+
+
+def test_required_signature_failure_precedes_host_checks_and_mutation(
+    tmp_path: Path,
+) -> None:
+    bundle, _manifest = build_operator_bundle(tmp_path)
+    target = tmp_path / "target"
+
+    _manifest_value, report = operator.preflight(
+        bundle,
+        target,
+        web_port=3000,
+        minimum_ram_gib=8,
+        minimum_vram_gib=6,
+        disk_reserve_gib=10,
+        require_signature=True,
+    )
+
+    assert report.passed is False
+    assert [check.name for check in report.checks] == [
+        "bundle_verification",
+        "release_authenticity",
+    ]
+    assert not target.exists()
 
 
 def test_dependency_free_verifier_passes_and_detects_corruption(tmp_path: Path) -> None:

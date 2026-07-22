@@ -30,6 +30,20 @@ unset OIH_SIGNING_KEY_PASSPHRASE
   --signature offline-release.signature.json --public-key /etc/oih/trust/release-public.pem
 ```
 
+Copy and maintain `config/supply-chain/release-revocations-v1.example.json` through the same
+independently authenticated channel as the public key. Installation requires all three external
+trust inputs:
+
+```bash
+python3 operator/offline_operator.py install --bundle offline-release --target /opt/oih \
+  --signature offline-release.signature.json \
+  --public-key /etc/oih/trust/release-public.pem \
+  --revocation-policy /etc/oih/trust/revocations.json
+```
+
+The operator verifies bundle integrity first and then authenticity and revocation before inspecting
+host readiness or creating the target directory. Missing trust inputs are command-line errors.
+
 Rotate by provisioning the new public key before using its private counterpart. Record activation and
 retirement dates and retain old public keys only for releases still supported. Revocation removes the
 key ID from the target trust policy before any affected release is processed. If a private key or

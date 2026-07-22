@@ -2,6 +2,10 @@
 
 Status: WP7.4 operator and recovery contract
 
+Phase 9 installations also require the detached signature, external public key, and external
+revocation policy described in [Offline release signing](release-signing.md). Trust verification
+completes before target mutation or image loading.
+
 The operator tool is dependency-free Python and runs from the verified transfer directory. Python
 3.11 or newer, Docker Engine with Compose v2, an NVIDIA driver/runtime, and sufficient local
 capacity are target prerequisites. The target must not have internet access.

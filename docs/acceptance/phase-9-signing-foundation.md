@@ -2,7 +2,7 @@
 
 Date: 23 July 2026
 
-Status: Signing foundation accepted; operator enforcement and revocation tests remain
+Status: Accepted; WP9.2 complete
 
 The publisher can create and independently verify a strict detached Ed25519 envelope using OpenSSL.
 It binds the exact canonical bundle manifest and checksum inventory, identifies the external public
@@ -18,5 +18,14 @@ retained external public key ID is
 `sha256:09fe7c8cda110840f526f7efeaf925cc9a63959b5563b2ce7fd2e3f5ea4cd458`; the temporary private
 key was removed immediately after proof. This is test evidence, not a production release identity.
 
-The next slice must integrate the dependency-free operator so signature and revocation-policy checks
-occur before target-directory creation, secret generation, image loading, or service startup.
+The dependency-free operator now requires a detached signature, externally provisioned public key,
+and externally maintained revocation policy for `preflight` and `install`. It verifies bundle bytes
+first, then signature identity and revocation, and returns before host probing or target mutation on
+any trust failure. Focused coverage proves successful external-root verification, missing trust
+material, revoked keys, and revoked releases; the signing tests additionally cover modified bundle
+identities, modified signatures, and unknown public keys.
+
+The retained WP9.1 bundle is an evidence-only provenance bundle and intentionally lacks the Compose
+and environment payloads required by installation preflight. Its detached signature verifies, while
+the full operator trust order is exercised with synthetic complete install bundles. A future promoted
+release candidate must combine both boundaries before Phase 9 final acceptance.

@@ -51,8 +51,8 @@ bundle construction embedded and reverified that statement, closing WP9.1.
 - [x] Select a detached-signature format with offline verification support
 - [x] Document key generation, encrypted storage, rotation, revocation, backup, and recovery
 - [x] Sign the canonical release manifest and checksum inventory
-- [ ] Verify signatures before target mutation or image loading
-- [ ] Add negative tests for unknown keys, modified manifests, wrong releases, and revoked keys
+- [x] Verify signatures before target mutation or image loading
+- [x] Add negative tests for unknown keys, modified manifests, wrong releases, and revoked keys
 
 Hardware-backed keys and organizational PKI may be added later; the initial implementation must
 keep the trust root outside the transfer bundle. No LLM servers are required.

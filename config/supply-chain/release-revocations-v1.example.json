@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0",
+  "policy_type": "offline_release_revocations",
+  "revoked_key_ids": [],
+  "revoked_release_ids": []
+}

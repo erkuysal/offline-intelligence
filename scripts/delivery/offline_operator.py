@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -50,6 +51,23 @@ BACKUP_PAYLOADS = {
     "storage/api-storage.tar",
     "metadata/configuration.json",
     "metadata/release.json",
+}
+SIGNATURE_FIELDS = {
+    "schema_version",
+    "signature_type",
+    "algorithm",
+    "key_id",
+    "payload",
+    "signature_base64",
+}
+SIGNED_PAYLOAD_FIELDS = {
+    "schema_version",
+    "payload_type",
+    "release_id",
+    "manifest_sha256",
+    "manifest_size_bytes",
+    "checksums_sha256",
+    "checksums_size_bytes",
 }
 
 
@@ -98,7 +116,10 @@ def load_manifest(bundle: Path) -> dict[str, Any]:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise OperatorError(f"invalid manifest.json: {exc}") from exc
-    if not isinstance(manifest, dict) or manifest.get("manifest_type") != "offline_release_bundle":
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("manifest_type") != "offline_release_bundle"
+    ):
         raise OperatorError("unsupported manifest type")
     files = manifest.get("files")
     if not isinstance(files, list) or not files:
@@ -130,7 +151,9 @@ def parse_checksums(
     if path.is_symlink() or not path.is_file():
         raise OperatorError("checksums.sha256 is missing or is not a regular file")
     records: dict[str, str] = {}
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for number, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
         if len(line) < 67 or line[64:66] != "  ":
             raise OperatorError(f"invalid checksum line {number}")
         digest, name = line[:64], line[66:]
@@ -142,15 +165,145 @@ def parse_checksums(
     return records
 
 
+def expected_signed_payload(bundle: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    manifest_path = bundle / "manifest.json"
+    checksums_path = bundle / "checksums.sha256"
+    return {
+        "schema_version": "1.0",
+        "payload_type": "offline_bundle_release",
+        "release_id": manifest["release_id"],
+        "manifest_sha256": sha256_file(manifest_path),
+        "manifest_size_bytes": manifest_path.stat().st_size,
+        "checksums_sha256": sha256_file(checksums_path),
+        "checksums_size_bytes": checksums_path.stat().st_size,
+    }
+
+
+def verify_release_authenticity(
+    bundle: Path,
+    manifest: dict[str, Any],
+    signature_path: Path,
+    public_key: Path,
+    revocation_policy: Path,
+) -> str:
+    for label, path in (
+        ("signature", signature_path),
+        ("public key", public_key),
+        ("revocation policy", revocation_policy),
+    ):
+        if path.is_symlink() or not path.is_file():
+            raise OperatorError(f"{label} is missing or not a regular file")
+    envelope = json.loads(signature_path.read_text(encoding="utf-8"))
+    if not isinstance(envelope, dict) or set(envelope) != SIGNATURE_FIELDS:
+        raise OperatorError("signature envelope fields are invalid")
+    payload = envelope.get("payload")
+    if not isinstance(payload, dict) or set(payload) != SIGNED_PAYLOAD_FIELDS:
+        raise OperatorError("signed payload fields are invalid")
+    if (
+        envelope.get("schema_version") != "1.0"
+        or envelope.get("signature_type") != "offline_bundle_detached"
+        or envelope.get("algorithm") != "Ed25519"
+    ):
+        raise OperatorError("signature envelope type or algorithm is unsupported")
+    if payload != expected_signed_payload(bundle, manifest):
+        raise OperatorError("signed payload does not match the verified bundle")
+
+    key_result = subprocess.run(
+        ["openssl", "pkey", "-pubin", "-in", str(public_key), "-outform", "DER"],
+        check=False,
+        capture_output=True,
+    )
+    if key_result.returncode != 0:
+        raise OperatorError("trusted public key cannot be read by OpenSSL")
+    key_id = f"sha256:{hashlib.sha256(key_result.stdout).hexdigest()}"
+    if envelope.get("key_id") != key_id:
+        raise OperatorError("signature key is not the configured trust root")
+
+    policy = json.loads(revocation_policy.read_text(encoding="utf-8"))
+    expected_policy_fields = {
+        "schema_version",
+        "policy_type",
+        "revoked_key_ids",
+        "revoked_release_ids",
+    }
+    if not isinstance(policy, dict) or set(policy) != expected_policy_fields:
+        raise OperatorError("revocation policy fields are invalid")
+    if (
+        policy.get("schema_version") != "1.0"
+        or policy.get("policy_type") != "offline_release_revocations"
+    ):
+        raise OperatorError("revocation policy type is unsupported")
+    revoked_keys = policy.get("revoked_key_ids")
+    revoked_releases = policy.get("revoked_release_ids")
+    if (
+        not isinstance(revoked_keys, list)
+        or not all(isinstance(item, str) for item in revoked_keys)
+        or len(revoked_keys) != len(set(revoked_keys))
+    ):
+        raise OperatorError("revoked key inventory is invalid")
+    if (
+        not isinstance(revoked_releases, list)
+        or not all(isinstance(item, str) for item in revoked_releases)
+        or len(revoked_releases) != len(set(revoked_releases))
+    ):
+        raise OperatorError("revoked release inventory is invalid")
+    if key_id in revoked_keys:
+        raise OperatorError("release signing key is revoked")
+    if manifest["release_id"] in revoked_releases:
+        raise OperatorError("release is revoked")
+
+    try:
+        signature = base64.b64decode(envelope["signature_base64"], validate=True)
+    except (ValueError, TypeError) as exc:
+        raise OperatorError("signature is not valid base64") from exc
+    with tempfile.TemporaryDirectory(prefix="oih-operator-verify-") as directory:
+        payload_path = Path(directory) / "payload.json"
+        binary_signature = Path(directory) / "signature.bin"
+        payload_path.write_text(
+            json.dumps(
+                payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        binary_signature.write_bytes(signature)
+        result = subprocess.run(
+            [
+                "openssl",
+                "pkeyutl",
+                "-verify",
+                "-rawin",
+                "-in",
+                str(payload_path),
+                "-sigfile",
+                str(binary_signature),
+                "-pubin",
+                "-inkey",
+                str(public_key),
+            ],
+            check=False,
+            capture_output=True,
+        )
+    if result.returncode != 0:
+        raise OperatorError("detached release signature verification failed")
+    return key_id
+
+
 def verify_bundle(bundle: Path) -> tuple[dict[str, Any] | None, Report]:
     bundle = bundle.expanduser().absolute()
     checks: list[Check] = []
     if bundle.is_symlink() or not bundle.is_dir():
-        return None, Report("offline_bundle_verification", False, [Check("bundle", False, "not a regular directory")])
+        return None, Report(
+            "offline_bundle_verification",
+            False,
+            [Check("bundle", False, "not a regular directory")],
+        )
     try:
         manifest = load_manifest(bundle)
     except OperatorError as exc:
-        return None, Report("offline_bundle_verification", False, [Check("manifest", False, str(exc))])
+        return None, Report(
+            "offline_bundle_verification", False, [Check("manifest", False, str(exc))]
+        )
 
     records = manifest["files"]
     expected_files = {record["path"] for record in records} | RESERVED_PATHS
@@ -173,12 +326,23 @@ def verify_bundle(bundle: Path) -> tuple[dict[str, Any] | None, Report]:
         elif path.is_dir():
             actual_directories.add(relative)
     tree_failures = [f"symlink: {path}" for path in sorted(symlinks)]
-    tree_failures.extend(f"missing file: {path}" for path in sorted(expected_files - actual_files))
-    tree_failures.extend(f"unexpected file: {path}" for path in sorted(actual_files - expected_files))
     tree_failures.extend(
-        f"unexpected directory: {path}" for path in sorted(actual_directories - expected_directories)
+        f"missing file: {path}" for path in sorted(expected_files - actual_files)
     )
-    checks.append(Check("exact_tree", not tree_failures, "; ".join(tree_failures) or "exact tree matched"))
+    tree_failures.extend(
+        f"unexpected file: {path}" for path in sorted(actual_files - expected_files)
+    )
+    tree_failures.extend(
+        f"unexpected directory: {path}"
+        for path in sorted(actual_directories - expected_directories)
+    )
+    checks.append(
+        Check(
+            "exact_tree",
+            not tree_failures,
+            "; ".join(tree_failures) or "exact tree matched",
+        )
+    )
 
     payload_failures: list[str] = []
     expected_checksums: dict[str, str] = {}
@@ -194,24 +358,38 @@ def verify_bundle(bundle: Path) -> tuple[dict[str, Any] | None, Report]:
             payload_failures.append(f"size mismatch: {relative}")
         if not secrets.compare_digest(digest, record["sha256"]):
             payload_failures.append(f"checksum mismatch: {relative}")
-    checks.append(Check("payload_integrity", not payload_failures, "; ".join(payload_failures) or "all payloads matched"))
+    checks.append(
+        Check(
+            "payload_integrity",
+            not payload_failures,
+            "; ".join(payload_failures) or "all payloads matched",
+        )
+    )
 
     expected_checksums["manifest.json"] = sha256_file(bundle / "manifest.json")
     try:
         inventory = parse_checksums(bundle / "checksums.sha256")
         inventory_ok = inventory == expected_checksums
-        inventory_detail = "checksum inventory matched" if inventory_ok else "checksum inventory differs from manifest"
+        inventory_detail = (
+            "checksum inventory matched"
+            if inventory_ok
+            else "checksum inventory differs from manifest"
+        )
     except OperatorError as exc:
         inventory_ok = False
         inventory_detail = str(exc)
     checks.append(Check("checksum_inventory", inventory_ok, inventory_detail))
 
-    missing_required = sorted(REQUIRED_PAYLOADS - {record["path"] for record in records})
+    missing_required = sorted(
+        REQUIRED_PAYLOADS - {record["path"] for record in records}
+    )
     checks.append(
         Check(
             "required_payloads",
             not missing_required,
-            "all required payloads present" if not missing_required else f"missing: {', '.join(missing_required)}",
+            "all required payloads present"
+            if not missing_required
+            else f"missing: {', '.join(missing_required)}",
         )
     )
     compose_path = bundle / "configs" / "compose.yaml"
@@ -220,7 +398,10 @@ def verify_bundle(bundle: Path) -> tuple[dict[str, Any] | None, Report]:
         compose_failures = []
         if "internal: true" not in compose_text:
             compose_failures.append("application network is not internal")
-        if 'com.docker.network.bridge.enable_ip_masquerade: "false"' not in compose_text:
+        if (
+            'com.docker.network.bridge.enable_ip_masquerade: "false"'
+            not in compose_text
+        ):
             compose_failures.append("edge masquerading is not disabled")
         if "nameserver 127.0.0.1" not in compose_text:
             compose_failures.append("web runtime DNS lockdown is missing")
@@ -237,22 +418,47 @@ def verify_bundle(bundle: Path) -> tuple[dict[str, Any] | None, Report]:
     )
     total = sum(record["size_bytes"] for record in records)
     total_ok = manifest.get("total_size_bytes") == total
-    checks.append(Check("manifest_total", total_ok, f"declared={manifest.get('total_size_bytes')}, calculated={total}"))
-    return manifest, Report("offline_bundle_verification", all(check.passed for check in checks), checks)
+    checks.append(
+        Check(
+            "manifest_total",
+            total_ok,
+            f"declared={manifest.get('total_size_bytes')}, calculated={total}",
+        )
+    )
+    return manifest, Report(
+        "offline_bundle_verification", all(check.passed for check in checks), checks
+    )
 
 
-def run_command(command: Sequence[str], *, timeout: int = 120) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, check=False, capture_output=True, text=True, timeout=timeout)
+def run_command(
+    command: Sequence[str], *, timeout: int = 120
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command, check=False, capture_output=True, text=True, timeout=timeout
+    )
 
 
-def run_to_file(command: Sequence[str], output: Path, *, timeout: int) -> subprocess.CompletedProcess[bytes]:
+def run_to_file(
+    command: Sequence[str], output: Path, *, timeout: int
+) -> subprocess.CompletedProcess[bytes]:
     with output.open("wb") as handle:
-        return subprocess.run(command, check=False, stdout=handle, stderr=subprocess.PIPE, timeout=timeout)
+        return subprocess.run(
+            command, check=False, stdout=handle, stderr=subprocess.PIPE, timeout=timeout
+        )
 
 
-def run_from_file(command: Sequence[str], source: Path, *, timeout: int) -> subprocess.CompletedProcess[bytes]:
+def run_from_file(
+    command: Sequence[str], source: Path, *, timeout: int
+) -> subprocess.CompletedProcess[bytes]:
     with source.open("rb") as handle:
-        return subprocess.run(command, check=False, stdin=handle, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        return subprocess.run(
+            command,
+            check=False,
+            stdin=handle,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+        )
 
 
 def available_memory_bytes() -> int:
@@ -274,7 +480,11 @@ def gpu_memory_bytes() -> int:
     )
     if result.returncode != 0:
         return 0
-    values = [int(value.strip()) for value in result.stdout.splitlines() if value.strip().isdigit()]
+    values = [
+        int(value.strip())
+        for value in result.stdout.splitlines()
+        if value.strip().isdigit()
+    ]
     return max(values, default=0) * 1024**2
 
 
@@ -304,47 +514,129 @@ def preflight(
     minimum_vram_gib: int,
     disk_reserve_gib: int,
     check_port: bool = True,
+    signature_path: Path | None = None,
+    public_key: Path | None = None,
+    revocation_policy: Path | None = None,
+    require_signature: bool = False,
 ) -> tuple[dict[str, Any] | None, Report]:
     manifest, verification = verify_bundle(bundle)
-    checks = [Check("bundle_verification", verification.passed, "bundle verified" if verification.passed else "bundle verification failed")]
+    checks = [
+        Check(
+            "bundle_verification",
+            verification.passed,
+            "bundle verified" if verification.passed else "bundle verification failed",
+        )
+    ]
     if manifest is None or not verification.passed:
         return manifest, Report("offline_install_preflight", False, checks)
 
+    trust_paths = (signature_path, public_key, revocation_policy)
+    if require_signature or any(path is not None for path in trust_paths):
+        if any(path is None for path in trust_paths):
+            checks.append(
+                Check(
+                    "release_authenticity",
+                    False,
+                    "signature, public key, and revocation policy are required",
+                )
+            )
+            return manifest, Report("offline_install_preflight", False, checks)
+        try:
+            key_id = verify_release_authenticity(
+                bundle.expanduser().absolute(),
+                manifest,
+                signature_path,  # type: ignore[arg-type]
+                public_key,  # type: ignore[arg-type]
+                revocation_policy,  # type: ignore[arg-type]
+            )
+            checks.append(Check("release_authenticity", True, f"verified key={key_id}"))
+        except (OSError, OperatorError, ValueError, json.JSONDecodeError) as exc:
+            checks.append(Check("release_authenticity", False, str(exc)))
+            return manifest, Report("offline_install_preflight", False, checks)
+
     system = platform.system()
     machine = platform.machine().lower()
-    checks.append(Check("platform", system == "Linux" and machine in {"x86_64", "amd64"}, f"system={system}, architecture={machine}"))
+    checks.append(
+        Check(
+            "platform",
+            system == "Linux" and machine in {"x86_64", "amd64"},
+            f"system={system}, architecture={machine}",
+        )
+    )
 
-    docker = run_command(["docker", "info", "--format", "{{.ServerVersion}}"], timeout=30) if shutil.which("docker") else None
+    docker = (
+        run_command(["docker", "info", "--format", "{{.ServerVersion}}"], timeout=30)
+        if shutil.which("docker")
+        else None
+    )
     docker_ok = docker is not None and docker.returncode == 0
-    docker_detail = docker.stdout.strip() if docker_ok and docker is not None else (docker.stderr.strip() if docker is not None else "docker not found")
-    checks.append(Check("docker", docker_ok, docker_detail or "Docker daemon unavailable"))
+    docker_detail = (
+        docker.stdout.strip()
+        if docker_ok and docker is not None
+        else (docker.stderr.strip() if docker is not None else "docker not found")
+    )
+    checks.append(
+        Check("docker", docker_ok, docker_detail or "Docker daemon unavailable")
+    )
 
-    compose = run_command(["docker", "compose", "version", "--short"], timeout=30) if shutil.which("docker") else None
+    compose = (
+        run_command(["docker", "compose", "version", "--short"], timeout=30)
+        if shutil.which("docker")
+        else None
+    )
     compose_ok = compose is not None and compose.returncode == 0
-    compose_detail = compose.stdout.strip() if compose_ok and compose is not None else (compose.stderr.strip() if compose is not None else "docker not found")
-    checks.append(Check("docker_compose", compose_ok, compose_detail or "Compose unavailable"))
+    compose_detail = (
+        compose.stdout.strip()
+        if compose_ok and compose is not None
+        else (compose.stderr.strip() if compose is not None else "docker not found")
+    )
+    checks.append(
+        Check("docker_compose", compose_ok, compose_detail or "Compose unavailable")
+    )
 
     available_ram = available_memory_bytes()
     required_ram = minimum_ram_gib * GIB
-    checks.append(Check("ram", available_ram >= required_ram, f"available={available_ram}, required={required_ram}"))
+    checks.append(
+        Check(
+            "ram",
+            available_ram >= required_ram,
+            f"available={available_ram}, required={required_ram}",
+        )
+    )
 
     available_vram = gpu_memory_bytes()
     required_vram = minimum_vram_gib * GIB
-    checks.append(Check("vram", available_vram >= required_vram, f"available={available_vram}, required={required_vram}"))
+    checks.append(
+        Check(
+            "vram",
+            available_vram >= required_vram,
+            f"available={available_vram}, required={required_vram}",
+        )
+    )
 
     disk_root = nearest_existing_parent(target)
     free_disk = shutil.disk_usage(disk_root).free
     required_disk = int(manifest["total_size_bytes"]) * 2 + disk_reserve_gib * GIB
-    checks.append(Check("disk", free_disk >= required_disk, f"free={free_disk}, required={required_disk}, root={disk_root}"))
+    checks.append(
+        Check(
+            "disk",
+            free_disk >= required_disk,
+            f"free={free_disk}, required={required_disk}, root={disk_root}",
+        )
+    )
 
     port_ok = not check_port or port_available(web_port)
     checks.append(Check("web_port", port_ok, f"port={web_port}, checked={check_port}"))
-    return manifest, Report("offline_install_preflight", all(check.passed for check in checks), checks)
+    return manifest, Report(
+        "offline_install_preflight", all(check.passed for check in checks), checks
+    )
 
 
 def parse_env(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
-    for number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for number, raw_line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
@@ -420,16 +712,22 @@ def require_installed_payloads(
     for bundle_path, installed_path in installed_paths.items():
         record = records[bundle_path]
         if installed_path.is_symlink() or not installed_path.is_file():
-            raise OperatorError(f"installed payload is missing or unsafe: {installed_path}")
+            raise OperatorError(
+                f"installed payload is missing or unsafe: {installed_path}"
+            )
         if installed_path.stat().st_size != record["size_bytes"]:
             raise OperatorError(f"installed payload size mismatch: {installed_path}")
         if not secrets.compare_digest(sha256_file(installed_path), record["sha256"]):
-            raise OperatorError(f"installed payload checksum mismatch: {installed_path}")
+            raise OperatorError(
+                f"installed payload checksum mismatch: {installed_path}"
+            )
         if not secrets.compare_digest(
             sha256_file(bundle.joinpath(*PurePosixPath(bundle_path).parts)),
             record["sha256"],
         ):
-            raise OperatorError(f"bundle payload changed after verification: {bundle_path}")
+            raise OperatorError(
+                f"bundle payload changed after verification: {bundle_path}"
+            )
 
 
 def release_state(manifest: dict[str, Any], *, started: bool) -> dict[str, Any]:
@@ -453,13 +751,17 @@ def release_state(manifest: dict[str, Any], *, started: bool) -> dict[str, Any]:
     }
 
 
-def install(bundle: Path, target: Path, manifest: dict[str, Any], *, start: bool) -> None:
+def install(
+    bundle: Path, target: Path, manifest: dict[str, Any], *, start: bool
+) -> None:
     bundle = bundle.resolve()
     target = target.expanduser().absolute()
     state_path = target / "release.json"
     if target.exists():
         if target.is_symlink() or not state_path.is_file():
-            raise OperatorError(f"existing target is not a managed installation: {target}")
+            raise OperatorError(
+                f"existing target is not a managed installation: {target}"
+            )
         state = json.loads(state_path.read_text(encoding="utf-8"))
         if state.get("release_id") != manifest.get("release_id"):
             raise OperatorError("existing target belongs to a different release")
@@ -470,17 +772,30 @@ def install(bundle: Path, target: Path, manifest: dict[str, Any], *, start: bool
             if key in state and state[key] != expected_state[key]:
                 raise OperatorError(f"existing target identity mismatch: {key}")
             state[key] = expected_state[key]
-        state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        state_path.write_text(
+            json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     else:
         target.parent.mkdir(parents=True, exist_ok=True)
         staging = Path(tempfile.mkdtemp(prefix=f".{target.name}.", dir=target.parent))
         try:
             (staging / "config").mkdir()
             (staging / "models").mkdir()
-            shutil.copyfile(bundle / "configs" / "compose.yaml", staging / "compose.yaml")
-            shutil.copyfile(bundle / "configs" / "prod.example.env", staging / "config" / "prod.example.env")
-            shutil.copyfile(bundle / "models" / "chat-model.gguf", staging / "models" / "chat-model.gguf")
-            shutil.copyfile(bundle / "models" / "embedding-model.gguf", staging / "models" / "embedding-model.gguf")
+            shutil.copyfile(
+                bundle / "configs" / "compose.yaml", staging / "compose.yaml"
+            )
+            shutil.copyfile(
+                bundle / "configs" / "prod.example.env",
+                staging / "config" / "prod.example.env",
+            )
+            shutil.copyfile(
+                bundle / "models" / "chat-model.gguf",
+                staging / "models" / "chat-model.gguf",
+            )
+            shutil.copyfile(
+                bundle / "models" / "embedding-model.gguf",
+                staging / "models" / "embedding-model.gguf",
+            )
             env_path = staging / "config" / "prod.env"
             env_path.write_text(
                 render_target_env(
@@ -493,7 +808,9 @@ def install(bundle: Path, target: Path, manifest: dict[str, Any], *, start: bool
             env_path.chmod(0o600)
             state_path_in_staging = staging / "release.json"
             state_path_in_staging.write_text(
-                json.dumps(release_state(manifest, started=False), indent=2, sort_keys=True)
+                json.dumps(
+                    release_state(manifest, started=False), indent=2, sort_keys=True
+                )
                 + "\n",
                 encoding="utf-8",
             )
@@ -507,7 +824,9 @@ def install(bundle: Path, target: Path, manifest: dict[str, Any], *, start: bool
     for archive in sorted((bundle / "images").glob("*.tar")):
         result = run_command(["docker", "load", "--input", str(archive)], timeout=900)
         if result.returncode != 0:
-            raise OperatorError(f"docker load failed for {archive.name}: {result.stderr.strip()}")
+            raise OperatorError(
+                f"docker load failed for {archive.name}: {result.stderr.strip()}"
+            )
 
     for reference, expected_id in image_expectations(manifest).items():
         result = run_command(
@@ -523,7 +842,9 @@ def install(bundle: Path, target: Path, manifest: dict[str, Any], *, start: bool
 
     config = run_command(compose_command(target, "config", "--quiet"), timeout=60)
     if config.returncode != 0:
-        raise OperatorError(f"Compose configuration is invalid: {config.stderr.strip()}")
+        raise OperatorError(
+            f"Compose configuration is invalid: {config.stderr.strip()}"
+        )
     if start:
         result = run_command(
             compose_command(target, "up", "-d", "--no-build", "--pull", "never"),
@@ -543,12 +864,23 @@ def managed_target(target: Path) -> tuple[Path, dict[str, str], dict[str, Any]]:
     target = target.expanduser().absolute()
     state_path = target / "release.json"
     env_path = target / "config" / "prod.env"
-    if target.is_symlink() or not state_path.is_file() or env_path.is_symlink() or not env_path.is_file():
+    if (
+        target.is_symlink()
+        or not state_path.is_file()
+        or env_path.is_symlink()
+        or not env_path.is_file()
+    ):
         raise OperatorError(f"target is not a managed installation: {target}")
     values = parse_env(env_path)
     validate_secrets(values)
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    for key in ("release_id", "app_version", "model_sha256", "image_ids", "migration_head"):
+    for key in (
+        "release_id",
+        "app_version",
+        "model_sha256",
+        "image_ids",
+        "migration_head",
+    ):
         if key not in state:
             raise OperatorError(f"managed target is missing recovery identity: {key}")
     return target, values, state
@@ -575,11 +907,15 @@ def wait_for_postgres(target: Path, values: dict[str, str]) -> None:
 
 def start_backup_postgres(target: Path, values: dict[str, str]) -> None:
     result = run_command(
-        compose_command(target, "up", "-d", "--no-build", "--pull", "never", "postgres"),
+        compose_command(
+            target, "up", "-d", "--no-build", "--pull", "never", "postgres"
+        ),
         timeout=300,
     )
     if result.returncode != 0:
-        raise OperatorError(f"failed to start PostgreSQL for recovery operation: {result.stderr.strip()}")
+        raise OperatorError(
+            f"failed to start PostgreSQL for recovery operation: {result.stderr.strip()}"
+        )
     wait_for_postgres(target, values)
 
 
@@ -632,7 +968,9 @@ def create_backup(target: Path, output: Path) -> dict[str, Any]:
         for directory in ("database", "storage", "metadata"):
             (staging / directory).mkdir()
         start_backup_postgres(target, values)
-        migration_revision = postgres_scalar(target, values, "SELECT version_num FROM alembic_version")
+        migration_revision = postgres_scalar(
+            target, values, "SELECT version_num FROM alembic_version"
+        )
         if migration_revision != state["migration_head"]:
             raise OperatorError(
                 f"migration identity mismatch: installed={state['migration_head']}, database={migration_revision}"
@@ -658,7 +996,9 @@ def create_backup(target: Path, output: Path) -> dict[str, Any]:
             timeout=900,
         )
         if database_result.returncode != 0:
-            raise OperatorError(f"pg_dump failed: {database_result.stderr.decode(errors='replace').strip()}")
+            raise OperatorError(
+                f"pg_dump failed: {database_result.stderr.decode(errors='replace').strip()}"
+            )
 
         storage_path = staging / "storage" / "api-storage.tar"
         storage_result = run_to_file(
@@ -694,7 +1034,13 @@ def create_backup(target: Path, output: Path) -> dict[str, Any]:
         )
         recovery_state = {
             key: state[key]
-            for key in ("release_id", "app_version", "model_sha256", "image_ids", "migration_head")
+            for key in (
+                "release_id",
+                "app_version",
+                "model_sha256",
+                "image_ids",
+                "migration_head",
+            )
         }
         (staging / "metadata" / "release.json").write_text(
             json.dumps(recovery_state, indent=2, sort_keys=True) + "\n",
@@ -729,7 +1075,9 @@ def create_backup(target: Path, output: Path) -> dict[str, Any]:
             "contains_sensitive_data": True,
         }
         manifest_path = staging / BACKUP_MANIFEST_NAME
-        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
         checksum_records = [(record["sha256"], record["path"]) for record in records]
         checksum_records.append((sha256_file(manifest_path), BACKUP_MANIFEST_NAME))
         (staging / BACKUP_CHECKSUMS_NAME).write_text(
@@ -753,7 +1101,11 @@ def verify_backup(backup: Path) -> tuple[dict[str, Any] | None, Report]:
     backup = backup.expanduser().absolute()
     checks: list[Check] = []
     if backup.is_symlink() or not backup.is_dir():
-        return None, Report("offline_backup_verification", False, [Check("backup", False, "not a regular directory")])
+        return None, Report(
+            "offline_backup_verification",
+            False,
+            [Check("backup", False, "not a regular directory")],
+        )
     manifest_path = backup / BACKUP_MANIFEST_NAME
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -763,10 +1115,14 @@ def verify_backup(backup: Path) -> tuple[dict[str, Any] | None, Report]:
         if {record["path"] for record in records} != BACKUP_PAYLOADS:
             raise OperatorError("backup payload inventory is incomplete")
     except (OSError, KeyError, TypeError, json.JSONDecodeError, OperatorError) as exc:
-        return None, Report("offline_backup_verification", False, [Check("manifest", False, str(exc))])
+        return None, Report(
+            "offline_backup_verification", False, [Check("manifest", False, str(exc))]
+        )
 
     expected_files = BACKUP_PAYLOADS | BACKUP_RESERVED_PATHS
-    expected_directories = {PurePosixPath(path).parent.as_posix() for path in BACKUP_PAYLOADS}
+    expected_directories = {
+        PurePosixPath(path).parent.as_posix() for path in BACKUP_PAYLOADS
+    }
     actual_files: set[str] = set()
     actual_directories: set[str] = set()
     tree_failures: list[str] = []
@@ -779,12 +1135,23 @@ def verify_backup(backup: Path) -> tuple[dict[str, Any] | None, Report]:
             actual_files.add(relative)
         elif path.is_dir():
             actual_directories.add(relative)
-    tree_failures.extend(f"missing file: {path}" for path in sorted(expected_files - actual_files))
-    tree_failures.extend(f"unexpected file: {path}" for path in sorted(actual_files - expected_files))
     tree_failures.extend(
-        f"unexpected directory: {path}" for path in sorted(actual_directories - expected_directories)
+        f"missing file: {path}" for path in sorted(expected_files - actual_files)
     )
-    checks.append(Check("exact_tree", not tree_failures, "; ".join(tree_failures) or "exact tree matched"))
+    tree_failures.extend(
+        f"unexpected file: {path}" for path in sorted(actual_files - expected_files)
+    )
+    tree_failures.extend(
+        f"unexpected directory: {path}"
+        for path in sorted(actual_directories - expected_directories)
+    )
+    checks.append(
+        Check(
+            "exact_tree",
+            not tree_failures,
+            "; ".join(tree_failures) or "exact tree matched",
+        )
+    )
 
     integrity_failures: list[str] = []
     expected_checksums: dict[str, str] = {}
@@ -798,16 +1165,32 @@ def verify_backup(backup: Path) -> tuple[dict[str, Any] | None, Report]:
             integrity_failures.append(f"size mismatch: {record['path']}")
         if not secrets.compare_digest(digest, record["sha256"]):
             integrity_failures.append(f"checksum mismatch: {record['path']}")
-    checks.append(Check("payload_integrity", not integrity_failures, "; ".join(integrity_failures) or "all payloads matched"))
+    checks.append(
+        Check(
+            "payload_integrity",
+            not integrity_failures,
+            "; ".join(integrity_failures) or "all payloads matched",
+        )
+    )
 
     expected_checksums[BACKUP_MANIFEST_NAME] = sha256_file(manifest_path)
     try:
-        inventory = parse_checksums(backup / BACKUP_CHECKSUMS_NAME, BACKUP_RESERVED_PATHS)
+        inventory = parse_checksums(
+            backup / BACKUP_CHECKSUMS_NAME, BACKUP_RESERVED_PATHS
+        )
         inventory_ok = inventory == expected_checksums
     except (OSError, OperatorError) as exc:
         inventory_ok = False
         integrity_failures = [str(exc)]
-    checks.append(Check("checksum_inventory", inventory_ok, "checksum inventory matched" if inventory_ok else "; ".join(integrity_failures)))
+    checks.append(
+        Check(
+            "checksum_inventory",
+            inventory_ok,
+            "checksum inventory matched"
+            if inventory_ok
+            else "; ".join(integrity_failures),
+        )
+    )
 
     try:
         safe_storage_archive(backup / "storage" / "api-storage.tar")
@@ -818,7 +1201,9 @@ def verify_backup(backup: Path) -> tuple[dict[str, Any] | None, Report]:
         archive_detail = str(exc)
     checks.append(Check("storage_archive", archive_ok, archive_detail))
 
-    configuration = json.loads((backup / "metadata" / "configuration.json").read_text(encoding="utf-8"))
+    configuration = json.loads(
+        (backup / "metadata" / "configuration.json").read_text(encoding="utf-8")
+    )
     secrets_absent = (
         not (REQUIRED_SECRETS & set(configuration))
         and manifest.get("contains_target_secrets") is False
@@ -828,7 +1213,9 @@ def verify_backup(backup: Path) -> tuple[dict[str, Any] | None, Report]:
         Check(
             "target_secrets_absent",
             secrets_absent,
-            "no target secrets present" if secrets_absent else "target secret metadata found",
+            "no target secrets present"
+            if secrets_absent
+            else "target secret metadata found",
         )
     )
     private_permissions = backup.stat().st_mode & 0o077 == 0
@@ -836,10 +1223,14 @@ def verify_backup(backup: Path) -> tuple[dict[str, Any] | None, Report]:
         Check(
             "private_permissions",
             private_permissions,
-            "backup root is private" if private_permissions else "backup root grants group/world access",
+            "backup root is private"
+            if private_permissions
+            else "backup root grants group/world access",
         )
     )
-    return manifest, Report("offline_backup_verification", all(check.passed for check in checks), checks)
+    return manifest, Report(
+        "offline_backup_verification", all(check.passed for check in checks), checks
+    )
 
 
 def restore_backup(backup: Path, target: Path) -> dict[str, Any]:
@@ -848,8 +1239,16 @@ def restore_backup(backup: Path, target: Path) -> dict[str, Any]:
         raise OperatorError("backup verification failed")
     backup = backup.expanduser().absolute()
     target, values, state = managed_target(target)
-    for key in ("release_id", "app_version", "model_sha256", "image_ids", "migration_head"):
-        backup_value = manifest["migration_revision"] if key == "migration_head" else manifest[key]
+    for key in (
+        "release_id",
+        "app_version",
+        "model_sha256",
+        "image_ids",
+        "migration_head",
+    ):
+        backup_value = (
+            manifest["migration_revision"] if key == "migration_head" else manifest[key]
+        )
         if state[key] != backup_value:
             raise OperatorError(f"backup target identity mismatch: {key}")
     if state.get("started"):
@@ -864,7 +1263,9 @@ def restore_backup(backup: Path, target: Path) -> dict[str, Any]:
             "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'",
         )
         if table_count != "0":
-            raise OperatorError(f"restore database is not empty: {table_count} public tables")
+            raise OperatorError(
+                f"restore database is not empty: {table_count} public tables"
+            )
         storage_empty = run_command(
             compose_command(
                 target,
@@ -901,7 +1302,9 @@ def restore_backup(backup: Path, target: Path) -> dict[str, Any]:
             timeout=900,
         )
         if database_result.returncode != 0:
-            raise OperatorError(f"pg_restore failed: {database_result.stderr.decode(errors='replace').strip()}")
+            raise OperatorError(
+                f"pg_restore failed: {database_result.stderr.decode(errors='replace').strip()}"
+            )
 
         storage_result = run_from_file(
             compose_command(
@@ -921,9 +1324,13 @@ def restore_backup(backup: Path, target: Path) -> dict[str, Any]:
             timeout=900,
         )
         if storage_result.returncode != 0:
-            raise OperatorError(f"storage restore failed: {storage_result.stderr.decode(errors='replace').strip()}")
+            raise OperatorError(
+                f"storage restore failed: {storage_result.stderr.decode(errors='replace').strip()}"
+            )
 
-        restored_revision = postgres_scalar(target, values, "SELECT version_num FROM alembic_version")
+        restored_revision = postgres_scalar(
+            target, values, "SELECT version_num FROM alembic_version"
+        )
         if restored_revision != manifest["migration_revision"]:
             raise OperatorError(
                 f"restored migration mismatch: expected {manifest['migration_revision']}, found {restored_revision}"
@@ -949,12 +1356,16 @@ def uninstall(target: Path) -> None:
     if target.is_symlink() or not state_path.is_file():
         raise OperatorError(f"target is not a managed installation: {target}")
     validate_secrets(parse_env(target / "config" / "prod.env"))
-    result = run_command(compose_command(target, "down", "--remove-orphans"), timeout=300)
+    result = run_command(
+        compose_command(target, "down", "--remove-orphans"), timeout=300
+    )
     if result.returncode != 0:
         raise OperatorError(f"Compose stop failed: {result.stderr.strip()}")
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["started"] = False
-    state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    state_path.write_text(
+        json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def write_report(report: Report, output: str | None) -> None:
@@ -986,6 +1397,10 @@ def build_parser() -> argparse.ArgumentParser:
     install_parser.add_argument("--minimum-vram-gib", type=int, default=6)
     install_parser.add_argument("--disk-reserve-gib", type=int, default=10)
     install_parser.add_argument("--no-start", action="store_true")
+    for trust_parser in (preflight_parser, install_parser):
+        trust_parser.add_argument("--signature", required=True)
+        trust_parser.add_argument("--public-key", required=True)
+        trust_parser.add_argument("--revocation-policy", required=True)
     backup_parser = subparsers.add_parser("backup")
     backup_parser.add_argument("--target", required=True)
     backup_parser.add_argument("--output", required=True)
@@ -1017,6 +1432,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 minimum_vram_gib=args.minimum_vram_gib,
                 disk_reserve_gib=args.disk_reserve_gib,
                 check_port=not target.exists(),
+                signature_path=Path(args.signature),
+                public_key=Path(args.public_key),
+                revocation_policy=Path(args.revocation_policy),
+                require_signature=True,
             )
             if args.command == "preflight":
                 write_report(report, args.output)
@@ -1048,7 +1467,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0
         uninstall(Path(args.target))
-        print(f"Stopped managed installation at {args.target}; data volumes and files were preserved")
+        print(
+            f"Stopped managed installation at {args.target}; data volumes and files were preserved"
+        )
         return 0
     except (
         KeyError,
