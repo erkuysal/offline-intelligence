@@ -56,7 +56,9 @@ def write_image_archive(
             "config": {
                 "Labels": {
                     "org.opencontainers.image.revision": revision,
-                    "org.offline-intelligence-hub.source-date-epoch": str(source_date_epoch),
+                    "org.offline-intelligence-hub.source-date-epoch": str(
+                        source_date_epoch
+                    ),
                 }
             }
         },
@@ -82,7 +84,9 @@ def write_image_archive(
     return config_digest
 
 
-def spdx_payload(*, namespace: str = "first", subject_digest: str = SUBJECT_MANIFEST) -> dict:
+def spdx_payload(
+    *, namespace: str = "first", subject_digest: str = SUBJECT_MANIFEST
+) -> dict:
     return {
         "spdxVersion": "SPDX-2.3",
         "dataLicense": "CC0-1.0",
@@ -151,7 +155,9 @@ def write_provenance_fixture(tmp_path: Path) -> tuple[Path, ReleaseProvenanceSpe
         failures=[],
     )
     source_report_path = tmp_path / "source-report.json"
-    source_report_path.write_text(source_report.model_dump_json(indent=2), encoding="utf-8")
+    source_report_path.write_text(
+        source_report.model_dump_json(indent=2), encoding="utf-8"
+    )
 
     archive = tmp_path / "application.tar"
     config_digest = write_image_archive(archive)
@@ -240,7 +246,9 @@ def test_provenance_binds_source_image_sbom_native_and_model(tmp_path: Path) -> 
 
 
 def test_checked_in_example_spec_is_strictly_valid() -> None:
-    spec = ReleaseProvenanceSpec.model_validate_json(EXAMPLE_SPEC.read_text(encoding="utf-8"))
+    spec = ReleaseProvenanceSpec.model_validate_json(
+        EXAMPLE_SPEC.read_text(encoding="utf-8")
+    )
 
     assert spec.artifacts[0].artifact_id == "application"
 
@@ -262,8 +270,10 @@ def test_external_image_binds_upstream_archive_and_sbom_without_source_labels(
     report = build_release_provenance_report(external_spec, spec_path=spec_path)
 
     assert report.passed is True
-    assert report.artifacts[0].identities["upstream_reference"].startswith(
-        "registry.example/runtime@sha256:"
+    assert (
+        report.artifacts[0]
+        .identities["upstream_reference"]
+        .startswith("registry.example/runtime@sha256:")
     )
 
 
@@ -288,7 +298,25 @@ def test_payload_checksum_mismatch_fails_closed(tmp_path: Path) -> None:
     report = build_release_provenance_report(spec, spec_path=spec_path)
 
     assert report.passed is False
-    assert any("chat-model model checksum mismatch" in failure for failure in report.failures)
+    assert any(
+        "chat-model model checksum mismatch" in failure for failure in report.failures
+    )
+
+
+def test_symlinked_evidence_fails_closed(tmp_path: Path) -> None:
+    spec_path, spec = write_provenance_fixture(tmp_path)
+    archive = tmp_path / "application.tar"
+    actual_archive = tmp_path / "actual-application.tar"
+    archive.rename(actual_archive)
+    archive.symlink_to(actual_archive.name)
+
+    report = build_release_provenance_report(spec, spec_path=spec_path)
+
+    assert report.passed is False
+    assert any(
+        "image archive is missing or not a regular file" in failure
+        for failure in report.failures
+    )
 
 
 def test_sbom_subject_identity_mismatch_fails_closed(tmp_path: Path) -> None:
@@ -307,7 +335,9 @@ def test_sbom_subject_identity_mismatch_fails_closed(tmp_path: Path) -> None:
     report = build_release_provenance_report(spec, spec_path=spec_path)
 
     assert report.passed is False
-    assert any("SBOM subject manifest mismatch" in failure for failure in report.failures)
+    assert any(
+        "SBOM subject manifest mismatch" in failure for failure in report.failures
+    )
 
 
 def test_native_inventory_image_mismatch_fails_closed(tmp_path: Path) -> None:
@@ -323,10 +353,14 @@ def test_native_inventory_image_mismatch_fails_closed(tmp_path: Path) -> None:
     report = build_release_provenance_report(spec, spec_path=spec_path)
 
     assert report.passed is False
-    assert any("native inventory image mismatch" in failure for failure in report.failures)
+    assert any(
+        "native inventory image mismatch" in failure for failure in report.failures
+    )
 
 
-def test_normalized_spdx_inventory_ignores_volatile_document_metadata(tmp_path: Path) -> None:
+def test_normalized_spdx_inventory_ignores_volatile_document_metadata(
+    tmp_path: Path,
+) -> None:
     first = tmp_path / "first.json"
     second = tmp_path / "second.json"
     first.write_text(json.dumps(spdx_payload(namespace="first")), encoding="utf-8")

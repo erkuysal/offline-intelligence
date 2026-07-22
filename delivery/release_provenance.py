@@ -10,7 +10,11 @@ from urllib.parse import unquote
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from delivery.release_source import ReleaseSourceReport, sha256_file, validate_relative_path
+from delivery.release_source import (
+    ReleaseSourceReport,
+    sha256_file,
+    validate_relative_path,
+)
 
 
 SHA256_PATTERN = r"^[a-f0-9]{64}$"
@@ -132,10 +136,13 @@ class ReleaseProvenanceSpec(StrictModel):
         bundle_paths: list[str] = []
         for artifact in self.artifacts:
             if isinstance(artifact, (ProjectImageSpec, ExternalImageSpec)):
-                bundle_paths.extend([artifact.archive.bundle_path, artifact.sbom.bundle_path])
+                bundle_paths.extend(
+                    [artifact.archive.bundle_path, artifact.sbom.bundle_path]
+                )
                 if isinstance(artifact, ProjectImageSpec):
                     bundle_paths.extend(
-                        binding.inventory.bundle_path for binding in artifact.native_bindings
+                        binding.inventory.bundle_path
+                        for binding in artifact.native_bindings
                     )
             else:
                 bundle_paths.append(artifact.payload.bundle_path)
@@ -152,7 +159,9 @@ class PayloadRecord(StrictModel):
 
 class ArtifactRecord(StrictModel):
     artifact_id: str
-    artifact_type: Literal["project_container_image", "external_container_image", "model"]
+    artifact_type: Literal[
+        "project_container_image", "external_container_image", "model"
+    ]
     payloads: list[PayloadRecord]
     identities: dict[str, Any]
 
@@ -177,13 +186,29 @@ class ReleaseProvenanceReport(StrictModel):
 
 
 def canonical_json_sha256(value: object) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    payload = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def resolve_evidence_path(spec_path: Path, declared_path: str) -> Path:
     validate_relative_path(declared_path)
-    return spec_path.parent.joinpath(*PurePosixPath(declared_path).parts).resolve()
+    return spec_path.parent.resolve().joinpath(*PurePosixPath(declared_path).parts)
+
+
+def evidence_path_has_symlink(spec_path: Path, path: Path) -> bool:
+    root = spec_path.parent.resolve()
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return True
+    current = root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
 
 
 def load_release_provenance_spec(path: Path) -> ReleaseProvenanceSpec:
@@ -198,7 +223,7 @@ def verify_payload(
     failures: list[str],
 ) -> tuple[Path, PayloadRecord | None]:
     path = resolve_evidence_path(spec_path, payload.path)
-    if path.is_symlink() or not path.is_file():
+    if evidence_path_has_symlink(spec_path, path) or not path.is_file():
         failures.append(f"{label} is missing or not a regular file: {payload.path}")
         return path, None
     size = path.stat().st_size
@@ -224,14 +249,18 @@ def read_json_tar_member(archive: tarfile.TarFile, name: str) -> object:
     except KeyError as exc:
         raise ReleaseProvenanceError(f"image archive is missing {name}") from exc
     if not member.isfile() or member.issym() or member.islnk():
-        raise ReleaseProvenanceError(f"image archive member must be a regular file: {name}")
+        raise ReleaseProvenanceError(
+            f"image archive member must be a regular file: {name}"
+        )
     handle = archive.extractfile(member)
     if handle is None:
         raise ReleaseProvenanceError(f"image archive member cannot be read: {name}")
     try:
         return json.load(handle)
     except json.JSONDecodeError as exc:
-        raise ReleaseProvenanceError(f"image archive member is invalid JSON: {name}") from exc
+        raise ReleaseProvenanceError(
+            f"image archive member is invalid JSON: {name}"
+        ) from exc
 
 
 def inspect_image_archive(
@@ -242,22 +271,34 @@ def inspect_image_archive(
         with tarfile.open(path, mode="r:*") as archive:
             manifest = read_json_tar_member(archive, "manifest.json")
             if not isinstance(manifest, list) or len(manifest) != 1:
-                raise ReleaseProvenanceError("image archive must contain exactly one image manifest")
+                raise ReleaseProvenanceError(
+                    "image archive must contain exactly one image manifest"
+                )
             entry = manifest[0]
             if not isinstance(entry, dict):
-                raise ReleaseProvenanceError("image archive manifest entry must be an object")
+                raise ReleaseProvenanceError(
+                    "image archive manifest entry must be an object"
+                )
             repo_tags = entry.get("RepoTags")
-            if not isinstance(repo_tags, list) or set(repo_tags) != set(image.repo_tags):
+            if not isinstance(repo_tags, list) or set(repo_tags) != set(
+                image.repo_tags
+            ):
                 raise ReleaseProvenanceError(
                     f"image archive tags mismatch: expected {sorted(image.repo_tags)}, "
                     f"found {repo_tags!r}"
                 )
             config_path = entry.get("Config")
             if not isinstance(config_path, str):
-                raise ReleaseProvenanceError("image archive manifest has no config path")
+                raise ReleaseProvenanceError(
+                    "image archive manifest has no config path"
+                )
             config_name = PurePosixPath(config_path).name
-            if not re.fullmatch(SHA256_PATTERN.removeprefix("^").removesuffix("$"), config_name):
-                raise ReleaseProvenanceError("image archive config path is not SHA-256 addressed")
+            if not re.fullmatch(
+                SHA256_PATTERN.removeprefix("^").removesuffix("$"), config_name
+            ):
+                raise ReleaseProvenanceError(
+                    "image archive config path is not SHA-256 addressed"
+                )
             config = read_json_tar_member(archive, config_path)
             if not isinstance(config, dict):
                 raise ReleaseProvenanceError("image archive config must be an object")
@@ -304,7 +345,9 @@ def normalized_spdx_packages(packages: list[object]) -> tuple[int, str]:
                 )
             }
         )
-    normalized.sort(key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")))
+    normalized.sort(
+        key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":"))
+    )
     return len(normalized), canonical_json_sha256(normalized)
 
 
@@ -327,13 +370,18 @@ def inspect_spdx(path: Path, sbom: SpdxSpec) -> tuple[str, int, str]:
         if isinstance(package, dict) and package.get("name") == sbom.subject_name
     ]
     if len(subjects) != 1:
-        raise ReleaseProvenanceError("SBOM must contain exactly one named image subject")
+        raise ReleaseProvenanceError(
+            "SBOM must contain exactly one named image subject"
+        )
     subject = subjects[0]
     references = subject.get("externalRefs")
     digests: set[str] = set()
     if isinstance(references, list):
         for reference in references:
-            if not isinstance(reference, dict) or reference.get("referenceType") != "purl":
+            if (
+                not isinstance(reference, dict)
+                or reference.get("referenceType") != "purl"
+            ):
                 continue
             locator = reference.get("referenceLocator")
             if not isinstance(locator, str):
@@ -392,12 +440,21 @@ def build_release_provenance_report(
     source_date_epoch: int | None = None
     source_files: dict[str, str] = {}
     try:
+        if (
+            evidence_path_has_symlink(spec_path, source_report_path)
+            or not source_report_path.is_file()
+        ):
+            raise ReleaseProvenanceError(
+                f"missing, symlinked, or not a regular file: {spec.source_report_path}"
+            )
         source_report_sha256 = sha256_file(source_report_path)
         source_report = ReleaseSourceReport.model_validate_json(
             source_report_path.read_text(encoding="utf-8")
         )
         source_date_epoch = source_report.source_date_epoch
-        source_files = {record.path: record.sha256 for record in source_report.required_files}
+        source_files = {
+            record.path: record.sha256 for record in source_report.required_files
+        }
         if not source_report.passed:
             failures.append("source preflight report did not pass")
         if source_report.source_revision != spec.source_revision:
@@ -429,7 +486,9 @@ def build_release_provenance_report(
                     )
             if archive_path.is_file():
                 try:
-                    config_digest, labels = inspect_image_archive(archive_path, artifact)
+                    config_digest, labels = inspect_image_archive(
+                        archive_path, artifact
+                    )
                     if config_digest != artifact.image_config_sha256:
                         artifact_failures.append(
                             f"{artifact.artifact_id} image config mismatch: expected "
@@ -444,7 +503,9 @@ def build_release_provenance_report(
                     )
                     if isinstance(artifact, ProjectImageSpec):
                         revision = labels.get("org.opencontainers.image.revision")
-                        epoch = labels.get("org.offline-intelligence-hub.source-date-epoch")
+                        epoch = labels.get(
+                            "org.offline-intelligence-hub.source-date-epoch"
+                        )
                         if revision != spec.source_revision:
                             artifact_failures.append(
                                 f"{artifact.artifact_id} source label mismatch: expected "
@@ -519,8 +580,13 @@ def build_release_provenance_report(
             )
             if model_record:
                 payloads.append(model_record)
-            license_path = resolve_evidence_path(spec_path, artifact.license_evidence_path)
-            if license_path.is_symlink() or not license_path.is_file():
+            license_path = resolve_evidence_path(
+                spec_path, artifact.license_evidence_path
+            )
+            if (
+                evidence_path_has_symlink(spec_path, license_path)
+                or not license_path.is_file()
+            ):
                 artifact_failures.append(
                     f"{artifact.artifact_id} license evidence is missing: "
                     f"{artifact.license_evidence_path}"
@@ -530,7 +596,9 @@ def build_release_provenance_report(
                     "model_id": artifact.model_id,
                     "model_revision": artifact.model_revision,
                     "format": artifact.format,
-                    "payload_sha256": sha256_file(model_path) if model_path.is_file() else "",
+                    "payload_sha256": sha256_file(model_path)
+                    if model_path.is_file()
+                    else "",
                 }
             )
 
@@ -558,10 +626,14 @@ def build_release_provenance_report(
     )
 
 
-def write_release_provenance_report(report: ReleaseProvenanceReport, output: Path) -> None:
+def write_release_provenance_report(
+    report: ReleaseProvenanceReport, output: Path
+) -> None:
     output = output.expanduser()
     output.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(report.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+    payload = (
+        json.dumps(report.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
+    )
     output.write_text(payload, encoding="utf-8")
 
 
