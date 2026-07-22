@@ -2,7 +2,7 @@
 
 Date: 23 July 2026
 
-Status: Accepted; complete candidate generation remains in progress
+Status: Accepted; WP9.1 complete
 
 ## Outcome
 
@@ -36,7 +36,20 @@ The bundle input schema intentionally advances from `1.0` to `1.1`; old specific
 provenance gate fail validation. Publisher authenticity is not claimed yet: WP9.2 will sign the
 canonical manifest and checksum inventory with a trust root kept outside the transfer bundle.
 
-This gate proves that construction cannot silently omit provenance. WP9.1 still requires a newly
-built candidate whose specification covers all five runtime image archives, both GGUF models, all
-five SPDX inventories, the native binding, and shared license evidence. No model server is required
-for that construction work.
+## Complete Candidate Outcome
+
+The exact clean source revision `154c725e70397b0b983dbf6889c633e15bd40d65` produced the first
+complete WP9.1 candidate statement. Source preflight passed with 13 required files and zero forbidden
+context paths. The statement passed for seven artifacts:
+
+- application and web project images built with the exact source revision and epoch labels;
+- pinned pgvector, Redis, and llama.cpp CUDA image archives;
+- five SPDX 2.3 inventories generated locally with pinned Syft `1.48.0`;
+- chat and embedding GGUF payloads with immutable revisions and shared checksum-bound license
+  evidence; and
+- the native vector-similarity binary bound to its application image and SPDX report.
+
+Mandatory construction then produced and independently reverified a 16-file evidence bundle of
+3,389,848,149 payload bytes. The bundle contains five images, five SPDX reports, two models, license
+evidence, native inventory, and the generated provenance specification/report. No model server was
+started, no model inference occurred, and no release tag was created.

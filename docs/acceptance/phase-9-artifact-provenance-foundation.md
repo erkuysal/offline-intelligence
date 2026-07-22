@@ -2,7 +2,7 @@
 
 Date: 23 July 2026
 
-Status: Verifier and bundle enforcement accepted; candidate-wide provenance remains in progress
+Status: Accepted; candidate-wide provenance and bundle enforcement complete
 
 ## Accepted Scope
 
@@ -61,6 +61,6 @@ machine-readable failed reports.
 ## Remaining Boundary
 
 `offline-bundle-build` now makes provenance mandatory as recorded in the
-[bundle provenance gate acceptance](phase-9-bundle-provenance-gate.md). Generating a complete
-specification for every image and model in a new candidate and signing the resulting report remain
-WP9.1/WP9.2 work. No current release artifact is promoted by this foundation acceptance.
+[bundle provenance gate acceptance](phase-9-bundle-provenance-gate.md). A complete candidate covers
+every shipped image and model, closing WP9.1. Signing the resulting manifest and checksum inventory
+remains WP9.2 work; no release artifact is promoted by this acceptance.

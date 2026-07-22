@@ -30,7 +30,7 @@ No LLM servers are required.
 - [x] Generate SPDX inventories without remote indexing
 - [x] Bind SBOMs to scoped image identities, source revision, Dockerfile digest, and native binary
       checksum through the offline artifact-provenance verifier
-- [ ] Produce a machine-readable provenance statement for every shipped image and model
+- [x] Produce a machine-readable provenance statement for every shipped image and model
 - [x] Fail release construction when inventory identity and payload identity differ
 
 No LLM servers are required.
@@ -42,9 +42,9 @@ canonical SBOM/image identity, and artifact provenance remain active WP9.1 work.
 
 The verifier and identity model are recorded in
 [the artifact-provenance foundation acceptance](../acceptance/phase-9-artifact-provenance-foundation.md).
-A complete candidate specification covering every shipped image and model is still required before
-the remaining WP9.1 item can close. Bundle construction now requires a passing provenance gate and
-embeds the verified specification and report.
+The accepted `154c725` candidate statement covers all five shipped image archives, five fresh local
+SPDX inventories, both GGUF models, shared license evidence, and the native binding. Mandatory
+bundle construction embedded and reverified that statement, closing WP9.1.
 
 ## Work Package 9.2: Signing and Verification
 
