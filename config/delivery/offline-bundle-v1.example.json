@@ -1,9 +1,14 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "spec_type": "offline_bundle_spec",
   "release_id": "offline-intelligence-hub-0.5.0-linux-x86_64",
   "app_version": "0.5.0",
   "target_architecture": "linux-x86_64-cuda13",
+  "provenance": {
+    "spec": "../../var/release-inputs/v0.5.0/provenance-spec.json",
+    "spec_path": "provenance/spec.json",
+    "report_path": "provenance/report.json"
+  },
   "inputs": [
     {
       "source": "../../var/release-inputs/v0.5.0/images/application.tar",

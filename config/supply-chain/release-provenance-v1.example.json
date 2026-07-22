@@ -48,7 +48,12 @@
       "model_id": "publisher/model",
       "model_revision": "immutable-upstream-revision",
       "format": "GGUF",
-      "license_evidence_path": "licenses/release-license-status.md"
+      "license_evidence": {
+        "path": "licenses/release-license-status.md",
+        "bundle_path": "licenses/release-license-status.md",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "size_bytes": 0
+      }
     }
   ]
 }

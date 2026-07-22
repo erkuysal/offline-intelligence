@@ -6,6 +6,7 @@
     "apps/api/Dockerfile",
     "apps/web/Dockerfile",
     "apps/web/package-lock.json",
+    "config/delivery/offline-bundle-v1.example.json",
     "config/supply-chain/release-provenance-v1.example.json",
     "config/supply-chain/release-source-v1.json",
     "config/supply-chain/release-trust-policy-v1.json",

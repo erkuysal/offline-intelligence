@@ -103,12 +103,7 @@ class ModelSpec(StrictModel):
     model_id: str = Field(min_length=1)
     model_revision: str = Field(min_length=1)
     format: Literal["GGUF"] = "GGUF"
-    license_evidence_path: str
-
-    @model_validator(mode="after")
-    def validate_license_path(self) -> Self:
-        validate_relative_path(self.license_evidence_path)
-        return self
+    license_evidence: PayloadSpec
 
 
 ArtifactSpec = Annotated[
@@ -133,21 +128,24 @@ class ReleaseProvenanceSpec(StrictModel):
         artifact_ids = [artifact.artifact_id for artifact in self.artifacts]
         if len(artifact_ids) != len(set(artifact_ids)):
             raise ValueError("artifact IDs must be unique")
-        bundle_paths: list[str] = []
+        payloads: list[PayloadSpec] = []
         for artifact in self.artifacts:
             if isinstance(artifact, (ProjectImageSpec, ExternalImageSpec)):
-                bundle_paths.extend(
-                    [artifact.archive.bundle_path, artifact.sbom.bundle_path]
-                )
+                payloads.extend([artifact.archive, artifact.sbom])
                 if isinstance(artifact, ProjectImageSpec):
-                    bundle_paths.extend(
-                        binding.inventory.bundle_path
-                        for binding in artifact.native_bindings
+                    payloads.extend(
+                        binding.inventory for binding in artifact.native_bindings
                     )
             else:
-                bundle_paths.append(artifact.payload.bundle_path)
-        if len(bundle_paths) != len(set(bundle_paths)):
-            raise ValueError("artifact bundle paths must be unique")
+                payloads.extend([artifact.payload, artifact.license_evidence])
+        identities: dict[str, tuple[str, int]] = {}
+        for payload in payloads:
+            identity = (payload.sha256, payload.size_bytes)
+            previous = identities.setdefault(payload.bundle_path, identity)
+            if previous != identity:
+                raise ValueError(
+                    "shared artifact bundle paths must declare the same payload identity"
+                )
         return self
 
 
@@ -580,17 +578,14 @@ def build_release_provenance_report(
             )
             if model_record:
                 payloads.append(model_record)
-            license_path = resolve_evidence_path(
-                spec_path, artifact.license_evidence_path
+            _license_path, license_record = verify_payload(
+                spec_path,
+                artifact.license_evidence,
+                label=f"{artifact.artifact_id} license evidence",
+                failures=artifact_failures,
             )
-            if (
-                evidence_path_has_symlink(spec_path, license_path)
-                or not license_path.is_file()
-            ):
-                artifact_failures.append(
-                    f"{artifact.artifact_id} license evidence is missing: "
-                    f"{artifact.license_evidence_path}"
-                )
+            if license_record:
+                payloads.append(license_record)
             identities.update(
                 {
                     "model_id": artifact.model_id,
@@ -599,6 +594,9 @@ def build_release_provenance_report(
                     "payload_sha256": sha256_file(model_path)
                     if model_path.is_file()
                     else "",
+                    "license_evidence_sha256": (
+                        license_record.sha256 if license_record else ""
+                    ),
                 }
             )
 

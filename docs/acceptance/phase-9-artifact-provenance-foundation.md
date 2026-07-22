@@ -2,7 +2,7 @@
 
 Date: 23 July 2026
 
-Status: Verifier accepted; candidate-wide provenance and bundle enforcement remain in progress
+Status: Verifier and bundle enforcement accepted; candidate-wide provenance remains in progress
 
 ## Accepted Scope
 
@@ -22,7 +22,8 @@ For project-built images, the verifier binds:
 
 External images bind their archive/config/SBOM identities to an explicit immutable upstream
 reference without claiming they were built from the application source revision. GGUF models bind
-their exact payload identity to the declared upstream model revision and local license evidence.
+their exact payload identity to the declared upstream model revision and the checksum and size of
+bundled license evidence.
 
 Run the verifier after image export, local SBOM generation, and source preflight:
 
@@ -52,13 +53,14 @@ Treating one of these values as an alias for another is rejected by the contract
 
 ## Verification Coverage
 
-Nine focused tests cover successful project-image/native/model binding, external-image binding,
+Eleven focused tests cover successful project-image/native/model binding, external-image binding,
 wrong source labels, payload drift, SBOM subject substitution, native image substitution, stable
-SPDX normalization, strict example validation, and machine-readable failed reports.
+SPDX normalization, symlinked evidence, model-license drift, strict example validation, and
+machine-readable failed reports.
 
 ## Remaining Boundary
 
-This slice does not yet make provenance mandatory in `offline-bundle-build`, generate a complete
-specification for every image and model in a new candidate, or sign the resulting report. Those are
-the remaining WP9.1/WP9.2 integration steps. No current release artifact is promoted by this
-foundation acceptance.
+`offline-bundle-build` now makes provenance mandatory as recorded in the
+[bundle provenance gate acceptance](phase-9-bundle-provenance-gate.md). Generating a complete
+specification for every image and model in a new candidate and signing the resulting report remain
+WP9.1/WP9.2 work. No current release artifact is promoted by this foundation acceptance.

@@ -1,4 +1,5 @@
 from io import BytesIO
+import hashlib
 import json
 from pathlib import Path
 import stat
@@ -13,6 +14,59 @@ from scripts.delivery import offline_operator as operator
 
 
 IMAGE_ID = "sha256:" + "1" * 64
+SOURCE_REVISION = "2" * 40
+SUBJECT_DIGEST = "3" * 64
+
+
+def file_digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def add_tar_bytes(archive: tarfile.TarFile, name: str, content: bytes) -> None:
+    info = tarfile.TarInfo(name)
+    info.size = len(content)
+    info.mtime = 0
+    archive.addfile(info, BytesIO(content))
+
+
+def write_image_archive(path: Path, tag: str) -> str:
+    config = b'{"config":{"Labels":{}}}'
+    config_digest = hashlib.sha256(config).hexdigest()
+    config_path = f"blobs/sha256/{config_digest}"
+    manifest = json.dumps(
+        [{"Config": config_path, "RepoTags": [tag], "Layers": []}],
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    with tarfile.open(path, "w") as archive:
+        add_tar_bytes(archive, config_path, config)
+        add_tar_bytes(archive, "manifest.json", manifest)
+    return config_digest
+
+
+def write_spdx(path: Path, subject_name: str) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "spdxVersion": "SPDX-2.3",
+                "packages": [
+                    {
+                        "name": subject_name,
+                        "primaryPackagePurpose": "CONTAINER",
+                        "externalRefs": [
+                            {
+                                "referenceType": "purl",
+                                "referenceLocator": (
+                                    f"pkg:oci/{subject_name}@sha256%3A{SUBJECT_DIGEST}"
+                                ),
+                            }
+                        ],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
@@ -20,6 +74,7 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
     source.mkdir()
     paths = sorted(operator.REQUIRED_PAYLOADS)
     inputs: list[dict[str, object]] = []
+    provenance_artifacts: list[dict[str, object]] = []
     for index, relative in enumerate(paths):
         file_path = source / f"input-{index}"
         if relative == "configs/prod.example.env":
@@ -42,16 +97,60 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
                 "    driver_opts:\n"
                 '      com.docker.network.bridge.enable_ip_masquerade: "false"\n'
             )
-        else:
+        elif not relative.startswith("images/"):
             content = f"payload:{relative}\n"
-        file_path.write_text(content, encoding="utf-8")
-        artifact_type = "container_image" if relative.startswith("images/") else (
-            "model" if relative.startswith("models/") else "configuration"
+        if not relative.startswith("images/"):
+            file_path.write_text(content, encoding="utf-8")
+        artifact_type = (
+            "container_image"
+            if relative.startswith("images/")
+            else ("model" if relative.startswith("models/") else "configuration")
         )
         origin = f"test:{relative}"
         if artifact_type == "container_image":
             reference = relative.removeprefix("images/").removesuffix(".tar") + ":test"
             origin = f"docker-image:{reference}@{IMAGE_ID}"
+            config_digest = write_image_archive(file_path, reference)
+            sbom_path = source / f"sbom-{index}.json"
+            subject_name = f"test-image-{index}"
+            write_spdx(sbom_path, subject_name)
+            sbom_bundle_path = f"sbom/{subject_name}.spdx.json"
+            inputs.append(
+                {
+                    "source": str(sbom_path),
+                    "path": sbom_bundle_path,
+                    "artifact_type": "sbom",
+                    "version": "test",
+                    "origin": f"test-syft:{reference}",
+                    "contains_secrets": False,
+                }
+            )
+            provenance_artifacts.append(
+                {
+                    "artifact_type": "external_container_image",
+                    "artifact_id": subject_name,
+                    "archive": {
+                        "path": str(file_path.relative_to(tmp_path)),
+                        "bundle_path": relative,
+                        "sha256": file_digest(file_path),
+                        "size_bytes": file_path.stat().st_size,
+                    },
+                    "repo_tags": [reference],
+                    "image_index_sha256": IMAGE_ID.removeprefix("sha256:"),
+                    "image_config_sha256": config_digest,
+                    "upstream_reference": f"{reference}@{IMAGE_ID}",
+                    "sbom": {
+                        "path": str(sbom_path.relative_to(tmp_path)),
+                        "bundle_path": sbom_bundle_path,
+                        "sha256": file_digest(sbom_path),
+                        "size_bytes": sbom_path.stat().st_size,
+                        "format": "SPDX-2.3",
+                        "package_count": 1,
+                        "subject_name": subject_name,
+                        "subject_manifest_sha256": SUBJECT_DIGEST,
+                    },
+                }
+            )
         inputs.append(
             {
                 "source": str(file_path),
@@ -60,6 +159,44 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
                 "version": "test",
                 "origin": origin,
                 "contains_secrets": False,
+            }
+        )
+    license_path = source / "license.md"
+    license_path.write_text("test license evidence\n", encoding="utf-8")
+    inputs.append(
+        {
+            "source": str(license_path),
+            "path": "licenses/release-license-status.md",
+            "artifact_type": "license",
+            "version": "test",
+            "origin": "test:license",
+            "contains_secrets": False,
+        }
+    )
+    for item in inputs:
+        if item["artifact_type"] != "model":
+            continue
+        model_path = Path(str(item["source"]))
+        artifact_id = Path(str(item["path"])).stem.replace("-", "_")
+        provenance_artifacts.append(
+            {
+                "artifact_type": "model",
+                "artifact_id": artifact_id,
+                "payload": {
+                    "path": str(model_path.relative_to(tmp_path)),
+                    "bundle_path": item["path"],
+                    "sha256": file_digest(model_path),
+                    "size_bytes": model_path.stat().st_size,
+                },
+                "model_id": f"test/{artifact_id}",
+                "model_revision": "test-revision",
+                "format": "GGUF",
+                "license_evidence": {
+                    "path": str(license_path.relative_to(tmp_path)),
+                    "bundle_path": "licenses/release-license-status.md",
+                    "sha256": file_digest(license_path),
+                    "size_bytes": license_path.stat().st_size,
+                },
             }
         )
     migration_source = source / "migration"
@@ -74,11 +211,50 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
             "contains_secrets": False,
         }
     )
+    source_report_path = tmp_path / "source-report.json"
+    source_report_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "report_type": "release_source_preflight",
+                "status": "passed",
+                "source_root": "/clean/source",
+                "source_revision": SOURCE_REVISION,
+                "expected_revision": SOURCE_REVISION,
+                "source_date_epoch": 1784758937,
+                "git_tree_clean": True,
+                "git_status_entries": [],
+                "required_files": [],
+                "forbidden_context_paths": [],
+                "missing_dockerignore_patterns": [],
+                "failures": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    provenance_spec_path = tmp_path / "provenance-spec.json"
+    provenance_spec_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "spec_type": "release_artifact_provenance",
+                "release_id": "offline-operator-test",
+                "app_version": "0.4.0",
+                "target_architecture": "linux-x86_64-cuda13",
+                "source_revision": SOURCE_REVISION,
+                "source_report_path": source_report_path.name,
+                "artifacts": provenance_artifacts,
+            }
+        ),
+        encoding="utf-8",
+    )
     spec = BundleSpec.model_validate(
         {
+            "schema_version": "1.1",
             "release_id": "offline-operator-test",
             "app_version": "0.4.0",
             "target_architecture": "linux-x86_64-cuda13",
+            "provenance": {"spec": provenance_spec_path.name},
             "inputs": inputs,
         }
     )
@@ -89,7 +265,9 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
     return bundle, manifest
 
 
-def completed(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
+def completed(
+    stdout: str = "", stderr: str = "", returncode: int = 0
+) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess([], returncode, stdout, stderr)
 
 
@@ -102,10 +280,15 @@ def test_dependency_free_verifier_passes_and_detects_corruption(tmp_path: Path) 
     (bundle / "models" / "chat-model.gguf").write_text("corrupt", encoding="utf-8")
     _, corrupt_report = operator.verify_bundle(bundle)
     assert corrupt_report.passed is False
-    assert any(check.name == "payload_integrity" and not check.passed for check in corrupt_report.checks)
+    assert any(
+        check.name == "payload_integrity" and not check.passed
+        for check in corrupt_report.checks
+    )
 
 
-def test_dependency_free_verifier_rejects_bundle_directory_symlink(tmp_path: Path) -> None:
+def test_dependency_free_verifier_rejects_bundle_directory_symlink(
+    tmp_path: Path,
+) -> None:
     bundle, _ = build_operator_bundle(tmp_path)
     link = tmp_path / "bundle-link"
     link.symlink_to(bundle, target_is_directory=True)
@@ -124,7 +307,9 @@ def test_install_generates_secrets_loads_only_bundle_and_is_idempotent(
     target = tmp_path / "target"
     commands: list[list[str]] = []
 
-    def fake_run(command: list[str] | tuple[str, ...], *, timeout: int = 120) -> subprocess.CompletedProcess[str]:
+    def fake_run(
+        command: list[str] | tuple[str, ...], *, timeout: int = 120
+    ) -> subprocess.CompletedProcess[str]:
         del timeout
         command_list = list(command)
         commands.append(command_list)
@@ -142,11 +327,17 @@ def test_install_generates_secrets_loads_only_bundle_and_is_idempotent(
     project_name = operator.parse_env(target / "config" / "prod.env")[
         "COMPOSE_PROJECT_NAME"
     ]
-    target_suffix = operator.hashlib.sha256(str(target.resolve()).encode()).hexdigest()[:8]
+    target_suffix = operator.hashlib.sha256(str(target.resolve()).encode()).hexdigest()[
+        :8
+    ]
     assert project_name.endswith(target_suffix)
     assert (target / "models" / "chat-model.gguf").is_file()
     assert not any("up" in command for command in commands)
-    assert all(command[:3] == ["docker", "load", "--input"] for command in commands if "load" in command)
+    assert all(
+        command[:3] == ["docker", "load", "--input"]
+        for command in commands
+        if "load" in command
+    )
 
     commands.clear()
     operator.install(bundle, target, manifest, start=False)
@@ -163,7 +354,15 @@ def test_uninstall_preserves_target_and_records_stopped_state(
 ) -> None:
     bundle, manifest = build_operator_bundle(tmp_path)
     target = tmp_path / "target"
-    monkeypatch.setattr(operator, "run_command", lambda command, timeout=120: completed(f"{IMAGE_ID}\n") if list(command)[:3] == ["docker", "image", "inspect"] else completed())
+    monkeypatch.setattr(
+        operator,
+        "run_command",
+        lambda command, timeout=120: (
+            completed(f"{IMAGE_ID}\n")
+            if list(command)[:3] == ["docker", "image", "inspect"]
+            else completed()
+        ),
+    )
     operator.install(bundle, target, manifest, start=False)
     state_path = target / "release.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
@@ -171,7 +370,9 @@ def test_uninstall_preserves_target_and_records_stopped_state(
     state_path.write_text(json.dumps(state), encoding="utf-8")
     commands: list[list[str]] = []
 
-    def stop_run(command: list[str] | tuple[str, ...], *, timeout: int = 120) -> subprocess.CompletedProcess[str]:
+    def stop_run(
+        command: list[str] | tuple[str, ...], *, timeout: int = 120
+    ) -> subprocess.CompletedProcess[str]:
         del timeout
         commands.append(list(command))
         return completed()
@@ -201,7 +402,9 @@ def test_preflight_fails_closed_when_bundle_is_corrupt(tmp_path: Path) -> None:
 
     assert manifest is not None
     assert report.passed is False
-    assert report.checks == [operator.Check("bundle_verification", False, "bundle verification failed")]
+    assert report.checks == [
+        operator.Check("bundle_verification", False, "bundle verification failed")
+    ]
 
 
 def test_preflight_reports_measured_host_gates(
@@ -212,10 +415,16 @@ def test_preflight_reports_measured_host_gates(
     monkeypatch.setattr(operator.platform, "system", lambda: "Linux")
     monkeypatch.setattr(operator.platform, "machine", lambda: "x86_64")
     monkeypatch.setattr(operator.shutil, "which", lambda command: f"/usr/bin/{command}")
-    monkeypatch.setattr(operator, "run_command", lambda command, timeout=120: completed("29.0.0\n"))
+    monkeypatch.setattr(
+        operator, "run_command", lambda command, timeout=120: completed("29.0.0\n")
+    )
     monkeypatch.setattr(operator, "available_memory_bytes", lambda: 16 * operator.GIB)
     monkeypatch.setattr(operator, "gpu_memory_bytes", lambda: 12 * operator.GIB)
-    monkeypatch.setattr(operator.shutil, "disk_usage", lambda path: SimpleNamespace(free=100 * operator.GIB))
+    monkeypatch.setattr(
+        operator.shutil,
+        "disk_usage",
+        lambda path: SimpleNamespace(free=100 * operator.GIB),
+    )
     monkeypatch.setattr(operator, "port_available", lambda port: port == 3000)
 
     _, report = operator.preflight(
@@ -273,9 +482,11 @@ def installed_target(
     monkeypatch.setattr(
         operator,
         "run_command",
-        lambda command, timeout=120: completed(f"{IMAGE_ID}\n")
-        if list(command)[:3] == ["docker", "image", "inspect"]
-        else completed(),
+        lambda command, timeout=120: (
+            completed(f"{IMAGE_ID}\n")
+            if list(command)[:3] == ["docker", "image", "inspect"]
+            else completed()
+        ),
     )
     operator.install(bundle, target, manifest, start=False)
     return bundle, target, manifest

@@ -31,7 +31,7 @@ No LLM servers are required.
 - [x] Bind SBOMs to scoped image identities, source revision, Dockerfile digest, and native binary
       checksum through the offline artifact-provenance verifier
 - [ ] Produce a machine-readable provenance statement for every shipped image and model
-- [ ] Fail release construction when inventory identity and payload identity differ
+- [x] Fail release construction when inventory identity and payload identity differ
 
 No LLM servers are required.
 
@@ -42,8 +42,9 @@ canonical SBOM/image identity, and artifact provenance remain active WP9.1 work.
 
 The verifier and identity model are recorded in
 [the artifact-provenance foundation acceptance](../acceptance/phase-9-artifact-provenance-foundation.md).
-A complete candidate specification covering every shipped image and model, followed by mandatory
-bundle integration, is still required before the remaining WP9.1 items can close.
+A complete candidate specification covering every shipped image and model is still required before
+the remaining WP9.1 item can close. Bundle construction now requires a passing provenance gate and
+embeds the verified specification and report.
 
 ## Work Package 9.2: Signing and Verification
 

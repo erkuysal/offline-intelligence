@@ -219,7 +219,9 @@ def write_provenance_fixture(tmp_path: Path) -> tuple[Path, ReleaseProvenanceSpe
                 "model_id": "example/chat-model",
                 "model_revision": "revision-1",
                 "format": "GGUF",
-                "license_evidence_path": license_evidence.name,
+                "license_evidence": payload(
+                    license_evidence, "licenses/release-license-status.md"
+                ),
             },
         ],
     }
@@ -300,6 +302,19 @@ def test_payload_checksum_mismatch_fails_closed(tmp_path: Path) -> None:
     assert report.passed is False
     assert any(
         "chat-model model checksum mismatch" in failure for failure in report.failures
+    )
+
+
+def test_model_license_evidence_checksum_mismatch_fails_closed(tmp_path: Path) -> None:
+    spec_path, spec = write_provenance_fixture(tmp_path)
+    (tmp_path / "license.md").write_text("changed evidence\n", encoding="utf-8")
+
+    report = build_release_provenance_report(spec, spec_path=spec_path)
+
+    assert report.passed is False
+    assert any(
+        "chat-model license evidence checksum mismatch" in failure
+        for failure in report.failures
     )
 
 

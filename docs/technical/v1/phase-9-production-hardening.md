@@ -44,6 +44,11 @@ from the exported image config, verifies archive and SBOM subjects offline, and 
 component-inventory digest without conflating image-index, platform-manifest, config, archive, and
 SBOM identities.
 
+Offline bundle schema `1.1` consumes that verifier as a mandatory construction gate. It requires
+exact provenance coverage for every bundled image, model, and SPDX inventory, embeds the verified
+specification and report, and makes their source revision and SHA-256 identities part of the bundle
+manifest. Bundle verification checks both bytes and provenance-to-manifest semantics.
+
 ## Evidence
 
 Phase 9 produces versioned machine-readable records for provenance, SBOM identity, signature
