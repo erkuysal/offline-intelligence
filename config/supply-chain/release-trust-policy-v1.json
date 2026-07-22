@@ -1,0 +1,235 @@
+{
+  "schema_version": "1.0",
+  "policy_type": "offline_release_trust_policy",
+  "policy_id": "offline-intelligence-hub.release.v1",
+  "zones": [
+    {
+      "zone_id": "connected_builder",
+      "connectivity": "connected",
+      "trusted_for": [
+        "source checkout",
+        "pinned dependency acquisition",
+        "artifact construction",
+        "release signing"
+      ],
+      "prohibited_actions": [
+        "embedding runtime secrets in artifacts",
+        "uploading private image metadata for SBOM generation"
+      ]
+    },
+    {
+      "zone_id": "transfer_media",
+      "connectivity": "transfer_only",
+      "trusted_for": [
+        "byte transport only"
+      ],
+      "prohibited_actions": [
+        "establishing publisher identity",
+        "supplying the target trust root"
+      ]
+    },
+    {
+      "zone_id": "disconnected_target",
+      "connectivity": "disconnected",
+      "trusted_for": [
+        "pre-mutation verification",
+        "installation",
+        "runtime operation",
+        "backup and recovery"
+      ],
+      "prohibited_actions": [
+        "network retrieval of missing release evidence",
+        "loading unverified images"
+      ]
+    },
+    {
+      "zone_id": "trust_administration",
+      "connectivity": "out_of_band",
+      "trusted_for": [
+        "trust-root provisioning",
+        "key revocation distribution",
+        "release-key recovery authorization"
+      ],
+      "prohibited_actions": [
+        "shipping the trust root inside the authenticated bundle"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "asset_id": "release_signing_private_key",
+      "classification": "secret",
+      "distribution": "builder_only",
+      "integrity_required": true,
+      "confidentiality_required": true,
+      "authority": "release owner"
+    },
+    {
+      "asset_id": "release_trust_root",
+      "classification": "public",
+      "distribution": "out_of_band_trust_store",
+      "integrity_required": true,
+      "confidentiality_required": false,
+      "authority": "trust administrator"
+    },
+    {
+      "asset_id": "canonical_release_manifest",
+      "classification": "public",
+      "distribution": "bundle",
+      "integrity_required": true,
+      "confidentiality_required": false,
+      "authority": "release pipeline"
+    },
+    {
+      "asset_id": "checksum_inventory",
+      "classification": "public",
+      "distribution": "bundle",
+      "integrity_required": true,
+      "confidentiality_required": false,
+      "authority": "release pipeline"
+    },
+    {
+      "asset_id": "sbom_and_provenance",
+      "classification": "internal",
+      "distribution": "bundle",
+      "integrity_required": true,
+      "confidentiality_required": false,
+      "authority": "release pipeline"
+    },
+    {
+      "asset_id": "container_images",
+      "classification": "internal",
+      "distribution": "bundle",
+      "integrity_required": true,
+      "confidentiality_required": false,
+      "authority": "release pipeline"
+    },
+    {
+      "asset_id": "model_files",
+      "classification": "internal",
+      "distribution": "bundle",
+      "integrity_required": true,
+      "confidentiality_required": false,
+      "authority": "model release owner"
+    },
+    {
+      "asset_id": "backup_archives",
+      "classification": "confidential",
+      "distribution": "target_only",
+      "integrity_required": true,
+      "confidentiality_required": true,
+      "authority": "target operator"
+    },
+    {
+      "asset_id": "operator_runtime_secrets",
+      "classification": "secret",
+      "distribution": "target_only",
+      "integrity_required": true,
+      "confidentiality_required": true,
+      "authority": "target operator"
+    }
+  ],
+  "failure_rules": [
+    {
+      "condition": "missing_signature",
+      "stage": "pre_install",
+      "action": "reject_before_mutation",
+      "required_evidence": [
+        "signature verification report"
+      ]
+    },
+    {
+      "condition": "unknown_signing_key",
+      "stage": "pre_install",
+      "action": "reject_before_mutation",
+      "required_evidence": [
+        "trusted key identifier",
+        "signature verification report"
+      ]
+    },
+    {
+      "condition": "revoked_signing_key",
+      "stage": "pre_install",
+      "action": "reject_before_mutation",
+      "required_evidence": [
+        "revocation policy version",
+        "signature verification report"
+      ]
+    },
+    {
+      "condition": "mismatched_release_identity",
+      "stage": "pre_install",
+      "action": "reject_before_mutation",
+      "required_evidence": [
+        "installed release identity",
+        "candidate release identity"
+      ]
+    },
+    {
+      "condition": "manifest_integrity_failure",
+      "stage": "pre_install",
+      "action": "reject_before_mutation",
+      "required_evidence": [
+        "canonical manifest digest",
+        "signature verification report"
+      ]
+    },
+    {
+      "condition": "payload_integrity_failure",
+      "stage": "pre_install",
+      "action": "reject_before_mutation",
+      "required_evidence": [
+        "payload checksum report"
+      ]
+    },
+    {
+      "condition": "missing_provenance",
+      "stage": "build",
+      "action": "halt",
+      "required_evidence": [
+        "source preflight report",
+        "artifact provenance statement"
+      ]
+    },
+    {
+      "condition": "sbom_identity_mismatch",
+      "stage": "build",
+      "action": "halt",
+      "required_evidence": [
+        "SBOM identity binding report"
+      ]
+    },
+    {
+      "condition": "expired_trust_policy",
+      "stage": "pre_install",
+      "action": "reject_before_mutation",
+      "required_evidence": [
+        "trust policy version",
+        "target policy decision"
+      ]
+    },
+    {
+      "condition": "rollback_identity_mismatch",
+      "stage": "upgrade",
+      "action": "restore_required",
+      "required_evidence": [
+        "pre-upgrade backup manifest",
+        "installed release state"
+      ]
+    }
+  ],
+  "pre_mutation_operations": [
+    "load and validate the out-of-band trust root",
+    "verify the detached manifest signature",
+    "verify the exact bundle tree and payload checksums",
+    "validate release, provenance, SBOM, image, model, and migration identities",
+    "emit a machine-readable pre-install decision"
+  ],
+  "prohibited_before_verification": [
+    "load container images",
+    "write production configuration",
+    "run database migrations",
+    "replace installed release state",
+    "start release services"
+  ]
+}

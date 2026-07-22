@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "contract_type": "release_source_preflight",
+  "required_files": [
+    ".dockerignore",
+    "apps/api/Dockerfile",
+    "apps/web/Dockerfile",
+    "apps/web/package-lock.json",
+    "config/supply-chain/release-source-v1.json",
+    "config/supply-chain/release-trust-policy-v1.json",
+    "config/supply-chain/syft-v1.json",
+    "environment.llama-build.yml",
+    "environment.training.yml",
+    "native/vector_similarity/CMakeLists.txt",
+    "requirements.txt"
+  ],
+  "required_dockerignore_patterns": [
+    ".git",
+    ".venv",
+    "**/__pycache__/",
+    "**/*.py[cod]",
+    "**/.pytest_cache/",
+    "**/.ruff_cache/",
+    "**/.mypy_cache/",
+    "**/node_modules/",
+    "**/dist/",
+    "var/",
+    "/models/",
+    "config/env/local.env",
+    "config/env/prod.env",
+    "DEMO_USER.local.md"
+  ],
+  "excluded_top_level_paths": [
+    ".git",
+    "models",
+    "var"
+  ],
+  "forbidden_directory_names": [
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "dist",
+    "node_modules",
+    "playwright-report",
+    "test-results"
+  ],
+  "forbidden_file_suffixes": [
+    ".pyc",
+    ".pyd",
+    ".pyo"
+  ],
+  "forbidden_relative_paths": [
+    ".env",
+    "DEMO_USER.local.md",
+    "config/env/local.env",
+    "config/env/prod.env"
+  ],
+  "reject_symlinks": true
+}

@@ -1,6 +1,6 @@
 # Technical Vision v1 — Phase 9 Production and Supply-Chain Hardening
 
-Status: Next — begins after `v0.5.0` release closure
+Status: In progress — source and trust foundation accepted
 
 ## Intent
 
@@ -32,6 +32,11 @@ quality, application security, backup testing, or license review.
 - Target verification occurs before loading images, writing configuration, or starting services.
 - Runtime hardening must preserve uploads, migrations, health checks, model loading, and recovery.
 - Upgrade safety is evidence-based and bounded by explicit migration compatibility.
+
+The connected-builder/disconnected-target zones, asset classifications, mandatory failure actions,
+and pre-mutation sequence are defined in the [Phase 9 release trust and threat
+model](phase-9-threat-model.md). The first enforced gate binds release construction to a clean,
+expected Git revision and rejects ignored cache or secret paths before Docker runs.
 
 ## Evidence
 

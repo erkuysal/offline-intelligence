@@ -15,8 +15,9 @@ offline release bundle, clean network-denied installation, complete document-gro
 restart persistence, and tested backup/restore recovery. Phase 8 accepted a checksum-inventoried
 native batch-similarity component for already-contiguous offline evaluation while retaining
 pgvector as the production retrieval owner and Python as the tested fallback.
-Phase 9 production and supply-chain hardening is the next implementation phase after the release
-candidate is rebuilt, independently verified, and tagged.
+Phase 9 production and supply-chain hardening is in progress. Its first slice establishes the
+release threat model, machine-readable trust policy, nested build-context exclusions, and a
+fail-closed clean-source preflight gate.
 
 ## Current Capabilities
 
@@ -71,6 +72,8 @@ candidate is rebuilt, independently verified, and tagged.
 - [v0.5.0 release-candidate acceptance](docs/acceptance/v0.5.0.md)
 - [v0.5.0 clean-tag reproducibility audit](docs/acceptance/v0.5.0-reproducibility.md)
 - [Phase 9 production and supply-chain hardening plan](docs/plans/phase-9.md)
+- [Phase 9 release trust and threat model](docs/technical/v1/phase-9-threat-model.md)
+- [Phase 9 source and trust foundation acceptance](docs/acceptance/phase-9-source-trust-foundation.md)
 - [Post-Phase-9 feature options](docs/plans/post-phase-9-feature-options.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)

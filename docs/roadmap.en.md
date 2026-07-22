@@ -67,8 +67,9 @@ The first goal is not an advanced AI system, but a basic end-to-end working prod
 
 > **Current position:** Phases 1–8 are complete. The `v0.5.0` release candidate combines the
 > accepted browser MVP, permission-aware dense RAG, adapter-free Gemma 3 1B Q4 CUDA runtime,
-> verified air-gapped delivery, recovery, and bounded native acceleration. Release closure is in
-> progress; Phase 9 production and supply-chain hardening is next.
+> verified air-gapped delivery, recovery, and bounded native acceleration. `v0.5.0` is published
+> with its reproducibility gap recorded. Phase 9 production and supply-chain hardening is in
+> progress, beginning with the release trust model and clean-source gate.
 
 ### Features
 

@@ -68,8 +68,9 @@ tanımlanır.
 > **Şu anki konum:** Faz 1–8 tamamlandı. `v0.5.0` sürüm adayı; kabul edilmiş tarayıcı
 > MVP'sini, permission-aware dense RAG'i, adaptersız Gemma 3 1B Q4 CUDA çalışma zamanını,
 > doğrulanmış air-gapped teslimat ve recovery akışını ve sınırlandırılmış native hızlandırmayı
-> birleştirir. Sürüm kapatma çalışması devam etmektedir; sıradaki faz üretim ve software supply
-> chain hardening odaklı Faz 9'dur.
+> birleştirir. `v0.5.0` yayımlanmış ve reproducibility açığı kayıt altına alınmıştır.
+> Üretim ve software supply chain hardening odaklı Faz 9 başlatılmıştır. İlk dilim, release
+> trust modelini ve temiz kaynak preflight gate'ini oluşturur.
 
 ### Özellikler
 

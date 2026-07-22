@@ -1,6 +1,6 @@
 # Phase 9 Production and Supply-Chain Hardening Plan
 
-Status: Next — begins after `v0.5.0` release closure
+Status: In progress — WP9.0 accepted, WP9.1 underway
 
 ## Intent
 
@@ -18,21 +18,26 @@ and fleet orchestration remain outside this phase.
 
 - [x] Accept and tag `v0.5.0` as the immutable hardening baseline; retain the documented clean-tag
       artifact reproducibility gap as a mandatory hardening input
-- [ ] Update the connected-builder/disconnected-target threat model
-- [ ] Classify release keys, manifests, SBOMs, images, models, backups, and operator secrets
-- [ ] Define failure behavior for missing, expired, revoked, or mismatched trust material
+- [x] Update the connected-builder/disconnected-target threat model
+- [x] Classify release keys, manifests, SBOMs, images, models, backups, and operator secrets
+- [x] Define failure behavior for missing, expired, revoked, or mismatched trust material
 
 No LLM servers are required.
 
 ## Work Package 9.1: Local SBOM and Provenance
 
-- [ ] Pin a fully local SBOM generator by version and checksum
-- [ ] Generate SPDX or CycloneDX inventories without remote indexing
+- [x] Pin a fully local SBOM generator by version and checksum
+- [x] Generate SPDX inventories without remote indexing
 - [ ] Bind SBOMs to exact image IDs, source revision, Dockerfile digest, and native binary checksum
 - [ ] Produce a machine-readable provenance statement for every shipped image and model
 - [ ] Fail release construction when inventory identity and payload identity differ
 
 No LLM servers are required.
+
+The accepted foundation is recorded in
+[the Phase 9 source/trust acceptance](../acceptance/phase-9-source-trust-foundation.md). The source
+preflight closes the `v0.5.0` dirty-context failure mode; cache-independent artifact construction,
+canonical SBOM/image identity, and artifact provenance remain active WP9.1 work.
 
 ## Work Package 9.2: Signing and Verification
 

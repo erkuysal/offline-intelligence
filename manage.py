@@ -753,6 +753,50 @@ def offline_bundle_build(args: argparse.Namespace) -> int:
     return 0 if report.passed else 1
 
 
+def release_source_verify(args: argparse.Namespace) -> int:
+    sys.dont_write_bytecode = True
+    from delivery.release_source import (
+        ReleaseSourceError,
+        build_release_source_report,
+        format_release_source_summary,
+        load_release_source_contract,
+        write_release_source_report,
+    )
+
+    try:
+        contract = load_release_source_contract(Path(args.contract))
+        report = build_release_source_report(
+            contract,
+            source_root=Path(args.source),
+            expected_revision=args.expected_revision,
+        )
+        write_release_source_report(report, Path(args.output))
+    except (OSError, ReleaseSourceError, ValueError) as exc:
+        print(f"Release source preflight failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_release_source_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report.passed else 1
+
+
+def release_trust_policy_verify(args: argparse.Namespace) -> int:
+    from delivery.trust_policy import load_release_trust_policy
+
+    try:
+        policy = load_release_trust_policy(Path(args.policy))
+    except (OSError, ValueError) as exc:
+        print(f"Release trust policy validation failed: {exc}", file=sys.stderr)
+        return 2
+
+    print("Release trust policy: PASS")
+    print(f"Policy: {policy.policy_id}")
+    print(f"Zones: {len(policy.zones)}")
+    print(f"Assets: {len(policy.assets)}")
+    print(f"Failure rules: {len(policy.failure_rules)}")
+    return 0
+
+
 def offline_bundle_verify(args: argparse.Namespace) -> int:
     from delivery.offline_bundle import (
         format_verification_summary,
@@ -1384,6 +1428,32 @@ def build_parser() -> argparse.ArgumentParser:
         default="var/native/vector-ranking-evaluation.json",
     )
     native_ranking_parser.set_defaults(func=evaluate_native_vector_ranking)
+
+    release_source_parser = subparsers.add_parser(
+        "release-source-verify",
+        help="fail closed unless a release source tree and Docker context are clean",
+    )
+    release_source_parser.add_argument(
+        "--contract",
+        default="config/supply-chain/release-source-v1.json",
+    )
+    release_source_parser.add_argument("--source", default=".")
+    release_source_parser.add_argument("--expected-revision", required=True)
+    release_source_parser.add_argument(
+        "--output",
+        default="var/release/source-preflight-latest.json",
+    )
+    release_source_parser.set_defaults(func=release_source_verify)
+
+    release_trust_parser = subparsers.add_parser(
+        "release-trust-policy-verify",
+        help="validate the Phase 9 offline release trust policy",
+    )
+    release_trust_parser.add_argument(
+        "--policy",
+        default="config/supply-chain/release-trust-policy-v1.json",
+    )
+    release_trust_parser.set_defaults(func=release_trust_policy_verify)
 
     offline_bundle_build_parser = subparsers.add_parser(
         "offline-bundle-build",
