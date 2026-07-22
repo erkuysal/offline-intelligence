@@ -48,9 +48,9 @@ bundle construction embedded and reverified that statement, closing WP9.1.
 
 ## Work Package 9.2: Signing and Verification
 
-- [ ] Select a detached-signature format with offline verification support
-- [ ] Document key generation, encrypted storage, rotation, revocation, backup, and recovery
-- [ ] Sign the canonical release manifest and checksum inventory
+- [x] Select a detached-signature format with offline verification support
+- [x] Document key generation, encrypted storage, rotation, revocation, backup, and recovery
+- [x] Sign the canonical release manifest and checksum inventory
 - [ ] Verify signatures before target mutation or image loading
 - [ ] Add negative tests for unknown keys, modified manifests, wrong releases, and revoked keys
 

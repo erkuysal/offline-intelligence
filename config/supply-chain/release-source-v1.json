@@ -11,6 +11,7 @@
     "config/supply-chain/release-source-v1.json",
     "config/supply-chain/release-trust-policy-v1.json",
     "config/supply-chain/syft-v1.json",
+    "delivery/release_signing.py",
     "environment.llama-build.yml",
     "environment.training.yml",
     "native/vector_similarity/CMakeLists.txt",

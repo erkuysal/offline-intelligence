@@ -77,14 +77,18 @@ def build_test_environment() -> dict[str, str]:
     from sqlalchemy.engine import make_url
 
     load_root_env("test")
-    configured_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    configured_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get(
+        "DATABASE_URL"
+    )
     if not configured_url:
         raise RuntimeError("DATABASE_URL or TEST_DATABASE_URL must be configured")
 
     database_url = make_url(configured_url)
     database_name = database_url.database or ""
     if not database_name:
-        raise RuntimeError("The configured test database URL must include a database name")
+        raise RuntimeError(
+            "The configured test database URL must include a database name"
+        )
     if not database_name.endswith("_test"):
         database_url = database_url.set(database=f"{database_name}_test")
 
@@ -121,14 +125,18 @@ def build_e2e_environment() -> dict[str, str]:
     from sqlalchemy.engine import make_url
 
     load_root_env("e2e")
-    configured_url = os.environ.get("E2E_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    configured_url = os.environ.get("E2E_DATABASE_URL") or os.environ.get(
+        "DATABASE_URL"
+    )
     if not configured_url:
         raise RuntimeError("DATABASE_URL or E2E_DATABASE_URL must be configured")
 
     database_url = make_url(configured_url)
     database_name = database_url.database or ""
     if not database_name:
-        raise RuntimeError("The configured E2E database URL must include a database name")
+        raise RuntimeError(
+            "The configured E2E database URL must include a database name"
+        )
     if not database_name.endswith("_e2e"):
         database_url = database_url.set(database=f"{database_name}_e2e")
 
@@ -248,7 +256,16 @@ def test(args: argparse.Namespace) -> int:
 
 def test_container(_args: argparse.Namespace) -> int:
     return run_subprocess(
-        ["docker", "compose", "-f", "deploy/compose.yaml", "run", "--build", "--rm", "api-tests"]
+        [
+            "docker",
+            "compose",
+            "-f",
+            "deploy/compose.yaml",
+            "run",
+            "--build",
+            "--rm",
+            "api-tests",
+        ]
     )
 
 
@@ -311,27 +328,39 @@ def llm_stop(_args: argparse.Namespace) -> int:
 
 
 def embedding_start(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "start-embedding.sh")])
+    return run_subprocess(
+        ["bash", str(ROOT / "scripts" / "models" / "start-embedding.sh")]
+    )
 
 
 def embedding_check(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "check-embedding.sh")])
+    return run_subprocess(
+        ["bash", str(ROOT / "scripts" / "models" / "check-embedding.sh")]
+    )
 
 
 def embedding_stop(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "stop-embedding.sh")])
+    return run_subprocess(
+        ["bash", str(ROOT / "scripts" / "models" / "stop-embedding.sh")]
+    )
 
 
 def reranker_start(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "start-reranker.sh")])
+    return run_subprocess(
+        ["bash", str(ROOT / "scripts" / "models" / "start-reranker.sh")]
+    )
 
 
 def reranker_check(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "check-reranker.sh")])
+    return run_subprocess(
+        ["bash", str(ROOT / "scripts" / "models" / "check-reranker.sh")]
+    )
 
 
 def reranker_stop(_args: argparse.Namespace) -> int:
-    return run_subprocess(["bash", str(ROOT / "scripts" / "models" / "stop-reranker.sh")])
+    return run_subprocess(
+        ["bash", str(ROOT / "scripts" / "models" / "stop-reranker.sh")]
+    )
 
 
 def embedding_reindex(args: argparse.Namespace) -> int:
@@ -360,7 +389,9 @@ def embedding_reindex(args: argparse.Namespace) -> int:
         return 1
 
     qualifier = "stale " if args.stale_only else ""
-    print(f"Re-embedded {processed} {qualifier}document chunks with {settings.embedding_model}")
+    print(
+        f"Re-embedded {processed} {qualifier}document chunks with {settings.embedding_model}"
+    )
     return 0
 
 
@@ -407,8 +438,13 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
         strategy: RetrievalStrategy
         if args.strategy == "dense" and provider is not None:
             strategy = DenseRetrievalStrategy(provider)
-        elif args.strategy in {"hybrid", "reranked", "multi_query"} and provider is not None:
-            strategy = build_retrieval_strategy(args.strategy, provider=provider, settings=settings)
+        elif (
+            args.strategy in {"hybrid", "reranked", "multi_query"}
+            and provider is not None
+        ):
+            strategy = build_retrieval_strategy(
+                args.strategy, provider=provider, settings=settings
+            )
         else:
             strategy = LexicalRetrievalStrategy()
         thresholds = EvaluationThresholds(
@@ -440,17 +476,25 @@ def evaluate_retrieval(args: argparse.Namespace) -> int:
                 retrieval_limit=args.limit,
                 thresholds=thresholds,
                 embedding_model=(
-                    provider.model if provider is not None else dataset.manifest.embedding_model
+                    provider.model
+                    if provider is not None
+                    else dataset.manifest.embedding_model
                 ),
                 retrieval_strategy=strategy.name,
                 max_context_chars=settings.rag_max_context_chars,
                 max_context_chars_per_document=settings.rag_max_context_chars_per_document,
-                reranker_model=(settings.reranker_model if args.strategy == "reranked" else None),
+                reranker_model=(
+                    settings.reranker_model if args.strategy == "reranked" else None
+                ),
                 reranker_model_revision=(
-                    settings.reranker_model_revision if args.strategy == "reranked" else None
+                    settings.reranker_model_revision
+                    if args.strategy == "reranked"
+                    else None
                 ),
                 query_rewrite_model=(
-                    settings.query_rewrite_model if args.strategy == "multi_query" else None
+                    settings.query_rewrite_model
+                    if args.strategy == "multi_query"
+                    else None
                 ),
                 query_rewrite_model_revision=(
                     settings.query_rewrite_model_revision
@@ -488,7 +532,11 @@ def evaluate_generation(args: argparse.Namespace) -> int:
     try:
         dataset = load_dataset(Path(args.dataset))
         settings = get_settings()
-        provider = get_embedding_provider() if args.mode in {"base_rag", "adapter_rag"} else None
+        provider = (
+            get_embedding_provider()
+            if args.mode in {"base_rag", "adapter_rag"}
+            else None
+        )
         if (
             provider is not None
             and dataset.manifest.embedding_model != provider.model
@@ -672,7 +720,9 @@ def profile_native_vector_candidate(args: argparse.Namespace) -> int:
     )
 
     try:
-        report = build_native_profile_report(load_native_profile_contract(Path(args.contract)))
+        report = build_native_profile_report(
+            load_native_profile_contract(Path(args.contract))
+        )
         write_native_profile_report(report, Path(args.output))
     except (OSError, ValueError) as exc:
         print(f"Native vector profile failed: {exc}", file=sys.stderr)
@@ -751,6 +801,45 @@ def offline_bundle_build(args: argparse.Namespace) -> int:
     print(f"Release: {manifest.release_id}")
     print(format_verification_summary(report))
     return 0 if report.passed else 1
+
+
+def offline_bundle_sign(args: argparse.Namespace) -> int:
+    from delivery.release_signing import SigningError, sign_bundle, write_signature
+
+    try:
+        envelope = sign_bundle(
+            Path(args.bundle),
+            Path(args.private_key),
+            Path(args.public_key),
+            passphrase_env=args.passphrase_env,
+        )
+        write_signature(envelope, Path(args.output))
+    except (OSError, SigningError, ValueError) as exc:
+        print(f"Offline bundle signing failed: {exc}", file=sys.stderr)
+        return 2
+    print(f"Offline bundle signature: {Path(args.output).resolve()}")
+    print(f"Key ID: {envelope.key_id}")
+    return 0
+
+
+def offline_bundle_signature_verify(args: argparse.Namespace) -> int:
+    from delivery.release_signing import (
+        SignatureEnvelope,
+        SigningError,
+        verify_bundle_signature,
+    )
+
+    try:
+        envelope = SignatureEnvelope.model_validate_json(
+            Path(args.signature).read_text(encoding="utf-8")
+        )
+        verify_bundle_signature(Path(args.bundle), envelope, Path(args.public_key))
+    except (OSError, SigningError, ValueError) as exc:
+        print(f"Offline bundle signature verification failed: {exc}", file=sys.stderr)
+        return 1
+    print("Offline bundle signature verification: PASSED")
+    print(f"Key ID: {envelope.key_id}")
+    return 0
 
 
 def release_source_verify(args: argparse.Namespace) -> int:
@@ -860,7 +949,9 @@ def training_preflight(args: argparse.Namespace) -> int:
 
     try:
         config = load_training_config(Path(args.config))
-        report = collect_preflight_report(config, cache_dir=Path(args.cache_dir).expanduser())
+        report = collect_preflight_report(
+            config, cache_dir=Path(args.cache_dir).expanduser()
+        )
         write_json_report(report, Path(args.output))
     except (OSError, TrainingFoundationError) as exc:
         print(f"Training preflight failed: {exc}", file=sys.stderr)
@@ -1354,12 +1445,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         default="var/training/evaluation-matrix-latest.json",
     )
-    evaluation_matrix_parser.add_argument("--min-language-adherence", type=float, default=1.0)
-    evaluation_matrix_parser.add_argument("--min-citation-format-validity", type=float, default=1.0)
-    evaluation_matrix_parser.add_argument("--min-json-schema-validity", type=float, default=1.0)
-    evaluation_matrix_parser.add_argument("--min-incident-report-structure", type=float, default=1.0)
-    evaluation_matrix_parser.add_argument("--min-terminology-consistency", type=float, default=1.0)
-    evaluation_matrix_parser.add_argument("--min-supported-refusal", type=float, default=1.0)
+    evaluation_matrix_parser.add_argument(
+        "--min-language-adherence", type=float, default=1.0
+    )
+    evaluation_matrix_parser.add_argument(
+        "--min-citation-format-validity", type=float, default=1.0
+    )
+    evaluation_matrix_parser.add_argument(
+        "--min-json-schema-validity", type=float, default=1.0
+    )
+    evaluation_matrix_parser.add_argument(
+        "--min-incident-report-structure", type=float, default=1.0
+    )
+    evaluation_matrix_parser.add_argument(
+        "--min-terminology-consistency", type=float, default=1.0
+    )
+    evaluation_matrix_parser.add_argument(
+        "--min-supported-refusal", type=float, default=1.0
+    )
     evaluation_matrix_parser.add_argument(
         "--gate-mode",
         action="append",
@@ -1497,6 +1600,26 @@ def build_parser() -> argparse.ArgumentParser:
     offline_bundle_build_parser.add_argument("--spec", required=True)
     offline_bundle_build_parser.add_argument("--output", required=True)
     offline_bundle_build_parser.set_defaults(func=offline_bundle_build)
+
+    offline_bundle_sign_parser = subparsers.add_parser(
+        "offline-bundle-sign",
+        help="create a detached Ed25519 signature for a verified offline bundle",
+    )
+    offline_bundle_sign_parser.add_argument("--bundle", required=True)
+    offline_bundle_sign_parser.add_argument("--private-key", required=True)
+    offline_bundle_sign_parser.add_argument("--public-key", required=True)
+    offline_bundle_sign_parser.add_argument("--passphrase-env")
+    offline_bundle_sign_parser.add_argument("--output", required=True)
+    offline_bundle_sign_parser.set_defaults(func=offline_bundle_sign)
+
+    offline_bundle_signature_parser = subparsers.add_parser(
+        "offline-bundle-signature-verify",
+        help="verify a detached bundle signature against an external public key",
+    )
+    offline_bundle_signature_parser.add_argument("--bundle", required=True)
+    offline_bundle_signature_parser.add_argument("--signature", required=True)
+    offline_bundle_signature_parser.add_argument("--public-key", required=True)
+    offline_bundle_signature_parser.set_defaults(func=offline_bundle_signature_verify)
 
     offline_bundle_verify_parser = subparsers.add_parser(
         "offline-bundle-verify",
@@ -1694,7 +1817,9 @@ def build_parser() -> argparse.ArgumentParser:
     runtime_adapter_parser.add_argument("--manifest", required=True)
     runtime_adapter_parser.add_argument("--training-framework-report", required=True)
     runtime_adapter_parser.add_argument("--output", required=True)
-    runtime_adapter_parser.add_argument("--runtime-url", default="http://127.0.0.1:8080/v1")
+    runtime_adapter_parser.add_argument(
+        "--runtime-url", default="http://127.0.0.1:8080/v1"
+    )
     runtime_adapter_parser.add_argument("--runtime-model", required=True)
     runtime_adapter_parser.add_argument("--adapter-id", required=True)
     runtime_adapter_parser.add_argument("--adapter-sha256", required=True)
@@ -1711,7 +1836,9 @@ def build_parser() -> argparse.ArgumentParser:
         "ingestion-worker",
         help="process queued document ingestion jobs from Redis",
     )
-    ingestion_worker_parser.add_argument("--once", action="store_true", help="process at most one queued job")
+    ingestion_worker_parser.add_argument(
+        "--once", action="store_true", help="process at most one queued job"
+    )
     ingestion_worker_parser.set_defaults(func=ingestion_worker)
 
     return parser
