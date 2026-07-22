@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "spec_type": "release_artifact_provenance",
+  "release_id": "offline-intelligence-hub-0.0.0-example-linux-x86_64",
+  "app_version": "0.0.0-example",
+  "target_architecture": "linux-x86_64-cuda13",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "source_report_path": "source-preflight.json",
+  "artifacts": [
+    {
+      "artifact_type": "project_container_image",
+      "artifact_id": "application",
+      "archive": {
+        "path": "images/application.tar",
+        "bundle_path": "images/application.tar",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "size_bytes": 0
+      },
+      "repo_tags": [
+        "offline-intelligence-hub-api:0.0.0-example",
+        "offline-intelligence-hub-ingestion-worker:0.0.0-example"
+      ],
+      "image_index_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "image_config_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "dockerfile_path": "apps/api/Dockerfile",
+      "dockerfile_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sbom": {
+        "path": "sbom/application.spdx.json",
+        "bundle_path": "sbom/api.spdx.json",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "size_bytes": 0,
+        "format": "SPDX-2.3",
+        "package_count": 1,
+        "subject_name": "offline-intelligence-hub-api",
+        "subject_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "native_bindings": []
+    },
+    {
+      "artifact_type": "model",
+      "artifact_id": "chat-model",
+      "payload": {
+        "path": "models/chat-model.gguf",
+        "bundle_path": "models/chat-model.gguf",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "size_bytes": 0
+      },
+      "model_id": "publisher/model",
+      "model_revision": "immutable-upstream-revision",
+      "format": "GGUF",
+      "license_evidence_path": "licenses/release-license-status.md"
+    }
+  ]
+}

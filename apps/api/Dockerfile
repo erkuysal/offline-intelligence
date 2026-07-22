@@ -18,6 +18,12 @@ RUN cmake \
 
 FROM python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6
 
+ARG OIH_SOURCE_REVISION=development
+ARG OIH_SOURCE_DATE_EPOCH=0
+
+LABEL org.opencontainers.image.revision="${OIH_SOURCE_REVISION}"
+LABEL org.offline-intelligence-hub.source-date-epoch="${OIH_SOURCE_DATE_EPOCH}"
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/apps/api

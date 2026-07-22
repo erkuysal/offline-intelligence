@@ -38,6 +38,12 @@ and pre-mutation sequence are defined in the [Phase 9 release trust and threat
 model](phase-9-threat-model.md). The first enforced gate binds release construction to a clean,
 expected Git revision and rejects ignored cache or secret paths before Docker runs.
 
+Project image Dockerfiles also accept explicit source-revision and source-date build arguments and
+store them under distinct OCI/custom labels. The artifact-provenance verifier reads those labels
+from the exported image config, verifies archive and SBOM subjects offline, and produces a stable
+component-inventory digest without conflating image-index, platform-manifest, config, archive, and
+SBOM identities.
+
 ## Evidence
 
 Phase 9 produces versioned machine-readable records for provenance, SBOM identity, signature

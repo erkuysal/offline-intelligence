@@ -10,6 +10,12 @@ RUN npm run build
 
 FROM nginx:1.30.3-alpine@sha256:0d3b80406a13a767339fbe2f41406d6c7da727ab89cf8fae399e81f780f814d1
 
+ARG OIH_SOURCE_REVISION=development
+ARG OIH_SOURCE_DATE_EPOCH=0
+
+LABEL org.opencontainers.image.revision="${OIH_SOURCE_REVISION}"
+LABEL org.offline-intelligence-hub.source-date-epoch="${OIH_SOURCE_DATE_EPOCH}"
+
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 

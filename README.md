@@ -74,6 +74,7 @@ fail-closed clean-source preflight gate.
 - [Phase 9 production and supply-chain hardening plan](docs/plans/phase-9.md)
 - [Phase 9 release trust and threat model](docs/technical/v1/phase-9-threat-model.md)
 - [Phase 9 source and trust foundation acceptance](docs/acceptance/phase-9-source-trust-foundation.md)
+- [Phase 9 artifact provenance foundation](docs/acceptance/phase-9-artifact-provenance-foundation.md)
 - [Post-Phase-9 feature options](docs/plans/post-phase-9-feature-options.md)
 - [Retrieval observability and retention](docs/api/retrieval-observability.md)
 - [UI engineering plan](docs/ui/README.md)

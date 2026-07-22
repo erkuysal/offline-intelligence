@@ -28,7 +28,8 @@ No LLM servers are required.
 
 - [x] Pin a fully local SBOM generator by version and checksum
 - [x] Generate SPDX inventories without remote indexing
-- [ ] Bind SBOMs to exact image IDs, source revision, Dockerfile digest, and native binary checksum
+- [x] Bind SBOMs to scoped image identities, source revision, Dockerfile digest, and native binary
+      checksum through the offline artifact-provenance verifier
 - [ ] Produce a machine-readable provenance statement for every shipped image and model
 - [ ] Fail release construction when inventory identity and payload identity differ
 
@@ -38,6 +39,11 @@ The accepted foundation is recorded in
 [the Phase 9 source/trust acceptance](../acceptance/phase-9-source-trust-foundation.md). The source
 preflight closes the `v0.5.0` dirty-context failure mode; cache-independent artifact construction,
 canonical SBOM/image identity, and artifact provenance remain active WP9.1 work.
+
+The verifier and identity model are recorded in
+[the artifact-provenance foundation acceptance](../acceptance/phase-9-artifact-provenance-foundation.md).
+A complete candidate specification covering every shipped image and model, followed by mandatory
+bundle integration, is still required before the remaining WP9.1 items can close.
 
 ## Work Package 9.2: Signing and Verification
 

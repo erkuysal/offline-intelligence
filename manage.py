@@ -797,6 +797,30 @@ def release_trust_policy_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def release_provenance_verify(args: argparse.Namespace) -> int:
+    sys.dont_write_bytecode = True
+    from delivery.release_provenance import (
+        ReleaseProvenanceError,
+        build_release_provenance_report,
+        format_release_provenance_summary,
+        load_release_provenance_spec,
+        write_release_provenance_report,
+    )
+
+    try:
+        spec_path = Path(args.spec)
+        spec = load_release_provenance_spec(spec_path)
+        report = build_release_provenance_report(spec, spec_path=spec_path)
+        write_release_provenance_report(report, Path(args.output))
+    except (OSError, ReleaseProvenanceError, ValueError) as exc:
+        print(f"Release provenance validation failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(format_release_provenance_summary(report))
+    print(f"JSON report: {Path(args.output).resolve()}")
+    return 0 if report.passed else 1
+
+
 def offline_bundle_verify(args: argparse.Namespace) -> int:
     from delivery.offline_bundle import (
         format_verification_summary,
@@ -1454,6 +1478,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="config/supply-chain/release-trust-policy-v1.json",
     )
     release_trust_parser.set_defaults(func=release_trust_policy_verify)
+
+    release_provenance_parser = subparsers.add_parser(
+        "release-provenance-verify",
+        help="bind release images and models to source, payload, SBOM, and native identities",
+    )
+    release_provenance_parser.add_argument("--spec", required=True)
+    release_provenance_parser.add_argument(
+        "--output",
+        default="var/release/artifact-provenance-latest.json",
+    )
+    release_provenance_parser.set_defaults(func=release_provenance_verify)
 
     offline_bundle_build_parser = subparsers.add_parser(
         "offline-bundle-build",
