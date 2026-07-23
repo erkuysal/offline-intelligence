@@ -5,10 +5,12 @@
     ".dockerignore",
     "apps/api/Dockerfile",
     "apps/api/tests/test_production_compose_hardening.py",
+    "apps/api/tests/test_upgrade_migrations.py",
     "apps/web/Dockerfile",
     "apps/web/package-lock.json",
     "apps/web/package.json",
     "config/delivery/offline-bundle-v1.example.json",
+    "config/delivery/offline-upgrade-policy-v1.json",
     "config/supply-chain/release-gates-v1.example.json",
     "config/supply-chain/release-provenance-v1.example.json",
     "config/supply-chain/release-revocations-v1.example.json",
@@ -24,7 +26,8 @@
     "manage.py",
     "native/vector_similarity/CMakeLists.txt",
     "native/vector_similarity/tests/test_vector_similarity.c",
-    "requirements.txt"
+    "requirements.txt",
+    "scripts/delivery/offline_operator.py"
   ],
   "required_dockerignore_patterns": [
     ".git",

@@ -91,13 +91,14 @@ failure. See
 
 ## Work Package 9.5: Upgrade and Rollback
 
-- [ ] Define supported source and target release pairs
-- [ ] Verify pre-upgrade backup and free-space requirements
-- [ ] Exercise forward migrations against representative persisted data
-- [ ] Prove rollback before irreversible migration boundaries
-- [ ] Record recovery time, data integrity, and application behavior after upgrade and rollback
+- [x] Define supported source and target release pairs
+- [x] Verify pre-upgrade backup and free-space requirements
+- [x] Exercise forward migrations against representative persisted data
+- [x] Prove rollback before irreversible migration boundaries
+- [x] Record recovery time, data integrity, and application behavior after upgrade and rollback
 
-The final application path uses both real model servers and requires advance notice.
+The final application path used both real model servers after advance notice. See
+[`docs/acceptance/phase-9-upgrade-rollback.md`](../acceptance/phase-9-upgrade-rollback.md).
 
 ## Work Package 9.6: Acceptance
 

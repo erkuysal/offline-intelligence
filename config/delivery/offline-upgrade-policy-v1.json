@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "policy_type": "offline_upgrade_policy",
+  "policy_id": "offline-intelligence-hub-upgrades-v1",
+  "supported_pairs": [
+    {
+      "pair_id": "v0_4_0_to_v0_5_0",
+      "source": {
+        "release_id": "offline-intelligence-hub-0.4.0-linux-x86_64",
+        "app_version": "0.4.0",
+        "migration_revision": "20260714_0013"
+      },
+      "target": {
+        "release_id": "offline-intelligence-hub-0.5.0-linux-x86_64",
+        "app_version": "0.5.0",
+        "migration_revision": "20260714_0013"
+      },
+      "migration_mode": "same_revision",
+      "rollback_strategy": "blue_green_source_restart",
+      "rollback_allowed_before_acceptance": true,
+      "irreversible_migrations": [],
+      "maximum_backup_age_hours": 24
+    }
+  ]
+}

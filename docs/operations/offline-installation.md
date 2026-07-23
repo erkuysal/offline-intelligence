@@ -119,12 +119,52 @@ nonempty PostgreSQL schemas, and nonempty document storage. It validates the rec
 revision, records duration, and stops PostgreSQL. If failure occurs after mutation begins, discard
 that isolated target and retry with another empty target; never repair it in place.
 
-## Rollback Boundary
+## Upgrade and Rollback
 
-Retain the prior immutable bundle and a verified backup before every upgrade. Restore accepts only
-the exact same release and migration identity. Rollback means installing the retained prior bundle
-into a new target and restoring its matching backup. Alembic downgrade, newer-database-to-older-app
-restore, and automated cross-release upgrades are intentionally unsupported.
+Cross-release upgrade is fail-closed and limited to exact pairs in
+`config/delivery/offline-upgrade-policy-v1.json`. The first supported pair is 0.4.0 to 0.5.0 at the
+same Alembic revision, `20260714_0013`. Retain the exact signed target bundle, the exact prior
+source bundle, and a fresh verified backup. The default policy rejects backups older than 24 hours,
+an active source, an existing target path, an unsupported pair, an irreversible migration
+boundary, or free space below twice the target payload plus the backup and 10 GiB reserve.
+
+Stop the source after taking its backup, then verify without mutation:
+
+```bash
+python3 operator/offline_operator.py upgrade-preflight \
+  --source-target /opt/offline-intelligence-hub-0.4.0 \
+  --target /opt/offline-intelligence-hub-0.5.0 \
+  --bundle /media/offline-release-0.5.0 \
+  --backup /secure-backups/pre-0.5.0 \
+  --policy config/delivery/offline-upgrade-policy-v1.json \
+  --signature /media/trust/release.signature.json \
+  --public-key /media/trust/release-public.pem \
+  --revocation-policy /media/trust/revocations.json \
+  --output /secure-reports/upgrade-preflight.json
+```
+
+Run `upgrade` with the same arguments after the report passes. The operator creates an isolated
+blue/green target, verifies and loads only the signed target images, restores the source backup,
+starts the target, and writes `upgrade.json`. A failed attempt removes only its newly created target
+and target volumes; the stopped source and backup remain untouched.
+
+Before accepting the new release, rollback remains available:
+
+```bash
+python3 operator/offline_operator.py rollback \
+  --source-target /opt/offline-intelligence-hub-0.4.0 \
+  --source-bundle /media/offline-release-0.4.0 \
+  --target /opt/offline-intelligence-hub-0.5.0 \
+  --backup /secure-backups/pre-0.5.0 \
+  --policy config/delivery/offline-upgrade-policy-v1.json
+```
+
+Rollback verifies that the backup, source installation, source bundle, target evidence, and policy
+all describe the same transition. It reloads the exact retained source images before restart, so
+tag reuse cannot substitute target images for the prior release. It then checks the retained
+database migration and records recovery duration. `upgrade-accept --target ...` permanently closes
+this rollback window. Alembic downgrade and rollback across an irreversible migration remain
+unsupported.
 
 ## Failure Semantics
 

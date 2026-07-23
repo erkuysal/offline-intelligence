@@ -69,6 +69,23 @@ SIGNED_PAYLOAD_FIELDS = {
     "checksums_sha256",
     "checksums_size_bytes",
 }
+UPGRADE_POLICY_FIELDS = {
+    "schema_version",
+    "policy_type",
+    "policy_id",
+    "supported_pairs",
+}
+UPGRADE_PAIR_FIELDS = {
+    "pair_id",
+    "source",
+    "target",
+    "migration_mode",
+    "rollback_strategy",
+    "rollback_allowed_before_acceptance",
+    "irreversible_migrations",
+    "maximum_backup_age_hours",
+}
+UPGRADE_IDENTITY_FIELDS = {"release_id", "app_version", "migration_revision"}
 
 
 class OperatorError(RuntimeError):
@@ -87,6 +104,96 @@ class Report:
     report_type: str
     passed: bool
     checks: list[Check]
+
+
+def require_exact_fields(value: dict[str, Any], expected: set[str], label: str) -> None:
+    actual = set(value)
+    if actual != expected:
+        raise OperatorError(
+            f"{label} fields mismatch: missing={sorted(expected - actual)}, "
+            f"unexpected={sorted(actual - expected)}"
+        )
+
+
+def load_upgrade_policy(path: Path) -> dict[str, Any]:
+    if path.is_symlink() or not path.is_file():
+        raise OperatorError("upgrade policy is missing or is not a regular file")
+    try:
+        policy = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise OperatorError(f"invalid upgrade policy: {exc}") from exc
+    if not isinstance(policy, dict):
+        raise OperatorError("upgrade policy must be an object")
+    require_exact_fields(policy, UPGRADE_POLICY_FIELDS, "upgrade policy")
+    if (
+        policy["schema_version"] != "1.0"
+        or policy["policy_type"] != "offline_upgrade_policy"
+        or not isinstance(policy["policy_id"], str)
+        or not policy["policy_id"]
+        or not isinstance(policy["supported_pairs"], list)
+        or not policy["supported_pairs"]
+    ):
+        raise OperatorError("upgrade policy header is invalid")
+    pair_ids: set[str] = set()
+    for pair in policy["supported_pairs"]:
+        if not isinstance(pair, dict):
+            raise OperatorError("upgrade pair must be an object")
+        require_exact_fields(pair, UPGRADE_PAIR_FIELDS, "upgrade pair")
+        pair_id = pair["pair_id"]
+        if (
+            not isinstance(pair_id, str)
+            or re.fullmatch(r"[a-z][a-z0-9_]*", pair_id) is None
+            or pair_id in pair_ids
+        ):
+            raise OperatorError("upgrade pair ID is invalid or duplicated")
+        pair_ids.add(pair_id)
+        for side in ("source", "target"):
+            identity = pair[side]
+            if not isinstance(identity, dict):
+                raise OperatorError(f"upgrade {side} identity must be an object")
+            require_exact_fields(
+                identity, UPGRADE_IDENTITY_FIELDS, f"upgrade {side} identity"
+            )
+            if not all(
+                isinstance(identity[field], str) and identity[field]
+                for field in UPGRADE_IDENTITY_FIELDS
+            ):
+                raise OperatorError(f"upgrade {side} identity is invalid")
+        if (
+            pair["migration_mode"] != "same_revision"
+            or pair["rollback_strategy"] != "blue_green_source_restart"
+            or pair["rollback_allowed_before_acceptance"] is not True
+            or pair["irreversible_migrations"] != []
+            or type(pair["maximum_backup_age_hours"]) is not int
+            or not 1 <= pair["maximum_backup_age_hours"] <= 168
+            or pair["source"]["migration_revision"]
+            != pair["target"]["migration_revision"]
+        ):
+            raise OperatorError(
+                f"upgrade pair {pair_id} crosses an unsupported migration boundary"
+            )
+    return policy
+
+
+def select_upgrade_pair(
+    policy: dict[str, Any],
+    source_state: dict[str, Any],
+    target_manifest: dict[str, Any],
+) -> dict[str, Any]:
+    target_state = release_state(target_manifest, started=False)
+    for pair in policy["supported_pairs"]:
+        source = pair["source"]
+        target = pair["target"]
+        if (
+            source_state.get("release_id") == source["release_id"]
+            and source_state.get("app_version") == source["app_version"]
+            and source_state.get("migration_head") == source["migration_revision"]
+            and target_state["release_id"] == target["release_id"]
+            and target_state["app_version"] == target["app_version"]
+            and target_state["migration_head"] == target["migration_revision"]
+        ):
+            return pair
+    raise OperatorError("source and target release pair is not supported")
 
 
 def sha256_file(path: Path) -> str:
@@ -1233,24 +1340,46 @@ def verify_backup(backup: Path) -> tuple[dict[str, Any] | None, Report]:
     )
 
 
-def restore_backup(backup: Path, target: Path) -> dict[str, Any]:
+def restore_backup(
+    backup: Path,
+    target: Path,
+    *,
+    upgrade_source_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     manifest, report = verify_backup(backup)
     if manifest is None or not report.passed:
         raise OperatorError("backup verification failed")
     backup = backup.expanduser().absolute()
     target, values, state = managed_target(target)
-    for key in (
+    identity_keys = (
         "release_id",
         "app_version",
         "model_sha256",
         "image_ids",
         "migration_head",
-    ):
-        backup_value = (
-            manifest["migration_revision"] if key == "migration_head" else manifest[key]
-        )
-        if state[key] != backup_value:
-            raise OperatorError(f"backup target identity mismatch: {key}")
+    )
+    if upgrade_source_state is None:
+        for key in identity_keys:
+            backup_value = (
+                manifest["migration_revision"]
+                if key == "migration_head"
+                else manifest[key]
+            )
+            if state[key] != backup_value:
+                raise OperatorError(f"backup target identity mismatch: {key}")
+    else:
+        for key in identity_keys:
+            backup_value = (
+                manifest["migration_revision"]
+                if key == "migration_head"
+                else manifest[key]
+            )
+            if upgrade_source_state[key] != backup_value:
+                raise OperatorError(f"upgrade backup source identity mismatch: {key}")
+        if state["migration_head"] != manifest["migration_revision"]:
+            raise OperatorError(
+                "upgrade requires identical source and target migration revisions"
+            )
     if state.get("started"):
         raise OperatorError("restore target must be stopped")
 
@@ -1276,12 +1405,12 @@ def restore_backup(backup: Path, target: Path) -> dict[str, Any]:
                 "/bin/sh",
                 "api",
                 "-ec",
-                'test -z "$(find /app/storage -mindepth 1 -print -quit)"',
+                'test -z "$(find /app/storage -mindepth 1 ! -type d -print -quit)"',
             ),
             timeout=120,
         )
         if storage_empty.returncode != 0:
-            raise OperatorError("restore document storage is not empty")
+            raise OperatorError("restore document storage contains files")
 
         database_result = run_from_file(
             compose_command(
@@ -1350,6 +1479,300 @@ def restore_backup(backup: Path, target: Path) -> dict[str, Any]:
         run_command(compose_command(target, "stop", "postgres"), timeout=120)
 
 
+def backup_matches_state(manifest: dict[str, Any], state: dict[str, Any]) -> bool:
+    return all(
+        state[key]
+        == (
+            manifest["migration_revision"] if key == "migration_head" else manifest[key]
+        )
+        for key in (
+            "release_id",
+            "app_version",
+            "model_sha256",
+            "image_ids",
+            "migration_head",
+        )
+    )
+
+
+def upgrade_preflight(
+    source_target: Path,
+    target: Path,
+    target_manifest: dict[str, Any],
+    backup: Path,
+    policy_path: Path,
+    *,
+    disk_reserve_gib: int,
+) -> tuple[dict[str, Any] | None, Report]:
+    checks: list[Check] = []
+    try:
+        source_target, _, source_state = managed_target(source_target)
+        source_stopped = source_state.get("started") is False
+        checks.append(
+            Check(
+                "source_stopped",
+                source_stopped,
+                "source installation is stopped"
+                if source_stopped
+                else "source installation must be stopped before upgrade",
+            )
+        )
+        target = target.expanduser().absolute()
+        target_absent = not target.exists()
+        checks.append(
+            Check(
+                "isolated_target",
+                target_absent,
+                "new target path is absent"
+                if target_absent
+                else "new target path already exists",
+            )
+        )
+        policy = load_upgrade_policy(policy_path)
+        pair = select_upgrade_pair(policy, source_state, target_manifest)
+        checks.append(Check("supported_pair", True, f"pair={pair['pair_id']}"))
+    except (KeyError, OSError, OperatorError, ValueError, json.JSONDecodeError) as exc:
+        checks.append(Check("supported_pair", False, str(exc)))
+        return None, Report("offline_upgrade_preflight", False, checks)
+
+    backup_manifest, backup_report = verify_backup(backup)
+    backup_ok = (
+        backup_manifest is not None
+        and backup_report.passed
+        and backup_matches_state(backup_manifest, source_state)
+    )
+    checks.append(
+        Check(
+            "pre_upgrade_backup",
+            backup_ok,
+            (
+                f"backup={backup_manifest['backup_id']} verified"
+                if backup_ok and backup_manifest is not None
+                else "verified backup does not match source installation"
+            ),
+        )
+    )
+    try:
+        backup_created_at = datetime.fromisoformat(backup_manifest["created_at"])
+        backup_age_seconds = (datetime.now(UTC) - backup_created_at).total_seconds()
+        maximum_backup_age_seconds = pair["maximum_backup_age_hours"] * 3600
+        backup_fresh = 0 <= backup_age_seconds <= maximum_backup_age_seconds
+        backup_age_detail = (
+            f"age_seconds={round(backup_age_seconds, 3)}, "
+            f"maximum_seconds={maximum_backup_age_seconds}"
+        )
+    except (KeyError, TypeError, ValueError):
+        backup_fresh = False
+        backup_age_detail = "backup creation timestamp is invalid"
+    checks.append(Check("backup_freshness", backup_fresh, backup_age_detail))
+    if backup_manifest is None:
+        backup_size = 0
+    else:
+        backup_size = int(backup_manifest.get("total_size_bytes", 0))
+    disk_root = nearest_existing_parent(target)
+    free_disk = shutil.disk_usage(disk_root).free
+    required_disk = (
+        int(target_manifest["total_size_bytes"]) * 2
+        + backup_size
+        + disk_reserve_gib * GIB
+    )
+    checks.append(
+        Check(
+            "upgrade_disk",
+            free_disk >= required_disk,
+            f"free={free_disk}, required={required_disk}, root={disk_root}",
+        )
+    )
+    boundary_ok = (
+        pair["migration_mode"] == "same_revision"
+        and pair["irreversible_migrations"] == []
+        and pair["rollback_allowed_before_acceptance"] is True
+    )
+    checks.append(
+        Check(
+            "rollback_boundary",
+            boundary_ok,
+            "blue/green rollback is allowed before acceptance"
+            if boundary_ok
+            else "upgrade crosses an irreversible migration boundary",
+        )
+    )
+    return pair, Report(
+        "offline_upgrade_preflight", all(check.passed for check in checks), checks
+    )
+
+
+def perform_upgrade(
+    source_target: Path,
+    target: Path,
+    bundle: Path,
+    target_manifest: dict[str, Any],
+    backup: Path,
+    policy_path: Path,
+    *,
+    disk_reserve_gib: int,
+) -> dict[str, Any]:
+    pair, report = upgrade_preflight(
+        source_target,
+        target,
+        target_manifest,
+        backup,
+        policy_path,
+        disk_reserve_gib=disk_reserve_gib,
+    )
+    if pair is None or not report.passed:
+        raise OperatorError("upgrade preflight failed")
+    source_target, _, source_state = managed_target(source_target)
+    backup_manifest, backup_report = verify_backup(backup)
+    if backup_manifest is None or not backup_report.passed:
+        raise OperatorError("pre-upgrade backup verification failed")
+
+    started_at = time.perf_counter()
+    try:
+        install(bundle, target, target_manifest, start=False)
+        restore_result = restore_backup(
+            backup,
+            target,
+            upgrade_source_state=source_state,
+        )
+        install(bundle, target, target_manifest, start=True)
+    except Exception:
+        target = target.expanduser().absolute()
+        if target.is_dir() and not target.is_symlink():
+            run_command(
+                compose_command(target, "down", "--volumes", "--remove-orphans"),
+                timeout=300,
+            )
+            shutil.rmtree(target)
+        raise
+    completed_at = datetime.now(UTC)
+    evidence = {
+        "schema_version": "1.0",
+        "evidence_type": "offline_upgrade",
+        "pair_id": pair["pair_id"],
+        "source_release_id": source_state["release_id"],
+        "target_release_id": target_manifest["release_id"],
+        "source_target": str(source_target),
+        "backup_id": backup_manifest["backup_id"],
+        "backup_checksums_sha256": sha256_file(
+            backup.expanduser().absolute() / BACKUP_CHECKSUMS_NAME
+        ),
+        "migration_before": backup_manifest["migration_revision"],
+        "migration_after": restore_result["migration_revision"],
+        "rollback_eligible": True,
+        "accepted_at": None,
+        "completed_at": completed_at.isoformat(),
+        "duration_seconds": round(time.perf_counter() - started_at, 3),
+    }
+    target = target.expanduser().absolute()
+    (target / "upgrade.json").write_text(
+        json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return evidence
+
+
+def rollback_upgrade(
+    source_target: Path,
+    target: Path,
+    backup: Path,
+    policy_path: Path,
+    source_bundle: Path,
+) -> dict[str, Any]:
+    target, _, target_state = managed_target(target)
+    evidence_path = target / "upgrade.json"
+    if evidence_path.is_symlink() or not evidence_path.is_file():
+        raise OperatorError("target is missing upgrade evidence")
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    if (
+        evidence.get("rollback_eligible") is not True
+        or evidence.get("accepted_at") is not None
+    ):
+        raise OperatorError("upgrade is no longer rollback eligible")
+    source_target, source_values, source_state = managed_target(source_target)
+    policy = load_upgrade_policy(policy_path)
+    pair = select_upgrade_pair(
+        policy,
+        source_state,
+        {
+            "release_id": target_state["release_id"],
+            "app_version": target_state["app_version"],
+            "files": [
+                {
+                    "artifact_type": "migration",
+                    "version": target_state["migration_head"],
+                }
+            ],
+        },
+    )
+    if pair["pair_id"] != evidence.get("pair_id"):
+        raise OperatorError("upgrade evidence pair does not match rollback policy")
+    backup_manifest, backup_report = verify_backup(backup)
+    if (
+        backup_manifest is None
+        or not backup_report.passed
+        or not backup_matches_state(backup_manifest, source_state)
+        or backup_manifest["backup_id"] != evidence.get("backup_id")
+    ):
+        raise OperatorError("rollback backup does not match the source installation")
+    source_manifest, source_bundle_report = verify_bundle(source_bundle)
+    if source_manifest is None or not source_bundle_report.passed:
+        raise OperatorError("rollback source bundle verification failed")
+    expected_source_state = release_state(source_manifest, started=False)
+    for key in (
+        "release_id",
+        "app_version",
+        "model_sha256",
+        "image_ids",
+        "migration_head",
+    ):
+        if source_state[key] != expected_source_state[key]:
+            raise OperatorError(f"rollback source bundle identity mismatch: {key}")
+
+    started_at = time.perf_counter()
+    if target_state.get("started"):
+        uninstall(target)
+    install(source_bundle, source_target, source_manifest, start=True)
+    wait_for_postgres(source_target, source_values)
+    migration_revision = postgres_scalar(
+        source_target, source_values, "SELECT version_num FROM alembic_version"
+    )
+    if migration_revision != source_state["migration_head"]:
+        raise OperatorError("rollback source migration identity changed")
+    evidence["rollback_eligible"] = False
+    evidence["rolled_back_at"] = datetime.now(UTC).isoformat()
+    evidence["rollback_duration_seconds"] = round(time.perf_counter() - started_at, 3)
+    evidence_path.write_text(
+        json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "pair_id": pair["pair_id"],
+        "source_release_id": source_state["release_id"],
+        "migration_revision": migration_revision,
+        "duration_seconds": evidence["rollback_duration_seconds"],
+    }
+
+
+def accept_upgrade(target: Path) -> dict[str, Any]:
+    target, _, state = managed_target(target)
+    evidence_path = target / "upgrade.json"
+    if evidence_path.is_symlink() or not evidence_path.is_file():
+        raise OperatorError("target is missing upgrade evidence")
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    if state.get("started") is not True:
+        raise OperatorError("upgrade target must be running before acceptance")
+    if evidence.get("rollback_eligible") is not True:
+        raise OperatorError("upgrade is not awaiting acceptance")
+    evidence["rollback_eligible"] = False
+    evidence["accepted_at"] = datetime.now(UTC).isoformat()
+    evidence_path.write_text(
+        json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return evidence
+
+
 def uninstall(target: Path) -> None:
     target = target.expanduser().absolute()
     state_path = target / "release.json"
@@ -1410,6 +1833,36 @@ def build_parser() -> argparse.ArgumentParser:
     restore_parser = subparsers.add_parser("restore")
     restore_parser.add_argument("--backup", required=True)
     restore_parser.add_argument("--target", required=True)
+    upgrade_preflight_parser = subparsers.add_parser("upgrade-preflight")
+    upgrade_parser = subparsers.add_parser("upgrade")
+    for upgrade_command_parser in (upgrade_preflight_parser, upgrade_parser):
+        upgrade_command_parser.add_argument("--source-target", required=True)
+        upgrade_command_parser.add_argument("--target", required=True)
+        upgrade_command_parser.add_argument("--bundle", required=True)
+        upgrade_command_parser.add_argument("--backup", required=True)
+        upgrade_command_parser.add_argument(
+            "--policy",
+            default="config/delivery/offline-upgrade-policy-v1.json",
+        )
+        upgrade_command_parser.add_argument("--signature", required=True)
+        upgrade_command_parser.add_argument("--public-key", required=True)
+        upgrade_command_parser.add_argument("--revocation-policy", required=True)
+        upgrade_command_parser.add_argument("--web-port", type=int, default=3000)
+        upgrade_command_parser.add_argument("--minimum-ram-gib", type=int, default=8)
+        upgrade_command_parser.add_argument("--minimum-vram-gib", type=int, default=6)
+        upgrade_command_parser.add_argument("--disk-reserve-gib", type=int, default=10)
+    upgrade_preflight_parser.add_argument("--output")
+    rollback_parser = subparsers.add_parser("rollback")
+    rollback_parser.add_argument("--source-target", required=True)
+    rollback_parser.add_argument("--source-bundle", required=True)
+    rollback_parser.add_argument("--target", required=True)
+    rollback_parser.add_argument("--backup", required=True)
+    rollback_parser.add_argument(
+        "--policy",
+        default="config/delivery/offline-upgrade-policy-v1.json",
+    )
+    accept_upgrade_parser = subparsers.add_parser("upgrade-accept")
+    accept_upgrade_parser.add_argument("--target", required=True)
     uninstall_parser = subparsers.add_parser("uninstall")
     uninstall_parser.add_argument("--target", required=True)
     return parser
@@ -1464,6 +1917,78 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"Restored {result['backup_id']} into {args.target}; "
                 f"migration={result['migration_revision']}, "
                 f"duration seconds={result['duration_seconds']}"
+            )
+            return 0
+        if args.command in {"upgrade-preflight", "upgrade"}:
+            target = Path(args.target)
+            manifest, install_report = preflight(
+                Path(args.bundle),
+                target,
+                web_port=args.web_port,
+                minimum_ram_gib=args.minimum_ram_gib,
+                minimum_vram_gib=args.minimum_vram_gib,
+                disk_reserve_gib=args.disk_reserve_gib,
+                signature_path=Path(args.signature),
+                public_key=Path(args.public_key),
+                revocation_policy=Path(args.revocation_policy),
+                require_signature=True,
+            )
+            if manifest is None or not install_report.passed:
+                output = args.output if args.command == "upgrade-preflight" else None
+                write_report(install_report, output)
+                return 1
+            _, upgrade_report = upgrade_preflight(
+                Path(args.source_target),
+                target,
+                manifest,
+                Path(args.backup),
+                Path(args.policy),
+                disk_reserve_gib=args.disk_reserve_gib,
+            )
+            combined = Report(
+                "offline_upgrade_preflight",
+                install_report.passed and upgrade_report.passed,
+                [*install_report.checks, *upgrade_report.checks],
+            )
+            if args.command == "upgrade-preflight":
+                write_report(combined, args.output)
+                return 0 if combined.passed else 1
+            if not combined.passed:
+                write_report(combined, None)
+                return 1
+            result = perform_upgrade(
+                Path(args.source_target),
+                target,
+                Path(args.bundle),
+                manifest,
+                Path(args.backup),
+                Path(args.policy),
+                disk_reserve_gib=args.disk_reserve_gib,
+            )
+            print(
+                f"Upgraded {result['source_release_id']} to {result['target_release_id']} "
+                f"at {target}; duration seconds={result['duration_seconds']}"
+            )
+            return 0
+        if args.command == "rollback":
+            result = rollback_upgrade(
+                Path(args.source_target),
+                Path(args.target),
+                Path(args.backup),
+                Path(args.policy),
+                Path(args.source_bundle),
+            )
+            print(
+                f"Rolled back {result['pair_id']} to {result['source_release_id']}; "
+                f"migration={result['migration_revision']}, "
+                f"duration seconds={result['duration_seconds']}"
+            )
+            return 0
+        if args.command == "upgrade-accept":
+            result = accept_upgrade(Path(args.target))
+            print(
+                f"Accepted upgrade {result['pair_id']} at {args.target}; "
+                f"rollback is now closed"
             )
             return 0
         uninstall(Path(args.target))

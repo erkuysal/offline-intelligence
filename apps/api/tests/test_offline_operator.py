@@ -70,8 +70,16 @@ def write_spdx(path: Path, subject_name: str) -> None:
     )
 
 
-def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
-    source = tmp_path / "source"
+def build_operator_bundle(
+    tmp_path: Path,
+    *,
+    release_id: str = "offline-operator-test",
+    app_version: str = "0.4.0",
+    directory_name: str = "operator-fixture",
+) -> tuple[Path, dict[str, object]]:
+    work = tmp_path / directory_name
+    work.mkdir()
+    source = work / "source"
     source.mkdir()
     paths = sorted(operator.REQUIRED_PAYLOADS)
     inputs: list[dict[str, object]] = []
@@ -131,7 +139,7 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
                     "artifact_type": "external_container_image",
                     "artifact_id": subject_name,
                     "archive": {
-                        "path": str(file_path.relative_to(tmp_path)),
+                        "path": str(file_path.relative_to(work)),
                         "bundle_path": relative,
                         "sha256": file_digest(file_path),
                         "size_bytes": file_path.stat().st_size,
@@ -141,7 +149,7 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
                     "image_config_sha256": config_digest,
                     "upstream_reference": f"{reference}@{IMAGE_ID}",
                     "sbom": {
-                        "path": str(sbom_path.relative_to(tmp_path)),
+                        "path": str(sbom_path.relative_to(work)),
                         "bundle_path": sbom_bundle_path,
                         "sha256": file_digest(sbom_path),
                         "size_bytes": sbom_path.stat().st_size,
@@ -184,7 +192,7 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
                 "artifact_type": "model",
                 "artifact_id": artifact_id,
                 "payload": {
-                    "path": str(model_path.relative_to(tmp_path)),
+                    "path": str(model_path.relative_to(work)),
                     "bundle_path": item["path"],
                     "sha256": file_digest(model_path),
                     "size_bytes": model_path.stat().st_size,
@@ -193,7 +201,7 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
                 "model_revision": "test-revision",
                 "format": "GGUF",
                 "license_evidence": {
-                    "path": str(license_path.relative_to(tmp_path)),
+                    "path": str(license_path.relative_to(work)),
                     "bundle_path": "licenses/release-license-status.md",
                     "sha256": file_digest(license_path),
                     "size_bytes": license_path.stat().st_size,
@@ -212,7 +220,7 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
             "contains_secrets": False,
         }
     )
-    source_report_path = tmp_path / "source-report.json"
+    source_report_path = work / "source-report.json"
     source_report_path.write_text(
         json.dumps(
             {
@@ -233,14 +241,14 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
         ),
         encoding="utf-8",
     )
-    provenance_spec_path = tmp_path / "provenance-spec.json"
+    provenance_spec_path = work / "provenance-spec.json"
     provenance_spec_path.write_text(
         json.dumps(
             {
                 "schema_version": "1.0",
                 "spec_type": "release_artifact_provenance",
-                "release_id": "offline-operator-test",
-                "app_version": "0.4.0",
+                "release_id": release_id,
+                "app_version": app_version,
                 "target_architecture": "linux-x86_64-cuda13",
                 "source_revision": SOURCE_REVISION,
                 "source_report_path": source_report_path.name,
@@ -252,16 +260,16 @@ def build_operator_bundle(tmp_path: Path) -> tuple[Path, dict[str, object]]:
     spec = BundleSpec.model_validate(
         {
             "schema_version": "1.1",
-            "release_id": "offline-operator-test",
-            "app_version": "0.4.0",
+            "release_id": release_id,
+            "app_version": app_version,
             "target_architecture": "linux-x86_64-cuda13",
             "provenance": {"spec": provenance_spec_path.name},
             "inputs": inputs,
         }
     )
-    spec_path = tmp_path / "spec.json"
+    spec_path = work / "spec.json"
     spec_path.write_text(spec.model_dump_json(), encoding="utf-8")
-    bundle = tmp_path / "bundle"
+    bundle = work / "bundle"
     manifest = build_offline_bundle(spec_path, bundle).model_dump(mode="json")
     return bundle, manifest
 
@@ -630,6 +638,303 @@ def create_fake_backup(
     backup = tmp_path / "backup"
     operator.create_backup(target, backup)
     return bundle, backup, manifest
+
+
+def write_upgrade_policy(
+    path: Path,
+    *,
+    source_release_id: str,
+    target_release_id: str,
+) -> Path:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "policy_type": "offline_upgrade_policy",
+                "policy_id": "test-upgrades-v1",
+                "supported_pairs": [
+                    {
+                        "pair_id": "test_v0_4_0_to_v0_5_0",
+                        "source": {
+                            "release_id": source_release_id,
+                            "app_version": "0.4.0",
+                            "migration_revision": "20260714_0013",
+                        },
+                        "target": {
+                            "release_id": target_release_id,
+                            "app_version": "0.5.0",
+                            "migration_revision": "20260714_0013",
+                        },
+                        "migration_mode": "same_revision",
+                        "rollback_strategy": "blue_green_source_restart",
+                        "rollback_allowed_before_acceptance": True,
+                        "irreversible_migrations": [],
+                        "maximum_backup_age_hours": 24,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def upgrade_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Path, Path, Path, Path, dict[str, object], Path]:
+    source_release_id = "offline-test-0.4.0"
+    target_release_id = "offline-test-0.5.0"
+    source_bundle, source_manifest = build_operator_bundle(
+        tmp_path,
+        release_id=source_release_id,
+        app_version="0.4.0",
+        directory_name="source-release",
+    )
+    target_bundle, target_manifest = build_operator_bundle(
+        tmp_path,
+        release_id=target_release_id,
+        app_version="0.5.0",
+        directory_name="target-release",
+    )
+    source_target = tmp_path / "source-target"
+
+    def fake_run(
+        command: list[str] | tuple[str, ...], *, timeout: int = 120
+    ) -> subprocess.CompletedProcess[str]:
+        del timeout
+        command_list = list(command)
+        if command_list[:3] == ["docker", "image", "inspect"]:
+            return completed(f"{IMAGE_ID}\n")
+        return completed()
+
+    monkeypatch.setattr(operator, "run_command", fake_run)
+    operator.install(source_bundle, source_target, source_manifest, start=False)
+    monkeypatch.setattr(operator, "start_backup_postgres", lambda target, values: None)
+
+    def scalar(target: Path, values: dict[str, str], query: str) -> str:
+        del target, values
+        return "0" if "information_schema.tables" in query else "20260714_0013"
+
+    monkeypatch.setattr(operator, "postgres_scalar", scalar)
+    monkeypatch.setattr(operator, "run_to_file", fake_backup_output)
+    monkeypatch.setattr(
+        operator,
+        "run_from_file",
+        lambda command, source, timeout: subprocess.CompletedProcess([], 0, b"", b""),
+    )
+    monkeypatch.setattr(operator, "wait_for_postgres", lambda target, values: None)
+    backup = tmp_path / "upgrade-backup"
+    operator.create_backup(source_target, backup)
+    policy = write_upgrade_policy(
+        tmp_path / "upgrade-policy.json",
+        source_release_id=source_release_id,
+        target_release_id=target_release_id,
+    )
+    return (
+        source_target,
+        source_bundle,
+        target_bundle,
+        tmp_path / "target",
+        backup,
+        target_manifest,
+        policy,
+    )
+
+
+def test_upgrade_policy_rejects_irreversible_migration_boundary(
+    tmp_path: Path,
+) -> None:
+    policy_path = write_upgrade_policy(
+        tmp_path / "upgrade-policy.json",
+        source_release_id="source",
+        target_release_id="target",
+    )
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    policy["supported_pairs"][0]["target"]["migration_revision"] = "newer"
+    policy["supported_pairs"][0]["irreversible_migrations"] = ["newer"]
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+
+    with pytest.raises(operator.OperatorError, match="unsupported migration boundary"):
+        operator.load_upgrade_policy(policy_path)
+
+
+def test_upgrade_preflight_requires_matching_backup_and_free_space(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, _, _, target, backup, manifest, policy = upgrade_fixture(
+        tmp_path, monkeypatch
+    )
+    monkeypatch.setattr(
+        operator.shutil,
+        "disk_usage",
+        lambda path: SimpleNamespace(free=100 * operator.GIB),
+    )
+
+    pair, report = operator.upgrade_preflight(
+        source,
+        target,
+        manifest,
+        backup,
+        policy,
+        disk_reserve_gib=10,
+    )
+
+    assert pair is not None
+    assert report.passed is True
+    assert {check.name for check in report.checks} == {
+        "source_stopped",
+        "isolated_target",
+        "supported_pair",
+        "pre_upgrade_backup",
+        "backup_freshness",
+        "upgrade_disk",
+        "rollback_boundary",
+    }
+
+    monkeypatch.setattr(
+        operator.shutil,
+        "disk_usage",
+        lambda path: SimpleNamespace(free=1),
+    )
+    _, insufficient_report = operator.upgrade_preflight(
+        source,
+        target,
+        manifest,
+        backup,
+        policy,
+        disk_reserve_gib=10,
+    )
+    assert insufficient_report.passed is False
+    assert (
+        next(
+            check
+            for check in insufficient_report.checks
+            if check.name == "upgrade_disk"
+        ).passed
+        is False
+    )
+
+    backup_manifest_path = backup / operator.BACKUP_MANIFEST_NAME
+    backup_manifest = json.loads(backup_manifest_path.read_text(encoding="utf-8"))
+    backup_manifest["created_at"] = "2020-01-01T00:00:00+00:00"
+    backup_manifest_path.write_text(
+        json.dumps(backup_manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    checksums_path = backup / operator.BACKUP_CHECKSUMS_NAME
+    checksum_lines = checksums_path.read_text(encoding="utf-8").splitlines()
+    checksums_path.write_text(
+        "\n".join(
+            (
+                f"{file_digest(backup_manifest_path)}  {operator.BACKUP_MANIFEST_NAME}"
+                if line.endswith(f"  {operator.BACKUP_MANIFEST_NAME}")
+                else line
+            )
+            for line in checksum_lines
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        operator.shutil,
+        "disk_usage",
+        lambda path: SimpleNamespace(free=100 * operator.GIB),
+    )
+    _, stale_report = operator.upgrade_preflight(
+        source,
+        target,
+        manifest,
+        backup,
+        policy,
+        disk_reserve_gib=10,
+    )
+    assert (
+        next(
+            check for check in stale_report.checks if check.name == "backup_freshness"
+        ).passed
+        is False
+    )
+
+
+def test_blue_green_upgrade_and_rollback_preserve_source_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, source_bundle, bundle, target, backup, manifest, policy = upgrade_fixture(
+        tmp_path, monkeypatch
+    )
+    monkeypatch.setattr(
+        operator.shutil,
+        "disk_usage",
+        lambda path: SimpleNamespace(free=100 * operator.GIB),
+    )
+
+    evidence = operator.perform_upgrade(
+        source,
+        target,
+        bundle,
+        manifest,
+        backup,
+        policy,
+        disk_reserve_gib=10,
+    )
+
+    assert evidence["migration_before"] == "20260714_0013"
+    assert evidence["migration_after"] == "20260714_0013"
+    assert evidence["rollback_eligible"] is True
+    assert (
+        json.loads((source / "release.json").read_text(encoding="utf-8"))["started"]
+        is False
+    )
+    assert (
+        json.loads((target / "release.json").read_text(encoding="utf-8"))["started"]
+        is True
+    )
+
+    rollback = operator.rollback_upgrade(source, target, backup, policy, source_bundle)
+
+    assert rollback["source_release_id"] == "offline-test-0.4.0"
+    assert rollback["migration_revision"] == "20260714_0013"
+    assert (
+        json.loads((source / "release.json").read_text(encoding="utf-8"))["started"]
+        is True
+    )
+    assert (
+        json.loads((target / "release.json").read_text(encoding="utf-8"))["started"]
+        is False
+    )
+
+
+def test_accept_upgrade_closes_rollback_window(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, source_bundle, bundle, target, backup, manifest, policy = upgrade_fixture(
+        tmp_path, monkeypatch
+    )
+    monkeypatch.setattr(
+        operator.shutil,
+        "disk_usage",
+        lambda path: SimpleNamespace(free=100 * operator.GIB),
+    )
+    operator.perform_upgrade(
+        source,
+        target,
+        bundle,
+        manifest,
+        backup,
+        policy,
+        disk_reserve_gib=10,
+    )
+
+    accepted = operator.accept_upgrade(target)
+
+    assert accepted["rollback_eligible"] is False
+    assert accepted["accepted_at"] is not None
+    with pytest.raises(operator.OperatorError, match="no longer rollback eligible"):
+        operator.rollback_upgrade(source, target, backup, policy, source_bundle)
 
 
 def test_backup_is_secret_free_self_verifying_and_detects_corruption(
