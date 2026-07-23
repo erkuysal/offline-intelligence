@@ -48,8 +48,14 @@ COPY --from=native-builder \
     /opt/oih-native/lib/liboih_vector_similarity.so \
     /app/apps/api/app/native/liboih_vector_similarity.so
 
-RUN chmod +x ./scripts/docker/entrypoint.sh
+RUN groupadd --gid 10001 oih \
+    && useradd --uid 10001 --gid oih --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin oih \
+    && mkdir -p /app/storage/documents \
+    && chown -R oih:oih /app/storage \
+    && chmod +x ./scripts/docker/entrypoint.sh
 
 EXPOSE 8000
+
+USER 10001:10001
 
 ENTRYPOINT ["./scripts/docker/entrypoint.sh"]

@@ -16,10 +16,13 @@ ARG OIH_SOURCE_DATE_EPOCH=0
 LABEL org.opencontainers.image.revision="${OIH_SOURCE_REVISION}"
 LABEL org.offline-intelligence-hub.source-date-epoch="${OIH_SOURCE_DATE_EPOCH}"
 
+COPY apps/web/nginx-main.conf /etc/nginx/nginx.conf
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 8080
+
+USER 101:101
 
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
-  CMD wget -q -O /dev/null http://127.0.0.1/web-health || exit 1
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/web-health || exit 1

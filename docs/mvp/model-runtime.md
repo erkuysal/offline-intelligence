@@ -39,6 +39,7 @@ Select the CUDA 13 image profile:
 ```env
 COMPOSE_PROFILES=models-gpu
 MODEL_GPU_LAYERS=99
+MODEL_GPU_COUNT=1
 ```
 
 The host must provide a working NVIDIA driver, Docker GPU access, and enough VRAM for the selected
@@ -48,8 +49,25 @@ quantizations and context sizes. Verify Docker GPU access before starting the ap
 docker run --rm --gpus all nvidia/cuda:13.0.0-base-ubuntu24.04 nvidia-smi
 ```
 
-The GPU services request all visible GPUs and offload up to `MODEL_GPU_LAYERS`. Reduce the layer
-count, context size, or model quantization if startup exhausts VRAM.
+The GPU services reserve `MODEL_GPU_COUNT` devices (one by default) and offload up to
+`MODEL_GPU_LAYERS`. Reduce the device count, layer count, context size, or model quantization if
+startup exhausts VRAM.
+
+## Runtime hardening
+
+Every production service runs with a numeric non-root identity, a read-only root filesystem,
+all Linux capabilities dropped, and `no-new-privileges`. Only PostgreSQL data, Redis data, uploaded
+documents, and service-specific temporary filesystems are writable. Models remain read-only.
+
+The production environment example exposes explicit ceilings for memory, CPU, PIDs, file
+descriptors, retained JSON log files, and GPU count. Size these values for the target host before
+installation; do not remove a ceiling to resolve capacity errors. The embedding server's batch and
+micro-batch defaults match its 2,048-token context so the configured document chunks fit in one
+physical batch.
+
+Application images declare their non-root user internally. The model image is forced to
+`MODEL_RUNTIME_USER` (`65532:65532` by default); a replacement image must keep its binary and model
+mount readable and executable by that identity.
 
 ## Startup
 

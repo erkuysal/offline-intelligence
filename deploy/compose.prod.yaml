@@ -39,12 +39,36 @@ x-api-environment: &api-environment
   LLM_MAX_COMPLETION_TOKENS: ${LLM_MAX_COMPLETION_TOKENS:-2048}
   LLM_MAX_CONCURRENT_REQUESTS: ${LLM_MAX_CONCURRENT_REQUESTS:-1}
 
+x-runtime-hardening: &runtime-hardening
+  read_only: true
+  init: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  ulimits:
+    nofile:
+      soft: ${RUNTIME_NOFILE_SOFT:-4096}
+      hard: ${RUNTIME_NOFILE_HARD:-8192}
+  logging:
+    driver: json-file
+    options:
+      max-size: ${RUNTIME_LOG_MAX_SIZE:-10m}
+      max-file: ${RUNTIME_LOG_MAX_FILES:-3}
+
 x-llm-model-service: &llm-model-service
+  <<: *runtime-hardening
   entrypoint:
     - /bin/sh
     - -ec
+  user: ${MODEL_RUNTIME_USER:-65532:65532}
   volumes:
     - ${MODEL_DIR:-../var/models}:/models:ro
+  tmpfs:
+    - /tmp:mode=1777
+  pids_limit: ${MODEL_PIDS_LIMIT:-256}
+  mem_limit: ${LLM_MEMORY_LIMIT:-8g}
+  cpus: ${MODEL_CPU_LIMIT:-8.0}
   restart: unless-stopped
   networks:
     application:
@@ -52,11 +76,18 @@ x-llm-model-service: &llm-model-service
         - llm
 
 x-embedding-model-service: &embedding-model-service
+  <<: *runtime-hardening
   entrypoint:
     - /bin/sh
     - -ec
+  user: ${MODEL_RUNTIME_USER:-65532:65532}
   volumes:
     - ${MODEL_DIR:-../var/models}:/models:ro
+  tmpfs:
+    - /tmp:mode=1777
+  pids_limit: ${MODEL_PIDS_LIMIT:-256}
+  mem_limit: ${EMBEDDING_MEMORY_LIMIT:-4g}
+  cpus: ${MODEL_CPU_LIMIT:-8.0}
   restart: unless-stopped
   networks:
     application:
@@ -67,22 +98,23 @@ name: offline-intelligence-hub-production
 
 services:
   web:
+    <<: *runtime-hardening
     image: ${WEB_IMAGE:-offline-intelligence-hub-web:0.5.0}
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
     entrypoint:
-      - /bin/sh
-      - -ec
-    command:
-      - |
-        api_ip="$$(getent hosts api | awk 'NR == 1 { print $$1 }')"
-        test -n "$$api_ip"
-        echo "$$api_ip api" >> /etc/hosts
-        printf 'nameserver 127.0.0.1\n' > /etc/resolv.conf
-        exec /docker-entrypoint.sh nginx -g 'daemon off;'
+      - nginx
+      - -g
+      - daemon off;
+    user: "101:101"
+    tmpfs:
+      - /tmp:uid=101,gid=101,mode=0750
+    pids_limit: ${WEB_PIDS_LIMIT:-128}
+    mem_limit: ${WEB_MEMORY_LIMIT:-256m}
+    cpus: ${WEB_CPU_LIMIT:-1.0}
     ports:
-      - "${WEB_PORT:-3000}:80"
+      - "${WEB_PORT:-3000}:8080"
     depends_on:
       api:
         condition: service_healthy
@@ -92,6 +124,7 @@ services:
       - edge
 
   api:
+    <<: *runtime-hardening
     image: ${API_IMAGE:-offline-intelligence-hub-api:0.5.0}
     build:
       context: ..
@@ -99,6 +132,12 @@ services:
     environment: *api-environment
     volumes:
       - api_storage:/app/storage
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=0750
+    user: "10001:10001"
+    pids_limit: ${API_PIDS_LIMIT:-256}
+    mem_limit: ${API_MEMORY_LIMIT:-2g}
+    cpus: ${API_CPU_LIMIT:-2.0}
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,6 +155,7 @@ services:
       - application
 
   ingestion-worker:
+    <<: *runtime-hardening
     image: ${INGESTION_WORKER_IMAGE:-offline-intelligence-hub-ingestion-worker:0.5.0}
     build:
       context: ..
@@ -123,6 +163,12 @@ services:
     environment: *api-environment
     volumes:
       - api_storage:/app/storage
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=0750
+    user: "10001:10001"
+    pids_limit: ${WORKER_PIDS_LIMIT:-256}
+    mem_limit: ${WORKER_MEMORY_LIMIT:-2g}
+    cpus: ${WORKER_CPU_LIMIT:-2.0}
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,7 +191,9 @@ services:
       - application
 
   redis:
+    <<: *runtime-hardening
     image: redis:7-alpine
+    user: "999:1000"
     command:
       - redis-server
       - --appendonly
@@ -154,6 +202,11 @@ services:
       - everysec
     volumes:
       - redis_data:/data
+    tmpfs:
+      - /tmp:uid=999,gid=1000,mode=0750
+    pids_limit: ${REDIS_PIDS_LIMIT:-128}
+    mem_limit: ${REDIS_MEMORY_LIMIT:-1g}
+    cpus: ${REDIS_CPU_LIMIT:-1.0}
     healthcheck:
       test:
         - CMD
@@ -167,13 +220,21 @@ services:
       - application
 
   postgres:
+    <<: *runtime-hardening
     image: pgvector/pgvector:0.8.2-pg16
+    user: "999:999"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-offline_ai}
       POSTGRES_USER: ${POSTGRES_USER:-offline_ai}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in config/env/prod.env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    tmpfs:
+      - /tmp:uid=999,gid=999,mode=1770
+      - /var/run/postgresql:uid=999,gid=999,mode=3770
+    pids_limit: ${POSTGRES_PIDS_LIMIT:-256}
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:-2g}
+    cpus: ${POSTGRES_CPU_LIMIT:-2.0}
     healthcheck:
       test:
         - CMD-SHELL
@@ -227,14 +288,21 @@ services:
           echo "Set MODEL_DIR and EMBEDDING_MODEL_FILE in config/env/prod.env." >&2
           exit 2
         fi
-        exec /app/llama-server --model "$$model" --embedding --alias "${EMBEDDING_MODEL:-local-embedding}" --host 0.0.0.0 --port 8080 --ctx-size "${EMBEDDING_SERVER_CTX_SIZE:-2048}" --threads "${MODEL_CPU_THREADS:-8}" --parallel "${EMBEDDING_SERVER_PARALLEL:-1}"
+        exec /app/llama-server --model "$$model" --embedding --alias "${EMBEDDING_MODEL:-local-embedding}" --host 0.0.0.0 --port 8080 --ctx-size "${EMBEDDING_SERVER_CTX_SIZE:-2048}" --batch-size "${EMBEDDING_SERVER_BATCH_SIZE:-2048}" --ubatch-size "${EMBEDDING_SERVER_UBATCH_SIZE:-2048}" --threads "${MODEL_CPU_THREADS:-8}" --parallel "${EMBEDDING_SERVER_PARALLEL:-1}"
 
   llm-gpu:
     <<: *llm-model-service
     profiles:
       - models-gpu
     image: ${LLAMA_CPP_GPU_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda13-b9445}
-    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${MODEL_GPU_COUNT:-1}
+              capabilities:
+                - gpu
     command:
       - |
         model="/models/${LLM_MODEL_FILE:-chat-model.gguf}"
@@ -264,7 +332,14 @@ services:
     profiles:
       - models-gpu
     image: ${LLAMA_CPP_GPU_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda13-b9445}
-    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${MODEL_GPU_COUNT:-1}
+              capabilities:
+                - gpu
     command:
       - |
         model="/models/${EMBEDDING_MODEL_FILE:-embedding-model.gguf}"
@@ -273,7 +348,7 @@ services:
           echo "Set MODEL_DIR and EMBEDDING_MODEL_FILE in config/env/prod.env." >&2
           exit 2
         fi
-        exec /app/llama-server --model "$$model" --embedding --alias "${EMBEDDING_MODEL:-local-embedding}" --host 0.0.0.0 --port 8080 --ctx-size "${EMBEDDING_SERVER_CTX_SIZE:-2048}" --parallel "${EMBEDDING_SERVER_PARALLEL:-1}" --n-gpu-layers "${MODEL_GPU_LAYERS:-99}" --flash-attn on
+        exec /app/llama-server --model "$$model" --embedding --alias "${EMBEDDING_MODEL:-local-embedding}" --host 0.0.0.0 --port 8080 --ctx-size "${EMBEDDING_SERVER_CTX_SIZE:-2048}" --batch-size "${EMBEDDING_SERVER_BATCH_SIZE:-2048}" --ubatch-size "${EMBEDDING_SERVER_UBATCH_SIZE:-2048}" --parallel "${EMBEDDING_SERVER_PARALLEL:-1}" --n-gpu-layers "${MODEL_GPU_LAYERS:-99}" --flash-attn on
 
 networks:
   application:

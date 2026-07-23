@@ -59,14 +59,19 @@ keep the trust root outside the transfer bundle. No LLM servers are required.
 
 ## Work Package 9.3: Runtime Container Hardening
 
-- [ ] Run API, worker, web, Redis, PostgreSQL, and model services as non-root where compatible
-- [ ] Add read-only root filesystems and explicit writable mounts where practical
-- [ ] Drop unused Linux capabilities and enforce `no-new-privileges`
-- [ ] Bound PID, memory, CPU, GPU, file-descriptor, and log growth
-- [ ] Verify health checks, backups, migrations, model loading, and uploads under the hardened policy
+- [x] Run API, worker, web, Redis, PostgreSQL, and model services as non-root where compatible
+- [x] Add read-only root filesystems and explicit writable mounts where practical
+- [x] Drop unused Linux capabilities and enforce `no-new-privileges`
+- [x] Bound PID, memory, CPU, GPU, file-descriptor, and log growth
+- [x] Verify health checks, backups, migrations, model loading, and uploads under the hardened policy
 
 Model-server validation is required after policy changes; the operator must be informed before
 those services start.
+
+The accepted hardened runtime used an isolated clean production stack, validated both real GPU
+model servers after advance notice, and removed all validation containers and volumes afterward.
+The full evidence record is
+[`docs/acceptance/phase-9-runtime-container-hardening.md`](../acceptance/phase-9-runtime-container-hardening.md).
 
 ## Work Package 9.4: Automated Release Gates
 
