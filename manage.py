@@ -925,6 +925,36 @@ def offline_bundle_verify(args: argparse.Namespace) -> int:
     return 0 if report.passed else 1
 
 
+def release_gate_verify(args: argparse.Namespace) -> int:
+    sys.dont_write_bytecode = True
+    from delivery.release_gates import (
+        ReleaseGateError,
+        build_release_decision,
+        load_release_gate_spec,
+        write_release_decision,
+    )
+
+    try:
+        spec = load_release_gate_spec(Path(args.spec))
+        decision = build_release_decision(
+            spec,
+            source_root=Path(args.source),
+            report_dir=Path(args.report_dir),
+            log_path=Path(args.log),
+        )
+        write_release_decision(decision, Path(args.output))
+    except (OSError, ReleaseGateError, ValueError) as exc:
+        print(f"Automated release gates failed to run: {exc}", file=sys.stderr)
+        return 2
+
+    print(f"Automated release decision: {decision.decision.upper()}")
+    for gate in decision.gates:
+        print(f"- {gate.gate_id}: {gate.status}")
+    print(f"JSON report: {Path(args.output).resolve()}")
+    print(f"Metadata log: {Path(args.log).resolve()}")
+    return 0 if decision.decision == "pass" else 1
+
+
 def retrieval_cleanup(_args: argparse.Namespace) -> int:
     configure_import_path()
     load_root_env()
@@ -1628,6 +1658,17 @@ def build_parser() -> argparse.ArgumentParser:
     offline_bundle_verify_parser.add_argument("--bundle", required=True)
     offline_bundle_verify_parser.add_argument("--output")
     offline_bundle_verify_parser.set_defaults(func=offline_bundle_verify)
+
+    release_gate_parser = subparsers.add_parser(
+        "release-gate-verify",
+        help="run every mandatory release gate and emit one fail-closed decision",
+    )
+    release_gate_parser.add_argument("--spec", required=True)
+    release_gate_parser.add_argument("--source", default=".")
+    release_gate_parser.add_argument("--report-dir", required=True)
+    release_gate_parser.add_argument("--log", required=True)
+    release_gate_parser.add_argument("--output", required=True)
+    release_gate_parser.set_defaults(func=release_gate_verify)
 
     training_preflight_parser = subparsers.add_parser(
         "training-preflight",

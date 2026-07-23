@@ -1,0 +1,152 @@
+{
+  "schema_version": "1.0",
+  "spec_type": "offline_release_gate_spec",
+  "release_id": "offline-intelligence-hub-0.6.0-linux-x86_64",
+  "expected_revision": "0000000000000000000000000000000000000000",
+  "source_policy": "config/supply-chain/release-source-v1.json",
+  "gates": [
+    {
+      "gate_id": "backend_tests",
+      "commands": [
+        {
+          "argv": ["docker", "compose", "--project-name", "oih-release-gates", "-f", "deploy/compose.yaml", "up", "-d", "--wait", "postgres", "redis"],
+          "timeout_seconds": 180
+        },
+        {
+          "argv": ["{python}", "manage.py", "test"],
+          "timeout_seconds": 1200
+        },
+        {
+          "argv": ["{python}", "manage.py", "lint"],
+          "timeout_seconds": 300
+        },
+        {
+          "argv": ["{python}", "manage.py", "typecheck"],
+          "timeout_seconds": 300
+        }
+      ],
+      "cleanup_commands": [
+        {
+          "argv": ["docker", "compose", "--project-name", "oih-release-gates", "-f", "deploy/compose.yaml", "down", "--volumes", "--remove-orphans"],
+          "timeout_seconds": 180
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "gate_id": "frontend_tests",
+      "commands": [
+        {
+          "argv": ["npm", "ci"],
+          "cwd": "apps/web",
+          "timeout_seconds": 1200
+        },
+        {
+          "argv": ["npm", "run", "test:unit"],
+          "cwd": "apps/web",
+          "timeout_seconds": 600
+        },
+        {
+          "argv": ["npm", "run", "typecheck"],
+          "cwd": "apps/web",
+          "timeout_seconds": 600
+        },
+        {
+          "argv": ["npm", "run", "build"],
+          "cwd": "apps/web",
+          "timeout_seconds": 600
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "gate_id": "native_tests",
+      "commands": [
+        {
+          "argv": ["cmake", "-S", "native/vector_similarity", "-B", "{report_dir}/native-build", "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_TESTING=ON"],
+          "timeout_seconds": 300
+        },
+        {
+          "argv": ["cmake", "--build", "{report_dir}/native-build", "--parallel"],
+          "timeout_seconds": 600
+        },
+        {
+          "argv": ["ctest", "--test-dir", "{report_dir}/native-build", "--output-on-failure"],
+          "timeout_seconds": 300
+        }
+      ],
+      "evidence": []
+    },
+    {
+      "gate_id": "bundle",
+      "commands": [
+        {
+          "argv": ["{python}", "manage.py", "offline-bundle-verify", "--bundle", "{source_root}/var/release-candidate/bundle", "--output", "{report_dir}/bundle-verification.json"],
+          "timeout_seconds": 1200
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "bundle_verification",
+          "path": "{report_dir}/bundle-verification.json",
+          "fresh": true
+        }
+      ]
+    },
+    {
+      "gate_id": "sbom",
+      "commands": [
+        {
+          "argv": ["{python}", "manage.py", "release-provenance-verify", "--spec", "{source_root}/var/release-candidate/bundle/provenance/spec.json", "--output", "{report_dir}/provenance-verification.json"],
+          "timeout_seconds": 1200
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "provenance_verification",
+          "path": "{report_dir}/provenance-verification.json",
+          "fresh": true
+        }
+      ]
+    },
+    {
+      "gate_id": "signature",
+      "commands": [
+        {
+          "argv": ["{python}", "manage.py", "offline-bundle-signature-verify", "--bundle", "{source_root}/var/release-candidate/bundle", "--signature", "{source_root}/var/release-candidate/release.signature.json", "--public-key", "{source_root}/var/release-candidate/release-public.pem"],
+          "timeout_seconds": 300
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "detached_signature",
+          "path": "{source_root}/var/release-candidate/release.signature.json",
+          "fresh": false
+        },
+        {
+          "evidence_id": "external_public_key",
+          "path": "{source_root}/var/release-candidate/release-public.pem",
+          "fresh": false
+        }
+      ]
+    },
+    {
+      "gate_id": "container_policy",
+      "commands": [
+        {
+          "argv": ["env", "ENVIRONMENT=testing", "DATABASE_URL=postgresql+psycopg://offline_ai:offline_ai@127.0.0.1:5432/offline_ai_test", "{python}", "-m", "pytest", "apps/api/tests/test_production_compose_hardening.py", "-q"],
+          "timeout_seconds": 300
+        },
+        {
+          "argv": ["env", "COMPOSE_PROFILES=models-cpu,models-gpu", "docker", "compose", "--env-file", "config/env/prod.example.env", "-f", "deploy/compose.prod.yaml", "config", "--quiet"],
+          "timeout_seconds": 120
+        },
+        {
+          "argv": ["{python}", "manage.py", "release-trust-policy-verify"],
+          "timeout_seconds": 120
+        }
+      ],
+      "evidence": []
+    }
+  ]
+}

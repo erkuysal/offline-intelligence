@@ -75,14 +75,19 @@ The full evidence record is
 
 ## Work Package 9.4: Automated Release Gates
 
-- [ ] Build release inputs from a clean checkout with no unlisted cache dependency
-- [ ] Automate backend, frontend, native, bundle, SBOM, signature, and policy validation
-- [ ] Emit one machine-readable release decision containing every required gate
-- [ ] Preserve logs and reports without tokens, passwords, document text, or private prompts
-- [ ] Fail closed on missing evidence or skipped mandatory gates
+- [x] Build release inputs from a clean checkout with no unlisted cache dependency
+- [x] Automate backend, frontend, native, bundle, SBOM, signature, and policy validation
+- [x] Emit one machine-readable release decision containing every required gate
+- [x] Preserve logs and reports without tokens, passwords, document text, or private prompts
+- [x] Fail closed on missing evidence or skipped mandatory gates
 
 Deterministic gates use fake model backends. Final promotion acceptance starts both real model
 servers and requires advance notice.
+
+The accepted runner enforces all eight gates in order, binds bundle/provenance/signature identity
+to the exact source revision, records output digests instead of child output, and runs cleanup after
+failure. See
+[`docs/acceptance/phase-9-automated-release-gates.md`](../acceptance/phase-9-automated-release-gates.md).
 
 ## Work Package 9.5: Upgrade and Rollback
 
